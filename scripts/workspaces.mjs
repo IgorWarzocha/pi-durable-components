@@ -1,12 +1,15 @@
 import { spawn } from "node:child_process";
-import { readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const command = process.argv[2];
-if (!["test", "build", "pack:dry"].includes(command))
-	throw new Error("Expected test, build or pack:dry");
+if (!["test", "build", "pack", "pack:dry"].includes(command))
+	throw new Error("Expected test, build, pack or pack:dry");
+const destination = command === "pack" ? process.argv[3] : undefined;
+if (command === "pack" && !destination)
+	throw new Error("pack requires an output directory");
 
 async function filesBelow(directory, matches) {
 	const found = [];
@@ -19,8 +22,8 @@ async function filesBelow(directory, matches) {
 	return found;
 }
 
-async function run(args) {
-	const child = spawn(process.execPath, args, { cwd: root, stdio: "inherit" });
+async function run(args, executable = process.execPath) {
+	const child = spawn(executable, args, { cwd: root, stdio: "inherit" });
 	await new Promise((done, fail) => {
 		child.once("error", fail);
 		child.once("exit", (code, signal) => {
@@ -46,6 +49,18 @@ for (const entry of await readdir(join(root, "packages"), {
 	const manifest = JSON.parse(source);
 	workspaces.set(manifest.name, { directory, manifest });
 }
+if (workspaces.size === 0) throw new Error("No component packages found");
+for (const { manifest } of workspaces.values()) {
+	for (const dependency of Object.keys({
+		...manifest.dependencies,
+		...manifest.peerDependencies,
+	})) {
+		if (workspaces.has(dependency))
+			throw new Error(
+				`${manifest.name} must not require another component: ${dependency}`,
+			);
+	}
+}
 
 if (command === "test") {
 	const tests = await filesBelow(join(root, "packages"), (name) =>
@@ -63,66 +78,55 @@ if (command === "test") {
 	if (tests.length === 0) throw new Error("No contract tests found");
 	await run(["--experimental-strip-types", "--test", ...tests.sort()]);
 } else if (command === "build") {
-	const built = new Set();
-	const visiting = new Set();
-	async function build(name) {
-		if (built.has(name)) return;
-		if (visiting.has(name))
-			throw new Error(`Workspace dependency cycle at ${name}`);
-		const workspace = workspaces.get(name);
-		visiting.add(name);
-		const dependencies = {
-			...workspace.manifest.dependencies,
-			...workspace.manifest.peerDependencies,
-		};
-		for (const dependency of Object.keys(dependencies)) {
-			if (workspaces.has(dependency)) await build(dependency);
-		}
-		await rm(join(workspace.directory, "dist"), {
+	for (const { directory, manifest } of workspaces.values()) {
+		await rm(join(directory, "dist"), {
 			recursive: true,
 			force: true,
 		});
 		await run([
 			join(root, "node_modules/typescript/bin/tsc"),
 			"-p",
-			join(workspace.directory, "tsconfig.json"),
+			join(directory, "tsconfig.json"),
 		]);
-		if (name === "@howaboua/pi-durable-browser") {
-			const child = spawn(
-				"bun",
+		// Bundle only owned source. The host must supply one shared Durable runtime.
+		await run(
+			[
+				"build",
+				join(directory, "src/index.ts"),
+				"--target=node",
+				"--format=esm",
+				"--packages=external",
+				`--outfile=${join(directory, manifest.main)}`,
+			],
+			"bun",
+		);
+		if (manifest.name === "@howaboua/pi-durable-browser") {
+			await run(
 				[
 					"build",
-					join(workspace.directory, "src/remote-worker.ts"),
+					join(directory, "src/remote-worker.ts"),
 					"--target=node",
 					"--format=esm",
-					`--outfile=${join(workspace.directory, "dist/remote-worker.js")}`,
+					`--outfile=${join(directory, "dist/remote-worker.js")}`,
 					"--banner=// @howaboua/pi-durable-browser managed worker",
 				],
-				{ cwd: root, stdio: "inherit" },
+				"bun",
 			);
-			await new Promise((done, fail) => {
-				child.once("error", fail);
-				child.once("exit", (code, signal) =>
-					code === 0
-						? done()
-						: fail(
-								new Error(
-									`Browser worker bundle exited with ${signal ?? code}`,
-								),
-							),
-				);
-			});
 		}
-		visiting.delete(name);
-		built.add(name);
 	}
-	if (workspaces.size === 0) throw new Error("No component packages found");
-	for (const name of workspaces.keys()) await build(name);
 } else {
+	if (destination) await mkdir(resolve(root, destination), { recursive: true });
 	for (const { directory, manifest } of workspaces.values()) {
 		const child = spawn(
 			"npm",
-			["pack", "--dry-run", "--json", "--ignore-scripts"],
+			[
+				"pack",
+				"--json",
+				"--ignore-scripts",
+				...(destination
+					? ["--pack-destination", resolve(root, destination)]
+					: ["--dry-run"]),
+			],
 			{
 				cwd: directory,
 				stdio: ["ignore", "pipe", "inherit"],
@@ -164,6 +168,30 @@ if (command === "test") {
 				`${manifest.name} tarball includes development or runtime state`,
 			);
 		}
+		const expectedJavaScript = new Set([manifest.main.replace(/^\.\//, "")]);
+		if (manifest.name === "@howaboua/pi-durable-browser") {
+			expectedJavaScript.add("dist/remote-worker.js");
+			const worker = await readFile(
+				join(directory, "dist/remote-worker.js"),
+				"utf8",
+			);
+			if (
+				!worker
+					.slice(0, 512)
+					.includes("// @howaboua/pi-durable-browser managed worker")
+			)
+				throw new Error(
+					"Browser worker is missing its deployment ownership marker",
+				);
+		}
+		const actualJavaScript = [...paths].filter((path) => path.endsWith(".js"));
+		if (
+			actualJavaScript.length !== expectedJavaScript.size ||
+			actualJavaScript.some((path) => !expectedJavaScript.has(path))
+		)
+			throw new Error(
+				`${manifest.name} must ship self-contained JavaScript entry points`,
+			);
 		await import(join(directory, manifest.main));
 		console.log(
 			`${manifest.name}: ${pack.files.length} packed files, public entry imports successfully`,

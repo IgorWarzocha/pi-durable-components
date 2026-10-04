@@ -6,6 +6,10 @@ The host supplies named profiles as Durable `AgentChange` presets. This package 
 
 ## Install in a host
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.1.0/howaboua-pi-durable-agents-0.1.0.tgz
+```
+
 Use Durable 1.0.2 and a persistent storage backend for restart recovery. Create a fresh component for each Harness. Install the extension before opening the Harness, then bind it before enabling scheduling.
 
 ```ts

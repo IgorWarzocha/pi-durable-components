@@ -29,6 +29,7 @@
         "@earendil-works/chord": "1.0.2",
         "@earendil-works/pi-ai": "1.0.2",
         "@earendil-works/pi-durable": "1.0.2",
+        "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
     "packages/apply-patch": {
@@ -38,6 +39,7 @@
         "@earendil-works/chord": "1.0.2",
         "@earendil-works/pi-ai": "1.0.2",
         "@earendil-works/pi-durable": "1.0.2",
+        "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
     "packages/browser": {
@@ -47,6 +49,7 @@
         "@earendil-works/chord": "1.0.2",
         "@earendil-works/pi-ai": "1.0.2",
         "@earendil-works/pi-durable": "1.0.2",
+        "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
     "packages/code": {
@@ -63,6 +66,7 @@
         "@earendil-works/chord": "1.0.2",
         "@earendil-works/pi-ai": "1.0.2",
         "@earendil-works/pi-durable": "1.0.2",
+        "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
     "packages/imagegen": {
@@ -77,6 +81,7 @@
         "@earendil-works/chord": "1.0.2",
         "@earendil-works/pi-ai": "1.0.2",
         "@earendil-works/pi-durable": "1.0.2",
+        "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
     "packages/notebook": {
@@ -93,6 +98,7 @@
         "@earendil-works/chord": "1.0.2",
         "@earendil-works/pi-ai": "1.0.2",
         "@earendil-works/pi-durable": "1.0.2",
+        "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
     "packages/skills": {
@@ -107,6 +113,7 @@
         "@earendil-works/chord": "1.0.2",
         "@earendil-works/pi-ai": "1.0.2",
         "@earendil-works/pi-durable": "1.0.2",
+        "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
     "packages/view-image": {
@@ -121,6 +128,7 @@
         "@earendil-works/chord": "1.0.2",
         "@earendil-works/pi-ai": "1.0.2",
         "@earendil-works/pi-durable": "1.0.2",
+        "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
     "packages/web": {
@@ -135,6 +143,7 @@
         "@earendil-works/chord": "1.0.2",
         "@earendil-works/pi-ai": "1.0.2",
         "@earendil-works/pi-durable": "1.0.2",
+        "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
   },

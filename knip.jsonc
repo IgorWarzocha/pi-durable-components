@@ -1,9 +1,11 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
+	// pi-ai's public Google declarations require this optional peer for strict consumer typechecking.
+	"ignoreDependencies": ["@modelcontextprotocol/sdk"],
 	"workspaces": {
 		".": {
-			// Published Google/gaxios declarations reference these undeclared peers.
-			"ignoreDependencies": ["@modelcontextprotocol/sdk", "undici-types"],
+			// Published gaxios declarations reference this undeclared peer.
+			"ignoreDependencies": ["undici-types"],
 			"entry": [
 				"scripts/*.mjs",
 				"test/**/*.test.ts",
@@ -14,7 +16,7 @@
 				"test/**/*.ts",
 				"packages/execution/src/**/*.ts",
 				"packages/execution/test/**/*.ts",
-				"packages/codex/src/**/*.ts"
+				"internal/codex/**/*.ts"
 			]
 		},
 		"packages/*": {
@@ -40,7 +42,7 @@
 		"packages/web": {
 			"entry": [],
 			"project": ["src/**/*.ts"],
-			// codex/src is internal source compiled into this public package.
+			// internal/codex is private source bundled into this public package.
 			"ignoreDependencies": ["proxy-from-env", "undici"]
 		},
 		"packages/imagegen": {

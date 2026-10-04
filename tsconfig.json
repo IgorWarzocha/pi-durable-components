@@ -30,6 +30,6 @@
 		"allowImportingTsExtensions": true,
 		"noEmit": true
 	},
-	"include": ["packages/**/*.ts", "test/**/*.ts"],
+	"include": ["packages/**/*.ts", "internal/**/*.ts", "test/**/*.ts"],
 	"exclude": ["**/node_modules", "**/dist"]
 }

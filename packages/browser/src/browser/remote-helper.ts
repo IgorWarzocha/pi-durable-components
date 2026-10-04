@@ -52,7 +52,7 @@ function shellQuote(value: string): string {
 
 async function readHelperSource(): Promise<string> {
 	const candidates = [
-		fileURLToPath(new URL("../remote-worker.js", import.meta.url)),
+		fileURLToPath(new URL("./remote-worker.js", import.meta.url)),
 		fileURLToPath(new URL("../../dist/remote-worker.js", import.meta.url)),
 	];
 	let lastError: unknown;

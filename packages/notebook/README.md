@@ -4,7 +4,11 @@ Run TypeScript in a persistent Deno kernel. Globals and imports survive between 
 
 Requires Node 22.19 or newer and Durable 1.0.2.
 
-Not yet published to npm. [Build and install from source](../../README.md#build-and-install).
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.1.0/howaboua-pi-durable-notebook-0.1.0.tgz
+```
+
+The shell's native PTY addon requires Python, Make and a C++ compiler on Linux. If install scripts are disabled, run `npm rebuild node-pty` before using interactive shells. Pipe-based commands do not require the addon.
 
 Install the extension before opening your harness. Bind native execution explicitly to the same filesystem namespace as the conversation.
 

@@ -4,9 +4,9 @@ The accepted reference is `IgorWarzocha/howaboua-pi-stuff` at `b2006db9def12c373
 
 ## Source adaptation
 
-`packages/codex/src/http.ts`, `cloudflare-cookies.ts`, `headers.ts` and `urls.ts` carry the proven TypeScript transport from the web reference. Product schemas and request builders were lifted from each reference. Image binary format validation and chronological recent-image selection were also carried across. Imports use local `.ts` paths. Pi integration, TUI rendering, event-bus discovery, session projection and per-tool Code Mode adapters are not shipped.
+`internal/codex/http.ts`, `cloudflare-cookies.ts`, `headers.ts` and `urls.ts` carry the proven TypeScript transport from the web reference. Product schemas and request builders were lifted from each reference. Image binary format validation and chronological recent-image selection were also carried across. Imports use local `.ts` paths. Pi integration, TUI rendering, event-bus discovery, session projection and per-tool Code Mode adapters are not shipped.
 
-The internal codex source compiles into each public product. It is not a standalone runtime product. Both products retain the original MIT notice and the Apache 2.0 snapshot license in their NOTICE files.
+The private Codex transport is bundled into each product's JavaScript entry point. Neither product requires a shared Codex package or another component at installation or runtime. Both products retain the original MIT notice and the Apache 2.0 snapshot license in their NOTICE files.
 
 ## Preserved contracts
 

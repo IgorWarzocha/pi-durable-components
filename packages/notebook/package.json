@@ -8,12 +8,12 @@
 	"engines": {
 		"node": ">=22.19.0"
 	},
-	"main": "./dist/notebook/src/index.js",
+	"main": "./dist/index.js",
 	"types": "./dist/notebook/src/index.d.ts",
 	"exports": {
 		".": {
 			"types": "./dist/notebook/src/index.d.ts",
-			"import": "./dist/notebook/src/index.js"
+			"import": "./dist/index.js"
 		}
 	},
 	"files": [
@@ -33,7 +33,8 @@
 	"peerDependencies": {
 		"@earendil-works/chord": "1.0.2",
 		"@earendil-works/pi-ai": "1.0.2",
-		"@earendil-works/pi-durable": "1.0.2"
+		"@earendil-works/pi-durable": "1.0.2",
+		"@modelcontextprotocol/sdk": "1.25.2"
 	},
 	"publishConfig": {
 		"access": "public"

@@ -20,6 +20,7 @@
 		"test": "node scripts/workspaces.mjs test",
 		"build": "node scripts/workspaces.mjs build",
 		"pack:dry": "node scripts/workspaces.mjs pack:dry",
+		"pack": "node scripts/workspaces.mjs pack dist",
 		"check": "bun run lint && bun run typecheck && bun run knip && bun run test && bun run build && bun run pack:dry"
 	},
 	"devDependencies": {

@@ -6,7 +6,9 @@ Requires Node 22.19 or newer and a browser with remote debugging enabled. The ho
 
 ## Install and register
 
-Not yet published to npm. [Build and install from source](../../README.md#build-and-install).
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.1.0/howaboua-pi-durable-browser-0.1.0.tgz
+```
 
 Use the package with Pi Durable, pi-ai and Chord 1.0.2:
 

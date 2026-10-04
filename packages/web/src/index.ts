@@ -3,7 +3,7 @@ import {
 	defineTool,
 	section,
 } from "@earendil-works/pi-durable";
-import { jsonValue } from "../../codex/src/json.ts";
+import { jsonValue } from "../../../internal/codex/json.ts";
 import {
 	WEB_SEARCH_MAX_RESPONSE_BYTES,
 	WEB_SEARCH_PARAMETERS,
@@ -11,11 +11,11 @@ import {
 } from "./contract.ts";
 import { executeCodexWebSearch, type WebSearchToolOptions } from "./execute.ts";
 
-export { normalizeCodexToolRouteConfig } from "../../codex/src/config.ts";
+export { normalizeCodexToolRouteConfig } from "../../../internal/codex/config.ts";
 export type {
 	CodexRuntimeOptions,
 	CodexToolProvider,
-} from "../../codex/src/types.ts";
+} from "../../../internal/codex/types.ts";
 export { WEB_SEARCH_PARAMETERS } from "./contract.ts";
 export type { WebSearchToolOptions } from "./execute.ts";
 

@@ -1,14 +1,17 @@
 import type { Context } from "@earendil-works/chord";
 import type { ToolExecutionApi } from "@earendil-works/pi-durable";
-import { resolveCodexToolModel } from "../../codex/src/config.ts";
-import { callingModel, providerSessionId } from "../../codex/src/durable.ts";
-import { codexToolProviderHeaders } from "../../codex/src/headers.ts";
-import { fetchCodexTool } from "../../codex/src/http.ts";
+import { resolveCodexToolModel } from "../../../internal/codex/config.ts";
+import {
+	callingModel,
+	providerSessionId,
+} from "../../../internal/codex/durable.ts";
+import { codexToolProviderHeaders } from "../../../internal/codex/headers.ts";
+import { fetchCodexTool } from "../../../internal/codex/http.ts";
 import {
 	resolveCodexToolProvider,
 	supportsExecutableCodexTool,
-} from "../../codex/src/resolve.ts";
-import type { CodexRuntimeOptions } from "../../codex/src/types.ts";
+} from "../../../internal/codex/resolve.ts";
+import type { CodexRuntimeOptions } from "../../../internal/codex/types.ts";
 import {
 	DEFAULT_WEB_SEARCH_MODEL,
 	WEB_SEARCH_MAX_RESPONSE_BYTES,

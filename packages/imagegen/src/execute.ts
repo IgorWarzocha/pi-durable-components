@@ -4,16 +4,16 @@ import type {
 	ConversationId,
 	ToolExecutionApi,
 } from "@earendil-works/pi-durable";
-import { resolveCodexToolModel } from "../../codex/src/config.ts";
-import { callingModel } from "../../codex/src/durable.ts";
-import { codexToolProviderHeaders } from "../../codex/src/headers.ts";
-import { fetchCodexTool } from "../../codex/src/http.ts";
-import { jsonValue } from "../../codex/src/json.ts";
+import { resolveCodexToolModel } from "../../../internal/codex/config.ts";
+import { callingModel } from "../../../internal/codex/durable.ts";
+import { codexToolProviderHeaders } from "../../../internal/codex/headers.ts";
+import { fetchCodexTool } from "../../../internal/codex/http.ts";
+import { jsonValue } from "../../../internal/codex/json.ts";
 import {
 	resolveCodexToolProvider,
 	supportsExecutableCodexTool,
-} from "../../codex/src/resolve.ts";
-import type { CodexRuntimeOptions } from "../../codex/src/types.ts";
+} from "../../../internal/codex/resolve.ts";
+import type { CodexRuntimeOptions } from "../../../internal/codex/types.ts";
 import { saveGeneratedImages } from "./artifacts.ts";
 import {
 	IMAGE_GENERATION_UNSUPPORTED_MESSAGE,

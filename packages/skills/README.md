@@ -6,6 +6,10 @@ Requires Node 22.19 or newer and `@earendil-works/pi-durable`, `@earendil-works/
 
 ## Register
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.1.0/howaboua-pi-durable-skills-0.1.0.tgz
+```
+
 ```ts
 import { createRegistry } from "@earendil-works/pi-durable";
 import { skills } from "@howaboua/pi-durable-skills";

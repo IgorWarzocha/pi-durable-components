@@ -1,5 +1,5 @@
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
-import { jsonValue } from "../../codex/src/json.ts";
+import { jsonValue } from "../../../internal/codex/json.ts";
 import {
 	IMAGE_GENERATION_PARAMETERS,
 	IMAGE_GENERATION_TOOL_NAME,
@@ -10,11 +10,11 @@ import {
 } from "./execute.ts";
 import { formatImagegenOutput } from "./output.ts";
 
-export { normalizeCodexToolRouteConfig } from "../../codex/src/config.ts";
+export { normalizeCodexToolRouteConfig } from "../../../internal/codex/config.ts";
 export type {
 	CodexRuntimeOptions,
 	CodexToolProvider,
-} from "../../codex/src/types.ts";
+} from "../../../internal/codex/types.ts";
 export { IMAGE_GENERATION_PARAMETERS } from "./contract.ts";
 export type { ImageGenerationToolOptions } from "./execute.ts";
 export type { ImagegenOutput } from "./output.ts";

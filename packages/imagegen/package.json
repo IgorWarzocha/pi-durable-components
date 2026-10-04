@@ -8,12 +8,12 @@
 	"engines": {
 		"node": ">=22.19.0"
 	},
-	"main": "./dist/imagegen/src/index.js",
-	"types": "./dist/imagegen/src/index.d.ts",
+	"main": "./dist/index.js",
+	"types": "./dist/packages/imagegen/src/index.d.ts",
 	"exports": {
 		".": {
-			"types": "./dist/imagegen/src/index.d.ts",
-			"import": "./dist/imagegen/src/index.js"
+			"types": "./dist/packages/imagegen/src/index.d.ts",
+			"import": "./dist/index.js"
 		}
 	},
 	"files": [
@@ -31,7 +31,8 @@
 	"peerDependencies": {
 		"@earendil-works/chord": "1.0.2",
 		"@earendil-works/pi-ai": "1.0.2",
-		"@earendil-works/pi-durable": "1.0.2"
+		"@earendil-works/pi-durable": "1.0.2",
+		"@modelcontextprotocol/sdk": "1.25.2"
 	},
 	"publishConfig": {
 		"access": "public"
