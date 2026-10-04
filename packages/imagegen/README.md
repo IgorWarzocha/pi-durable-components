@@ -2,9 +2,7 @@
 
 Generate images or edit local and recent conversation images with `imagegen`. Requires Node.js and Pi Durable, pi-ai and Chord 1.0.2, an authenticated Codex-compatible image backend and a conversation ExecutionEnv.
 
-```sh
-npm install @howaboua/pi-durable-imagegen
-```
+Not yet published to npm. [Build and install from source](../../README.md#build-and-install).
 
 Install the bundle with your authenticated pi-ai Models collection. Provide a conversation reader if recent-image edits should be available:
 

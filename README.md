@@ -1,68 +1,72 @@
 # Pi Durable Components
 
-Tools and execution runtimes for `@earendil-works/pi-durable`, ported from [Howaboua Pi Stuff](https://github.com/IgorWarzocha/howaboua-pi-stuff). Components use ordinary Durable registrations. Code and Notebook automatically discover selected tools, including third-party registrations.
+File tools, web access, browser control and agent delegation for [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable), ported from [Howaboua Pi Stuff](https://github.com/IgorWarzocha/howaboua-pi-stuff).
 
-| Package | Use |
+Use the tools directly, or call them from JavaScript with Code Mode or TypeScript with Notebook Mode. Both modes expose the tools selected for the conversation through `tools`, including tools from other Durable extensions.
+
+These are libraries for a Durable host, not extensions for the Pi coding-agent CLI.
+
+| Package | What it does |
 |---|---|
-| [apply-patch](packages/apply-patch) | Codex-style file patches, implemented in TypeScript |
-| [view-image](packages/view-image) | Original image bytes and optional vision-model descriptions |
-| [skills](packages/skills) | Skill discovery and progressive reading |
-| [web](packages/web) | Codex web search and navigation |
-| [imagegen](packages/imagegen) | Image generation, editing and workspace artifacts |
-| [browser](packages/browser) | Authenticated Chrome control through CDP |
-| [agents](packages/agents) | Durable worker conversations, delegation and watches |
-| [code](packages/code) | Isolated V8 execution with ordinary tools and shell sessions |
-| [notebook](packages/notebook) | Persistent Deno TypeScript, checkpoints, profiles and shell sessions |
+| [apply-patch](packages/apply-patch) | Add, edit, move and delete files with Codex-format patches |
+| [view-image](packages/view-image) | View local images or describe them for text-only models |
+| [skills](packages/skills) | Find skills and read their instructions and references |
+| [web](packages/web) | Search the web and follow result references through Codex |
+| [imagegen](packages/imagegen) | Generate and edit images, saving results in the workspace |
+| [browser](packages/browser) | Control Chrome through CDP using its existing login session |
+| [agents](packages/agents) | Delegate to worker conversations and receive their results |
+| [code](packages/code) | Run isolated JavaScript that calls tools |
+| [notebook](packages/notebook) | Run persistent TypeScript with imports, checkpoints and profiles |
 
-Public package names start with `@howaboua/pi-durable-`. Code and Notebook are separate products. Install either or both, but select only one execution mode per conversation at a time. Both include `exec_command` and `write_stdin`. There is no standalone shell package.
+Package names use the prefix `@howaboua/pi-durable-`. Code and Notebook each include `exec_command` and `write_stdin`. Select only one execution mode per conversation at a time.
 
-## Build and use
+## Build and install
 
-Requires Node 22.19 or newer, Bun 1.4.2, and Durable, pi-ai and Chord 1.0.2. This repository builds local package artifacts. It does not install extensions into your existing Pi setup.
+The packages are not published to npm yet. Build them from this repository.
+
+Requires Node 22.19 or newer and Bun 1.4.2. The packages target Durable, pi-ai and Chord 1.0.2.
 
 ```sh
+git clone https://github.com/IgorWarzocha/pi-durable-components.git
+cd pi-durable-components
 bun install --frozen-lockfile --ignore-scripts
 bun run setup:native
+bun run build
+```
+
+Bun uses its global cache. `setup:native` builds node-pty when a prebuilt addon is unavailable, which requires Python and a C++ compiler. Run your Durable host in Node. Bun-hosted PTYs are currently unsupported.
+
+Pack the component you need, for example:
+
+```sh
+npm pack --workspace @howaboua/pi-durable-code
+```
+
+Install the resulting `.tgz` in your Durable host project with `npm install /path/to/package.tgz`. Each package README shows how to create its tools, register its extension and select it for a conversation.
+
+## Runtime requirements
+
+- File tools use the conversation's execution environment. Shell and Notebook require native access to that same environment.
+- Code downloads a checksum-verified V8 host on first use. Each cell gets a fresh JavaScript context. `store` and `load` retain values between cells.
+- Notebook downloads checksum-verified Deno on first use. Bindings persist between cells, and supported values can be restored from checkpoints. Deno has filesystem, network and process access. It is not a sandbox.
+- Web and image generation need a Codex-compatible account or backend. Browser control needs Chrome with remote debugging enabled.
+- Live Code state, kernels and shell sessions cannot be resumed after a host restart. Interrupted work is reported rather than replayed. Notebook restores checkpointed values without rerunning cells.
+
+Linux is the tested runtime platform. Windows, macOS and browser deployment over SSH remain unverified. See [parity notes](docs/parity.md) for source comparisons and known differences.
+
+## Development checks
+
+```sh
 bun run check
 ```
 
-`bunfig.toml` uses Bun's isolated linker and global cache. The native setup command uses node-pty's supported installer. Building the addon may require Python and a C++ compiler. Run the Durable host in Node. The local PTY backend refuses Bun because node-pty currently loses output there.
+Runs formatting, strict TypeScript 7, Knip, tool workflows, builds and package checks. The workflows use the real V8 and Deno runtimes, files, shell sessions and Durable worker conversations. Model responses are scripted to choose calls, not to fabricate tool results.
 
-Each package README shows its factory and required host capabilities. Install the resulting extension in your Durable registry and select it for the conversation. For example:
-
-```ts
-import { createRegistry } from "@earendil-works/pi-durable";
-import { ApplyPatch } from "@howaboua/pi-durable-apply-patch";
-import { skills } from "@howaboua/pi-durable-skills";
-
-const registry = createRegistry();
-const skillTools = skills({ sessionRoot: ".agent/skills" });
-registry.install(ApplyPatch);
-registry.install(skillTools);
-// Pass registry to Harness.open(). Select these extensions on your agent.
-```
-
-After building, run `npm pack` from a package directory to create an installable tarball. Use the package's `dist` entry points, not a `source` export condition.
-
-## Host boundaries
-
-File tools use the conversation's execution environment. Native shell and Notebook capabilities require an explicit matching environment identity. Browser connections, state directories, authentication and provider routing are host-supplied. Nothing imports Pi's extension API or silently substitutes local files for a remote environment.
-
-Code provisions a checksum-pinned V8 host. Notebook provisions checksum-pinned Deno on first use. Notebook has native filesystem, network and process access. It is not a security sandbox. Image viewing uses native codecs behind a TypeScript tool implementation.
-
-Persisted tasks do not make processes immortal. Interrupted side effects are reported, not replayed. Live Code state, kernels and PTYs do not survive host restart. Notebook checkpoints restore supported values without replaying cells.
-
-Agents use Durable conversations rather than terminal panes or SSH routing. Semantic grep, Ask, isolated review and side-question tools are not included. [Parity evidence and remaining platform boundaries](docs/parity.md) describe the port precisely.
-
-## Validation
-
-`bun run check` runs Biome formatting checks, strict TypeScript 7, Knip, real-tool workflows, builds and package-content checks. The toolkit workflow uses the actual V8 and Deno runtimes to invoke patches, image viewing, skills, shell/PTY sessions and worker delegation through Durable. A scripted model selects calls without replacing the tools themselves.
-
-External-service validation is separate from the default gate. With an existing, unexpired native pi-ai credential file:
+Live service checks are separate. They require an unexpired Codex credential in pi-ai's `auth.json` format. Adding `--images` makes two image-service requests and can incur charges.
 
 ```sh
 node scripts/smoke-live.mjs --credentials /path/to/auth.json
 node scripts/smoke-live.mjs --credentials /path/to/auth.json --images
 ```
 
-The first command searches and opens a returned web reference. `--images` adds two real image-service requests: generation, byte-preserving viewing, and recent-image editing. These requests can incur charges. The script does not modify credentials and removes its temporary artifacts.
+The script searches, opens a returned web reference and, with `--images`, generates, views and edits an image. It leaves credentials unchanged and removes its temporary files.

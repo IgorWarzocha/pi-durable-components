@@ -2,9 +2,7 @@
 
 Search the web and follow returned page references with the `web_run` tool. Requires Node.js and Pi Durable, pi-ai and Chord 1.0.2, plus an authenticated Codex-compatible backend.
 
-```sh
-npm install @howaboua/pi-durable-web
-```
+Not yet published to npm. [Build and install from source](../../README.md#build-and-install).
 
 Install the bundle in your Durable registry, passing the same authenticated pi-ai Models collection used by your application:
 

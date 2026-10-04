@@ -4,9 +4,7 @@ Run TypeScript in a persistent Deno kernel. Globals and imports survive between 
 
 Requires Node 22.19 or newer and Durable 1.0.2.
 
-```sh
-npm install @howaboua/pi-durable-notebook
-```
+Not yet published to npm. [Build and install from source](../../README.md#build-and-install).
 
 Install the extension before opening your harness. Bind native execution explicitly to the same filesystem namespace as the conversation.
 

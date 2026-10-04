@@ -2,9 +2,7 @@
 
 Apply Codex-format multi-file patches through the conversation's execution environment. The tool supports additions, updates, deletions, moves, ordered hunks, Unicode-tolerant matching, and mixed line endings. No Rust helper runs at runtime.
 
-```sh
-npm install @howaboua/pi-durable-apply-patch @earendil-works/pi-durable @earendil-works/pi-ai @earendil-works/chord
-```
+Not yet published to npm. [Build and install from source](../../README.md#build-and-install).
 
 Install the bundle in your Durable registry:
 

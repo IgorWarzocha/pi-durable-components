@@ -4,9 +4,7 @@ Run JavaScript that composes ordinary Durable tools. `exec` and `wait` are the m
 
 Requires Node 22.19 or newer and Durable 1.0.2.
 
-```sh
-npm install @howaboua/pi-durable-code
-```
+Not yet published to npm. [Build and install from source](../../README.md#build-and-install).
 
 Create the component before opening your harness, install its extension, and select that extension in the conversation.
 
