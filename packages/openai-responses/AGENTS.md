@@ -1,0 +1,5 @@
+- Register this package through pi-ai Models, not the Durable tool registry. Keep Codex subscription protocol distinct from ordinary OpenAI Responses endpoints.
+- Continuation, sticky fallback, canonical history and sockets belong to one provider instance. A completed request is the baseline. Late completions cannot restore a reset lane.
+- Ordinary reconnects send validated transcript reconstruction, not raw provider replay. Reserve canonical raw-output snapshots for explicitly requested native checkpoints.
+- Keep prewarm readiness, server continuation and provider-reported cache hits distinct. Generated keepalive is explicit, billable and isolated from the main lane.
+- HTTP/WebSocket fixture workflows prove owned protocol decisions, not live OpenAI compatibility. Keep the live credentialed smoke separate from the default gate.

@@ -16,12 +16,15 @@ Tool arguments, outputs, errors, cancellation, state, and recovery are part of p
 | Code | Code execution with included `exec_command` and `write_stdin` | [Actual V8 execution and tool dispatch](parity/code.md) |
 | Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
 | Context | Local notes, retained history, checkpoint rollover and managed idle admission | [SQLite recovery and real execution-mode rollover](parity/context.md) |
+| OpenAI Responses | Optimised Codex subscription provider, cached transport, Lite and replay | [Protocol extraction and live Durable provider use](parity/openai-responses.md) |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 
 ## Shared integration
 
 Components register ordinary Durable tools. Code and Notebook must discover the same registrations automatically, including third-party tools. They must preserve validation, hooks, results, cancellation, and ownership without component-specific bridges.
+
+OpenAI Responses is the provider exception. It registers with the host's pi-ai Models collection and consumes the same ordinary tool declarations. It does not register a tool extension.
 
 Code and Notebook ship separately. Their shell implementation is shared internally, not offered as a standalone shell product. Durable task persistence does not imply restoration of external processes or an arbitrary JavaScript heap.
 
@@ -32,12 +35,12 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 - Agent delegation uses Durable conversations. Herdr machine and pane control, SSH routing, context-board attachment and Ask answers are excluded.
 - Images use native Durable image content. The provider owns transport detail selection. Original bytes and optional descriptions remain available.
 - Host configuration replaces ambient Pi directories, extension globals and terminal rendering. Code and Notebook consume ordinary registrations, not per-tool bridges.
-- Context management follows the later source revision pinned in its parity document. It uses one notes-and-history policy, without source backend or continuity-mode selectors.
+- Context management and OpenAI Responses follow the later source revisions pinned in their parity documents. Context uses one notes-and-history policy, without source backend or continuity-mode selectors.
 
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
 
-The delivery gate is `bun run check`: formatting, strict TypeScript 7, Knip, actual tool workflows, all ten package builds and dry-pack checks. All ten tarballs were also installed into an isolated consumer using Bun's global cache. After running node-pty's supported native installer, the consumer passed strict public-declaration checking and the Code-to-Notebook toolkit workflow, including native context rollover, using only package exports.
+The delivery gate is `bun run check`: formatting, strict TypeScript 7, Knip, actual tool workflows, all eleven package builds and dry-pack checks. The ten tool-component tarballs previously passed isolated consumer installation, strict public-declaration checking and the Code-to-Notebook toolkit workflow, including native context rollover, using only package exports. Provider delivery additionally checks the new bundled public entry and its consumer declarations.
 
 Live checks exercised authenticated web search and reference navigation, image generation and recent-image editing, unchanged image bytes, and Chrome CDP evaluation and screenshot capture. Live SSH deployment and non-Linux runtimes remain unverified.

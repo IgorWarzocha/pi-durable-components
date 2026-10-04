@@ -1,0 +1,39 @@
+{
+	"name": "@howaboua/pi-durable-openai-responses",
+	"version": "0.3.0",
+	"description": "Optimised Codex Responses provider with cached WebSockets and Responses Lite",
+	"type": "module",
+	"license": "MIT",
+	"author": "Igor Warzocha",
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"NOTICE",
+		"LICENSE"
+	],
+	"sideEffects": false,
+	"dependencies": {
+		"openai": "7.19.0",
+		"proxy-from-env": "2.1.0",
+		"sharp": "0.35.5",
+		"undici": "8.10.2"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "1.0.2",
+		"@modelcontextprotocol/sdk": "1.25.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

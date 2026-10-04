@@ -33,3 +33,11 @@ node scripts/smoke-live.mjs --credentials /path/to/auth.json --images
 ```
 
 The script searches, opens a returned reference and, with `--images`, generates, views and edits an image. It leaves credentials unchanged and removes temporary files.
+
+The provider smoke makes real model requests through Durable, using a native tool over SSE and actual Code Mode execution over cached WebSockets:
+
+```sh
+node scripts/smoke-provider.mjs --credentials /path/to/auth.json
+```
+
+It checks tool execution, follow-up responses and chronological transport diagnostics. It does not refresh or modify credentials. Report cache hits only when the backend reports cached tokens.

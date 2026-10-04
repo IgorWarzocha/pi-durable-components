@@ -1,0 +1,405 @@
+import type {
+	Api,
+	AssistantMessage,
+	AssistantMessageEventStream,
+	Model,
+} from "@earendil-works/pi-ai";
+import {
+	DEFAULT_STREAM_IDLE_TIMEOUT_MS,
+	DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS,
+} from "./constants.ts";
+import {
+	codexDiagnosticsFailure,
+	noThrowCodexDiagnosticsSink,
+} from "./diagnostic-failure.ts";
+import {
+	type CanonicalSessionToken,
+	recordCanonicalSessionResponse,
+} from "./session-continuity.ts";
+import { normalizeTimeoutMs } from "./sse.ts";
+import {
+	assertSuccessfulCodexOutput,
+	assertSuccessfulCodexStatus,
+	mapCodexEvents,
+	processMappedCodexResponsesStream,
+	runCodexCompletionObserver,
+} from "./stream-events.ts";
+import type { CodexTransportState } from "./transport-state.ts";
+import type { CodexTurnState } from "./turn-state.ts";
+import type {
+	CachedWebSocketRequestBodyResult,
+	CanonicalHistoryDecision,
+	CodexDiagnosticsLane,
+	CodexDiagnosticsSink,
+	CodexPrewarmDiagnostics,
+	CodexPrewarmResult,
+	OpenAICodexStreamOptions,
+	ResponsesBody,
+} from "./types.ts";
+import {
+	acquireWebSocket,
+	parseWebSocket,
+	startWebSocketOutputOnFirstEvent,
+} from "./websocket.ts";
+import { buildCachedWebSocketRequestBody } from "./websocket-continuation.ts";
+
+export function codexCacheKeepaliveSocketSessionId(sessionId: string): string {
+	return `${sessionId}:cache-keepalive`;
+}
+
+export async function processWebSocketStream<TApi extends Api>(
+	transportState: CodexTransportState,
+	url: string,
+	body: ResponsesBody,
+	headers: Headers,
+	output: AssistantMessage,
+	stream: AssistantMessageEventStream,
+	model: Model<TApi>,
+	accountId: string,
+	onStart: () => void,
+	options: OpenAICodexStreamOptions | undefined,
+	turnState?: CodexTurnState,
+	diagnostics?:
+		| {
+				lane: Exclude<CodexDiagnosticsLane, "prewarm">;
+				attempt: number;
+				record: CodexDiagnosticsSink;
+		  }
+		| undefined,
+	canonical?:
+		| {
+				reconstructedRequestBody: ResponsesBody;
+				token?: CanonicalSessionToken | undefined;
+				decision?: CanonicalHistoryDecision | undefined;
+		  }
+		| undefined,
+): Promise<void> {
+	let streamStarted = false;
+	const idleTimeoutMs = normalizeTimeoutMs(
+		options?.timeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS,
+		"timeoutMs",
+	);
+	const websocketConnectTimeoutMs = normalizeTimeoutMs(
+		options?.websocketConnectTimeoutMs,
+		"websocketConnectTimeoutMs",
+	);
+
+	const { socket, entry, release, reused, socketAgeMs } =
+		await acquireWebSocket(
+			transportState,
+			url,
+			headers,
+			options?.sessionId,
+			accountId,
+			options?.signal,
+			websocketConnectTimeoutMs,
+			options?.env,
+		);
+	// Checkpoint validation happens after streaming; retire its server-side response state.
+	let keepConnection = !options?.canonicalCompaction;
+	let released = false;
+	const responseItems: unknown[] = [];
+	const transport =
+		(options as { transport?: string | undefined } | undefined)?.transport ??
+		"auto";
+	const useCachedContext =
+		transport === "websocket-cached" || transport === "auto";
+	// ChatGPT Codex Responses rejects `store: true` ("Store must be set to false").
+	// WebSocket continuation still works via connection-scoped previous_response_id state.
+	const fullBody = body;
+	const cachedRequest =
+		useCachedContext && entry
+			? buildCachedWebSocketRequestBody(entry.continuation, fullBody)
+			: ({
+					body: fullBody,
+					decision: useCachedContext ? "no_session_cache_entry" : "disabled",
+				} satisfies CachedWebSocketRequestBodyResult);
+	const requestBody = cachedRequest.body;
+	const recordDiagnostics = noThrowCodexDiagnosticsSink(diagnostics?.record);
+	if (options?.compactionDiagnostics) {
+		Object.assign(options.compactionDiagnostics, {
+			transport: "websocket",
+			continuation: cachedRequest.decision,
+			previousResponseId: Boolean(requestBody.previous_response_id),
+			fullInputItems: fullBody.input.length,
+			sentInputItems: requestBody.input.length,
+		});
+	}
+
+	const releaseOnce = (releaseOptions?: { keep?: boolean | undefined }) => {
+		if (released) return;
+		released = true;
+		release(releaseOptions);
+	};
+
+	try {
+		if (diagnostics && recordDiagnostics) {
+			recordDiagnostics({
+				type: "request",
+				lane: diagnostics.lane,
+				transport: "websocket",
+				attempt: diagnostics.attempt,
+				fullInputItems: fullBody.input.length,
+				sentInputItems: requestBody.input.length,
+				model: fullBody.model,
+				socketReused: reused,
+				socketAgeMs,
+				socketLane: "main",
+				continuation: cachedRequest.decision,
+				...(entry?.continuation
+					? {
+							continuationBaselineInputItems:
+								entry.continuation.lastRequestBody.input.length,
+							continuationBaselineResponseItems:
+								entry.continuation.lastResponseItems.length,
+						}
+					: {}),
+				...(canonical?.decision
+					? { canonicalHistory: canonical.decision }
+					: {}),
+				...(options?.compactionDiagnostics
+					? { compaction: structuredClone(options.compactionDiagnostics) }
+					: {}),
+				previousResponseId: Boolean(requestBody.previous_response_id),
+			});
+		}
+		socket.send(JSON.stringify({ type: "response.create", ...requestBody }));
+		await processMappedCodexResponsesStream(
+			startWebSocketOutputOnFirstEvent(
+				mapCodexEvents(
+					parseWebSocket(socket, options?.signal, idleTimeoutMs, (value) =>
+						turnState?.capture(value),
+					),
+					output,
+					(event) => options?.onProviderStreamEvent?.(event, model),
+				),
+				() => {
+					if (!streamStarted) {
+						streamStarted = true;
+						onStart();
+					}
+				},
+			),
+			output,
+			stream,
+			model,
+			{
+				...options,
+				onOutputItemDone: (item) => responseItems.push(item),
+			},
+		);
+		if (options?.signal?.aborted) {
+			keepConnection = false;
+		} else {
+			assertSuccessfulCodexOutput(output);
+			await runCodexCompletionObserver("output item", async () => {
+				for (const item of responseItems)
+					await options?.onOutputItemDone?.(item);
+			});
+			// Compaction callers validate and store checkpoints. Until then its output
+			// must not replace the sampling baseline, including on invalid-output failure.
+			if (
+				!options?.canonicalCompaction &&
+				useCachedContext &&
+				entry &&
+				output.responseId
+			) {
+				entry.continuation = {
+					lastRequestBody: fullBody,
+					lastResponseId: output.responseId,
+					lastResponseItems: responseItems,
+				};
+			}
+			// A transient socket means another request already owns this session lane.
+			// Its concurrent history has no canonical ordering, so only the retained
+			// cached lane may advance the baseline used by later compaction.
+			if (entry && !options?.canonicalCompaction) {
+				recordCanonicalSessionResponse(transportState, {
+					sessionId: options?.sessionId,
+					url,
+					accountId,
+					requestBody: fullBody,
+					reconstructedRequestBody: canonical?.reconstructedRequestBody,
+					responseItems,
+					token: canonical?.token,
+				});
+			}
+		}
+		releaseOnce({ keep: keepConnection });
+	} catch (error) {
+		if (entry) entry.continuation = undefined;
+		keepConnection = false;
+		releaseOnce({ keep: false });
+		throw error;
+	} finally {
+		releaseOnce({ keep: keepConnection });
+	}
+}
+
+export async function prewarmWebSocket<TApi extends Api>(
+	transportState: CodexTransportState,
+	model: Model<TApi>,
+	url: string,
+	body: ResponsesBody,
+	headers: Headers,
+	accountId: string,
+	options: OpenAICodexStreamOptions,
+	turnState?: CodexTurnState,
+	diagnostics?: CodexDiagnosticsSink | undefined,
+	preserveContinuation = false,
+	prewarm: CodexPrewarmDiagnostics = { kind: "ordinary" },
+	generate = false,
+	retainSocket = true,
+): Promise<CodexPrewarmResult> {
+	const recordDiagnostics = noThrowCodexDiagnosticsSink(diagnostics);
+	const websocketConnectTimeoutMs = normalizeTimeoutMs(
+		options.websocketConnectTimeoutMs,
+		"websocketConnectTimeoutMs",
+	);
+	const socketSessionId =
+		preserveContinuation && options.sessionId
+			? codexCacheKeepaliveSocketSessionId(options.sessionId)
+			: options.sessionId;
+	const socketLane = preserveContinuation ? "keepalive" : "main";
+	const { socket, entry, release, reused, socketAgeMs } =
+		await acquireWebSocket(
+			transportState,
+			url,
+			headers,
+			socketSessionId,
+			accountId,
+			options.signal,
+			websocketConnectTimeoutMs,
+			options.env,
+		);
+	let keepConnection = true;
+	const responseItems: unknown[] = [];
+	let responseId: string | undefined;
+	let responseStatus: string | undefined;
+	let usage: CodexPrewarmResult["usage"];
+	const idleTimeoutMs = normalizeTimeoutMs(
+		options.timeoutMs ??
+			options.websocketConnectTimeoutMs ??
+			DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS,
+		"timeoutMs",
+	);
+	try {
+		if (options.signal?.aborted) throw new Error("Request was aborted");
+		const cachedRequest =
+			prewarm.kind === "compaction" &&
+			!preserveContinuation &&
+			!generate &&
+			entry
+				? buildCachedWebSocketRequestBody(entry.continuation, body)
+				: ({
+						body,
+						decision: "disabled",
+					} satisfies CachedWebSocketRequestBodyResult);
+		const requestBody = cachedRequest.body;
+		// Acquisition validates the route, credentials and live socket. Keep the
+		// existing baseline; the real request still validates its exact continuation.
+		if (
+			!preserveContinuation &&
+			!generate &&
+			reused &&
+			entry?.continuation &&
+			(prewarm.kind === "ordinary" ||
+				(cachedRequest.decision === "delta" && requestBody.input.length === 0))
+		) {
+			recordDiagnostics?.({
+				type: "prewarm-ready",
+				transport: "websocket",
+				socketReused: reused,
+				socketAgeMs,
+				socketLane,
+				prewarm,
+			});
+			return { socketReused: reused };
+		}
+		recordDiagnostics?.({
+			type: "request",
+			lane: "prewarm",
+			transport: "websocket",
+			attempt: 1,
+			fullInputItems: body.input.length,
+			sentInputItems: requestBody.input.length,
+			model: body.model,
+			socketReused: reused,
+			socketAgeMs,
+			socketLane,
+			prewarm,
+			continuation: cachedRequest.decision,
+			previousResponseId: Boolean(requestBody.previous_response_id),
+		});
+		socket.send(
+			JSON.stringify({
+				type: "response.create",
+				...requestBody,
+				...(generate ? {} : { generate: false }),
+			}),
+		);
+		for await (const event of mapCodexEvents(
+			parseWebSocket(socket, options.signal, idleTimeoutMs, (value) => {
+				if (!preserveContinuation) turnState?.capturePrewarm(value);
+			}),
+			undefined,
+			(event) => options.onProviderStreamEvent?.(event, model),
+		)) {
+			if (event.type === "response.created" && event.response?.id)
+				responseId = event.response.id;
+			if (event.type === "response.output_item.done" && event.item)
+				responseItems.push(event.item);
+			if (event.type === "response.completed") {
+				if (event.response?.id) responseId = event.response.id;
+				responseStatus = event.response?.status;
+				const responseUsage = event.response?.usage;
+				if (responseUsage) {
+					const cacheRead =
+						responseUsage.input_tokens_details?.cached_tokens ?? 0;
+					const cacheWrite =
+						responseUsage.input_tokens_details?.cache_write_tokens ?? 0;
+					usage = {
+						inputTokens: Math.max(
+							0,
+							(responseUsage.input_tokens ?? 0) - cacheRead - cacheWrite,
+						),
+						cachedInputTokens: cacheRead,
+						cacheWriteInputTokens: cacheWrite,
+						...(generate
+							? { outputTokens: responseUsage.output_tokens ?? 0 }
+							: {}),
+					};
+				}
+			}
+		}
+		assertSuccessfulCodexStatus(responseStatus);
+		if (!preserveContinuation && entry && responseId) {
+			entry.continuation = {
+				lastRequestBody: body,
+				lastResponseId: responseId,
+				lastResponseItems: responseItems,
+			};
+		}
+		recordDiagnostics?.({
+			type: "prewarm-ready",
+			transport: "websocket",
+			socketReused: reused,
+			socketAgeMs,
+			socketLane,
+			prewarm,
+			...(usage ? { usage } : {}),
+		});
+		return { socketReused: reused, ...(usage ? { usage } : {}) };
+	} catch (error) {
+		keepConnection = false;
+		recordDiagnostics?.({
+			type: "failure",
+			lane: "prewarm",
+			transport: "websocket",
+			failure: codexDiagnosticsFailure(error),
+		});
+		throw error;
+	} finally {
+		release({ keep: keepConnection && retainSocket });
+	}
+}

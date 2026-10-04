@@ -1,17 +1,17 @@
 # Pi Durable Components
 
-File tools, web search, image generation, browser control, worker agents and context management for [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable).
+File tools, web search, image generation, browser control, worker agents, context management and an optimised Codex provider for [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable).
 
 Install only the components you need. Use their tools directly, or call them together from JavaScript with Code Mode or persistent TypeScript with Notebook Mode.
 
 ## Install
 
-Requires a Node.js host running Pi Durable 1.0.2. These extensions are imported by your application and installed with Durable's `registry.install(...)`. They are not coding-agent CLI extensions and do not use `pi install`.
+Requires a Node.js host running Pi Durable 1.0.2. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
 
-[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases/tag/v0.2.0) can be installed with npm. They are not published to the npm registry. For example, install Apply Patch:
+[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases/tag/v0.3.0) can be installed with npm. They are not published to the npm registry. For example, install Apply Patch:
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.2.0/howaboua-pi-durable-apply-patch-0.2.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-apply-patch-0.3.0.tgz
 ```
 
 Then add it to the registry passed to your Harness:
@@ -40,6 +40,7 @@ Each component's guide includes its install command and host configuration.
 | [Browser](packages/browser) | Control Chrome through CDP using its existing login session |
 | [Agents](packages/agents) | Delegate to worker conversations and receive their results |
 | [Context](packages/context) | Save notes, retrieve history and resume through clean context windows |
+| [OpenAI Responses](packages/openai-responses) | Use our optimised Codex provider with cached WebSockets and Responses Lite |
 | [Code Mode](packages/code) | Run JavaScript that calls tools, with a fresh context for each cell |
 | [Notebook Mode](packages/notebook) | Run persistent TypeScript with imports, checkpoints and profiles |
 
