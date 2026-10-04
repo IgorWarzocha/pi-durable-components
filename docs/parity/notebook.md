@@ -1,0 +1,39 @@
+# Notebook parity
+
+Source revision `b2006db9def12c373ae48e70044d30f7d6b7e34f` of `IgorWarzocha/howaboua-pi-stuff`, under `packages/pi-codex-conversion/src/tools/notebook-mode`, `code-mode/notebook-tool.ts`, `code-mode/custom-tools.ts`, `code-mode/custom-tool-runner.ts`, and the shared public execution contracts in `code-mode/public-tools.ts`. The source checkout was read-only. `packages/notebook/NOTICE` retains the source MIT notice.
+
+## Carried implementation
+
+The port carries the source Deno provisioning, authenticated HTTP kernel bridge, custom ZMTP sockets and signed Jupyter messages, injected TypeScript kernel helpers, checkpoint serialization, lifecycle state machine, project merge and conflict rules, cross-process leases, journal materialization and rotation, profile persistence, exact npm inventory scanner, historical diagnostics, and one-shot LSP transport. No ZeroMQ or MessagePack dependency replaces the proven source transport.
+
+| Source behavior | Durable owner and evidence |
+| --- | --- |
+| Lazy Deno 2.9.7 download, platform pins and executable validation | `deno-assets.ts`, `deno-binary.ts`, `deno-archive.ts`. Live smoke downloads and starts the pinned Linux executable. Other platform pins are carried unchanged. |
+| Persistent TS bindings, imports and top-level await | `jupyter-kernel.ts`, `kernel-runtime.ts`. Live smoke uses typed functions, builtin module imports, Map, Uint8Array, and bigint. |
+| Text, images, notifications, store/load, exit and yield helpers | Original injected bootstrap retained. Live Durable smoke checks typed nested calls, emitted PNG bytes, explicit yield, model-visible continuation handles, and nonduplicated wait output. |
+| One active cell and cancellation | `execution-runtime.ts` reserves startup as well as active execution. Shared coordinator admits one live task atomically. `cell.ts` waits for helper and journal settlement, not merely the first Jupyter result. The retained Harness workflow checks cancellation and joining of an unawaited ordinary nested tool and back-to-back cell cleanup. |
+| By-value checkpoint and function metadata | Original V8 serialization and safe manifest validation retained. Smoke reopens the kernel and verifies values, function behavior, description metadata, and a side-effect counter unchanged by restore. |
+| Profiles by value, collision rules and release | Original profile and lifecycle modules retained. Smoke saves a profile, releases its bindings, loads it, and confirms no side-effect replay. |
+| Pin protection and hook dispatch | Original project pin promotion, rollback and tool-result hooks are retained. Smoke rejects release of a pin. Direct-client hook fixtures were pruned. |
+| Project fork, locks, conflict merge, session deltas and journal | Original persistence modules retained. Port-time checks verified leases and owner replacement safety, concurrent edits retaining the newer project value, surviving pins, and stale session recovery not resurrecting deleted project bindings. Those unit fixtures were pruned after validation; the retained live smoke writes checkpoints and standard journals. |
+| Diagnostics and memory | Original live heap report and one-shot historical Deno LSP implementation retained. Direct-client diagnostics fixtures were pruned. |
+| npm approvals and exact versions | Original exact-specifier extraction and successful-cell inventory retained. The source approval requirement remains model guidance, not a claimed security enforcement boundary. |
+| Nested tool lifecycle and failures | Shared internal execution tasks invoke the current ordinary wrapped Durable registrations. Real Harness smoke verifies ToolTask hooks, result projection, images, audit-only nested results, and owned cancellation. No per-component tool adapters. |
+| TOML custom command discovery and invocation | Shared internal `execution/src/custom-commands.ts`, `custom-command-config.ts`, and `command-backend.ts` are public through Notebook as well as Code, without a product dependency. A focused Notebook-only real Harness and Deno smoke passed discovery and usage/output metadata, nested argument and stdin calls, live definition edits and removal, yield/wait continuation, and retained typed kernel state. These were temporary validation fixtures, not retained tests. |
+
+## Deliberate native boundaries
+
+- Pi `ExtensionAPI`, TUI rendering, session trees, context-window handling, provider-encrypted results, and voice integration are not emulated. The component uses Durable tools, tasks, hooks, and prompt sections.
+- Factory inputs require `stateDirectory`, an explicit native environment capability, a shell backend, and host task cancellation. A persisted Durable storage namespace plus conversation ID replaces Pi session tree identities. Independent stores cannot collide on their numeric conversation IDs. Kernels remain private conversation forks. Persistent files use the `pi-durable-notebook` namespace.
+- `exec` retains the source constrained-sampling grammar and pragma. Its ordinary Durable JSON schema is `{code:string}`. `prepareArguments` also accepts plain source. `wait` retains `cell_id`, `yield_time_ms`, `max_tokens`, and `terminate`. Durable task IDs are the public continuation handles.
+- Top-level `notebook` retains `{input:"help"}` and JSON action objects. Inside exec, the native direct-action proxy permits status without a binding query, list, and diagnostics. Other actions return the exact top-level retry rather than running concurrently.
+- Completed cells are durable task receipts. Interrupted side effects are never replayed. The source cell cursor is represented by a Durable observation document so successive waits do not repeat output.
+- The source epoch cleanup is scoped to a storage namespace and one conversation. Reopening a component and starting another conversation cannot collect the first conversation's private checkpoint. This is verified with a real cross-conversation restore.
+- Ordinary `executionHints` carry custom usage, output help, discovery schemas, promotion, and direct-call yield budgets. The shared lexical scanner selects the largest executable direct-call hint before the pragma or default. Promoted tools contribute only their usage to the standing section. The real Harness test verifies hint precedence and runtime help.
+- Wait observations retain the source adaptive backoff, resetting after completion, termination, error, or close. Explicit output limits allow the driver token budget rather than Durable's generic 50 KiB and 2000-line defaults. The live test preserves a requested 65000-byte result containing 13000 lines.
+- Images remain supported native pi-ai image content. Provider image detail selection follows Durable's installed provider, not a compatibility shim.
+- This native runtime is not a remote filesystem bridge. Environment mismatches fail explicitly. Deno execution has native host access granted by the factory. It does not claim surviving kernels or PTYs after a host restart.
+
+## Validation
+
+Port-time validation passed six contracts covering signed multipart transport, locks, persistence validation and conflicts, and the actual Deno plus Durable lifecycle. The transport, lock and persistence unit fixtures were subsequently pruned; this records historical evidence rather than claiming those fixtures remain runnable. The retained `packages/notebook/test/runtime.test.ts` exercises Deno execution, cancellation and checkpoint restoration. Durable registry integration is covered by `test/toolkit.test.ts`, using the official pi-ai faux provider to drive a real Harness rather than an invented harness or kernel protocol. `node node_modules/typescript/bin/tsc --noEmit -p packages/notebook/tsconfig.json` passes with TS7 strict, unchecked-index and exact-optional settings.

@@ -1,0 +1,42 @@
+{
+	"name": "@howaboua/pi-durable-components",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"packageManager": "bun@1.4.2",
+	"workspaces": [
+		"packages/*"
+	],
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"scripts": {
+		"install:ci": "bun install --frozen-lockfile --ignore-scripts",
+		"setup:native": "npm --prefix node_modules/node-pty run install",
+		"lint": "biome check .",
+		"format": "biome check --write .",
+		"typecheck": "tsc --noEmit",
+		"knip": "knip --no-progress --include files,dependencies,unlisted,unresolved,cycles,exports,nsExports,types,nsTypes,enumMembers,namespaceMembers,duplicates",
+		"test": "node scripts/workspaces.mjs test",
+		"build": "node scripts/workspaces.mjs build",
+		"pack:dry": "node scripts/workspaces.mjs pack:dry",
+		"check": "bun run lint && bun run typecheck && bun run knip && bun run test && bun run build && bun run pack:dry"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.10",
+		"@earendil-works/chord": "1.0.2",
+		"@earendil-works/pi-ai": "1.0.2",
+		"@earendil-works/pi-durable": "1.0.2",
+		"@modelcontextprotocol/sdk": "1.25.2",
+		"@types/node": "26.2.0",
+		"@types/proxy-from-env": "1.0.4",
+		"knip": "6.32.2",
+		"node-pty": "1.1.0",
+		"proxy-from-env": "2.1.0",
+		"smol-toml": "1.8.0",
+		"typebox": "1.3.27",
+		"typescript": "7.0.2",
+		"undici": "8.10.2",
+		"undici-types": "7.24.1"
+	}
+}

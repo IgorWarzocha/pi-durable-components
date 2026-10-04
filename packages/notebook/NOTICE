@@ -1,0 +1,35 @@
+Notebook runtime source adapted from @howaboua/pi-codex-conversion
+Repository: https://github.com/IgorWarzocha/howaboua-pi-stuff
+Revision: b2006db9def12c373ae48e70044d30f7d6b7e34f
+Source: packages/pi-codex-conversion/src/tools/notebook-mode and code-mode/
+notebook-tool.ts, command-output.ts, types.ts, custom-tools.ts,
+custom-tool-runner.ts
+
+Custom command discovery uses explicit trusted roots and an environment-bound
+process backend. Shared command factories publish ordinary Durable registrations.
+
+The component provisions Deno 2.9.7 on first runtime use. Deno is MIT licensed.
+No Deno executable is included in this npm package. Platform archive and
+executable checksums and sizes are retained from the source revision.
+
+MIT License
+
+Copyright (c) 2026 Igor Warzocha
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

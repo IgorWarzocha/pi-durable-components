@@ -1,0 +1,35 @@
+{
+	"compilerOptions": {
+		"target": "ES2023",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"paths": {
+			"undici-types": ["./node_modules/undici-types"]
+		},
+		"lib": ["ES2023", "DOM", "DOM.Iterable"],
+		"types": ["node"],
+		"strict": true,
+		"allowJs": false,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"isolatedModules": true,
+		"moduleDetection": "force",
+		"resolveJsonModule": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"noUncheckedSideEffectImports": true,
+		"stableTypeOrdering": true,
+		"libReplacement": false,
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
+		"verbatimModuleSyntax": true,
+		"erasableSyntaxOnly": true,
+		"allowImportingTsExtensions": true,
+		"noEmit": true
+	},
+	"include": ["packages/**/*.ts", "test/**/*.ts"],
+	"exclude": ["**/node_modules", "**/dist"]
+}

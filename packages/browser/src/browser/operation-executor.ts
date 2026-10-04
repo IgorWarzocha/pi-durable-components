@@ -1,0 +1,284 @@
+import {
+	clickCoordinates,
+	clickRef,
+	clickSelector,
+} from "../cdp/actions/click.ts";
+import { fillElement } from "../cdp/actions/fill.ts";
+import { pressKey } from "../cdp/actions/key.ts";
+import {
+	html,
+	htmlRef,
+	loadAll,
+	navigate,
+	networkEntries,
+	rawCommand,
+} from "../cdp/actions/page.ts";
+import {
+	captureRef,
+	captureSelector,
+	captureViewport,
+} from "../cdp/actions/screenshot.ts";
+import { typeAtFocus, typeRef } from "../cdp/actions/type.ts";
+import { waitForCondition } from "../cdp/actions/wait.ts";
+import { evaluateText } from "../cdp/evaluate.ts";
+import { type ActiveTab, BrowserCdpSession } from "../cdp/session.ts";
+import { snapshotData } from "../cdp/snapshot.ts";
+import { BrowserArtifacts } from "./artifacts.ts";
+import { boundSnapshot, boundTabs } from "./bounds.ts";
+import { startBrowser } from "./launcher.ts";
+import type { BrowserOperation } from "./operation.ts";
+
+export class BrowserOperationExecutor {
+	private readonly cdp: BrowserCdpSession;
+
+	private readonly start: typeof startBrowser;
+	constructor(cdp: BrowserCdpSession, start = startBrowser) {
+		this.start = start;
+		this.cdp = cdp;
+	}
+
+	async execute(
+		operation: BrowserOperation,
+		signal: AbortSignal | undefined,
+		artifacts: BrowserArtifacts,
+	): Promise<Record<string, unknown>> {
+		switch (operation.action) {
+			case "start":
+				return { result: await this.start(signal) };
+			case "tabs":
+				return boundTabs(
+					await this.cdp.pages(signal),
+					operation.query,
+					operation.offset,
+					operation.owned_only,
+				);
+			case "open":
+				if ("url" in operation) {
+					const opened = await this.cdp.open(operation.url, signal);
+					return {
+						ref_id: opened.refId,
+						url: operation.url,
+						owned: true,
+					};
+				}
+				return this.cdp.withTab(operation.ref_id, signal, async (tab) =>
+					boundSnapshot(
+						await snapshotData(tab.cdp, tab.sessionId, tab.elementRefs, {
+							refId: tab.refId,
+							lineno: operation.lineno,
+							responseLength: operation.response_length,
+							signal,
+						}),
+					),
+				);
+			case "find":
+				return this.cdp.withTab(operation.ref_id, signal, async (tab) =>
+					boundSnapshot(
+						await snapshotData(tab.cdp, tab.sessionId, tab.elementRefs, {
+							refId: tab.refId,
+							pattern: operation.pattern,
+							lineno: operation.lineno,
+							responseLength: operation.response_length,
+							signal,
+						}),
+					),
+				);
+			case "show":
+				return { shown: await this.cdp.show(operation.ref_id, signal) };
+			case "close":
+				return { closed: await this.cdp.closeTab(operation.ref_id, signal) };
+			case "read_result":
+				return artifacts.readCachedResult(operation);
+			case "discard_result":
+				return artifacts.discardCachedResult(operation.handle);
+			case "stop":
+				await this.cdp.stop(operation.ref_id);
+				return {
+					stopped: operation.ref_id ?? "all tab daemons",
+				};
+			case "screenshot":
+				return this.screenshot(operation, signal, artifacts);
+			case "evaluate":
+				return this.cdp.withTab(operation.ref_id, signal, async (tab) =>
+					artifacts.limitedText(
+						{ ref_id: tab.refId },
+						"value",
+						await evaluateText(
+							tab.cdp,
+							tab.sessionId,
+							operation.expression,
+							signal,
+						),
+					),
+				);
+			case "html":
+				return this.cdp.withTab(operation.ref_id, signal, async (tab) =>
+					artifacts.limitedText(
+						{ ref_id: tab.refId },
+						"html",
+						operation.id === undefined
+							? await html(tab.cdp, tab.sessionId, operation.selector, signal)
+							: await htmlRef(
+									tab.cdp,
+									tab.sessionId,
+									tab.elementRefs,
+									operation.id,
+									signal,
+								),
+					),
+				);
+			case "network":
+				return this.cdp.withTab(operation.ref_id, signal, async (tab) =>
+					artifacts.limitedText(
+						{ ref_id: tab.refId },
+						"entries",
+						await networkEntries(tab.cdp, tab.sessionId, signal),
+					),
+				);
+			case "raw":
+				return this.cdp.withTab(operation.ref_id, signal, async (tab) =>
+					artifacts.limitedText(
+						{ ref_id: tab.refId },
+						"result",
+						await rawCommand(
+							tab.cdp,
+							tab.sessionId,
+							operation.method,
+							operation.params,
+							signal,
+						),
+					),
+				);
+			case "navigate":
+				return this.tabResult(operation.ref_id, signal, (tab) =>
+					navigate(tab.cdp, tab.sessionId, operation.url, signal),
+				);
+			case "click":
+				return this.tabResult(operation.ref_id, signal, (tab) => {
+					if (operation.id !== undefined) {
+						return clickRef(
+							tab.cdp,
+							tab.sessionId,
+							tab.elementRefs,
+							operation.id,
+							signal,
+						);
+					}
+					if (operation.selector) {
+						return clickSelector(
+							tab.cdp,
+							tab.sessionId,
+							operation.selector,
+							signal,
+						);
+					}
+					if (operation.x === undefined || operation.y === undefined) {
+						throw new Error("click requires id, selector, or x+y");
+					}
+					return clickCoordinates(
+						tab.cdp,
+						tab.sessionId,
+						operation.x,
+						operation.y,
+						signal,
+					);
+				});
+			case "type":
+				return this.tabResult(operation.ref_id, signal, (tab) =>
+					operation.id === undefined
+						? typeAtFocus(tab.cdp, tab.sessionId, operation.text, signal)
+						: typeRef(
+								tab.cdp,
+								tab.sessionId,
+								tab.elementRefs,
+								operation.id,
+								operation.text,
+								signal,
+							),
+				);
+			case "load_all":
+				return this.tabResult(operation.ref_id, signal, (tab) =>
+					loadAll(
+						tab.cdp,
+						tab.sessionId,
+						operation.selector,
+						operation.interval_ms,
+						signal,
+					),
+				);
+			case "fill":
+				return this.tabResult(operation.ref_id, signal, (tab) =>
+					fillElement(
+						tab.cdp,
+						tab.sessionId,
+						tab.elementRefs,
+						operation,
+						operation.value,
+						signal,
+					),
+				);
+			case "press":
+				return this.tabResult(operation.ref_id, signal, (tab) =>
+					pressKey(tab.cdp, tab.sessionId, operation.key, signal),
+				);
+			case "wait":
+				return this.tabResult(operation.ref_id, signal, (tab) =>
+					waitForCondition(
+						tab.cdp,
+						tab.sessionId,
+						operation,
+						operation.timeout_ms,
+						signal,
+					),
+				);
+		}
+	}
+
+	private async screenshot(
+		operation: Extract<BrowserOperation, { action: "screenshot" }>,
+		signal: AbortSignal | undefined,
+		artifacts: BrowserArtifacts,
+	): Promise<Record<string, unknown>> {
+		const file = artifacts.screenshotTarget(operation);
+		return this.cdp.withTab(operation.ref_id, signal, async (tab) => {
+			const capture =
+				operation.id !== undefined
+					? await captureRef(
+							tab.cdp,
+							tab.sessionId,
+							tab.elementRefs,
+							operation.id,
+							file,
+							signal,
+						)
+					: operation.selector
+						? await captureSelector(
+								tab.cdp,
+								tab.sessionId,
+								operation.selector,
+								file,
+								signal,
+							)
+						: await captureViewport(tab.cdp, tab.sessionId, file, signal);
+			return {
+				ref_id: tab.refId,
+				...(operation.id === undefined ? {} : { id: operation.id }),
+				...(operation.selector ? { selector: operation.selector } : {}),
+				file: capture.file,
+				dpr: capture.dpr,
+				coordinates: "CSS pixels; screenshot pixels / DPR",
+			};
+		});
+	}
+
+	private async tabResult(
+		refId: string,
+		signal: AbortSignal | undefined,
+		action: (tab: ActiveTab) => Promise<string>,
+	): Promise<Record<string, unknown>> {
+		return this.cdp.withTab(refId, signal, async (tab) => ({
+			ref_id: tab.refId,
+			result: (await action(tab)) || "ok",
+		}));
+	}
+}

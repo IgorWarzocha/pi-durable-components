@@ -1,0 +1,9 @@
+- Ship Durable-native TypeScript components. Do not emulate Pi's `ExtensionAPI`, import its TUI, or wrap the old extensions as a compatibility layer.
+- Preserve the accepted tools' functionality, arguments, results, failure semantics, and lifecycle. Record parity evidence against the pinned source in `docs/parity.md`; do not silently replace missing behaviour with a smaller implementation.
+- Ordinary Durable tool registrations are the integration boundary. Code and Notebook discover and invoke those registrations automatically; component-specific Code/Notebook bridges are forbidden.
+- Code and Notebook are separate public packages, each including the shell tools. Keep their shared implementation internal rather than publishing a standalone shell product.
+- Filesystem operations follow the conversation's execution environment. Native process and codec capabilities must be explicit; never silently escape to the host filesystem or claim PTYs survive a process restart.
+- An interrupted side effect is not permission to replay it. Preserve owned-task cancellation and report uncertain outcomes.
+- Source checkouts used for parity are read-only. Preserve upstream license notices and record source revisions when carrying code across.
+- Validate the toolkit by using its tools through Durable and the real execution runtimes. Keep a compact set of end-to-end workflows, not helper-level unit suites or mock choreography.
+- Parallel workers own assigned package subtrees. Root manifests, dependency installation, lockfiles, cross-package contracts, and Git operations belong to the coordinating agent.

@@ -1,0 +1,39 @@
+{
+	"name": "@howaboua/pi-durable-imagegen",
+	"version": "0.1.0",
+	"description": "Codex image generation and editing for Pi Durable",
+	"type": "module",
+	"license": "MIT",
+	"author": "Igor Warzocha",
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"main": "./dist/imagegen/src/index.js",
+	"types": "./dist/imagegen/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/imagegen/src/index.d.ts",
+			"import": "./dist/imagegen/src/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"NOTICE",
+		"LICENSE"
+	],
+	"sideEffects": false,
+	"dependencies": {
+		"proxy-from-env": "2.1.0",
+		"undici": "8.10.2",
+		"typebox": "1.3.27"
+	},
+	"peerDependencies": {
+		"@earendil-works/chord": "1.0.2",
+		"@earendil-works/pi-ai": "1.0.2",
+		"@earendil-works/pi-durable": "1.0.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

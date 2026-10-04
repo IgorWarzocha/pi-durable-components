@@ -1,0 +1,118 @@
+// Copyright (c) 2026 Igor Warzocha. MIT licensed.
+// Host algorithms adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f.
+import { randomBytes } from "node:crypto";
+
+const DEFAULT_MAX_OUTPUT_TOKENS = 10_000;
+
+export interface ExecOutputSessionState {
+	buffer: string;
+	bufferStartOffset: number;
+	emittedOffset: number;
+}
+
+function maxCharsForTokens(
+	maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS,
+): number {
+	return Math.max(256, maxOutputTokens * 4);
+}
+
+function stripTerminalControlSequences(text: string): string {
+	const withoutOscAndDcs = text
+		.replace(/\u001B\][^\u0007\u001B]*(?:\u0007|\u001B\\)/g, "")
+		.replace(/\u001B[P_X^][\s\S]*?\u001B\\/g, "");
+	return withoutOscAndDcs
+		.replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "")
+		.replace(/\u001B[@-_]/g, "")
+		.replaceAll("\u001B", "");
+}
+
+function sanitizeBinaryOutput(text: string): string {
+	return Array.from(text)
+		.filter((char) => {
+			const code = char.codePointAt(0);
+			if (code === undefined) return false;
+			if (code === 0x09 || code === 0x0a || code === 0x0d) return true;
+			if (code <= 0x1f) return false;
+			if (code >= 0xfff9 && code <= 0xfffb) return false;
+			return true;
+		})
+		.join("");
+}
+
+export function normalizePipeOutput(text: string): string {
+	return sanitizeBinaryOutput(stripTerminalControlSequences(text))
+		.replace(/\r\n/g, "\n")
+		.replace(/\r/g, "\n");
+}
+
+export function truncateToTail(
+	text: string,
+	maxChars: number,
+): { output: string; removed: number } {
+	let start = Math.max(0, text.length - maxChars);
+	if (start > 0 && start < text.length && /[\uDC00-\uDFFF]/.test(text[start]!))
+		start += 1;
+	return { output: text.slice(start), removed: start };
+}
+
+export function generateChunkId(): string {
+	return randomBytes(3).toString("hex");
+}
+
+export function truncateOutput(
+	text: string,
+	maxOutputTokens?: number,
+	originalCharCount = text.length,
+): { output: string; original_token_count?: number; truncated?: true } {
+	if (text.length === 0 && originalCharCount === 0) return { output: "" };
+	const maxChars = maxCharsForTokens(maxOutputTokens);
+	const originalTokenCount = Math.ceil(
+		Math.max(text.length, originalCharCount) / 4,
+	);
+	const output =
+		text.length <= maxChars ? text : truncateToTail(text, maxChars).output;
+	return {
+		output,
+		original_token_count: originalTokenCount,
+		...(output.length < originalCharCount ? { truncated: true } : {}),
+	};
+}
+
+function outputSince(
+	session: ExecOutputSessionState,
+	offset: number,
+): { text: string; originalCharCount: number; endOffset: number } {
+	const endOffset = session.bufferStartOffset + session.buffer.length;
+	const startOffset = Math.max(offset, session.bufferStartOffset);
+	return {
+		text: session.buffer.slice(startOffset - session.bufferStartOffset),
+		originalCharCount: Math.max(0, endOffset - offset),
+		endOffset,
+	};
+}
+
+export function consumeOutput(
+	session: ExecOutputSessionState,
+	maxOutputTokens?: number,
+): ReturnType<typeof truncateOutput> {
+	const output = outputSince(session, session.emittedOffset);
+	session.emittedOffset = output.endOffset;
+	return truncateOutput(output.text, maxOutputTokens, output.originalCharCount);
+}
+
+export function peekUnconsumedOutput(
+	session: ExecOutputSessionState,
+	maxOutputTokens?: number,
+): ReturnType<typeof truncateOutput> {
+	const output = outputSince(session, session.emittedOffset);
+	return truncateOutput(output.text, maxOutputTokens, output.originalCharCount);
+}
+
+export function peekOutputSince(
+	session: ExecOutputSessionState,
+	baselineOffset: number,
+	maxOutputTokens?: number,
+): ReturnType<typeof truncateOutput> {
+	const output = outputSince(session, baselineOffset);
+	return truncateOutput(output.text, maxOutputTokens, output.originalCharCount);
+}

@@ -1,0 +1,16 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.10/schema.json",
+	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+	"files": {
+		"includes": ["**", "!!**/dist", "!!**/node_modules", "!!bun.lock"]
+	},
+	"formatter": { "enabled": true, "indentStyle": "tab" },
+	"linter": { "enabled": false },
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"semicolons": "always",
+			"trailingCommas": "all"
+		}
+	}
+}

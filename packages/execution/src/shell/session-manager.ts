@@ -1,0 +1,549 @@
+// Copyright (c) 2026 Igor Warzocha. MIT licensed.
+// Host algorithms adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f.
+
+import { randomBytes } from "node:crypto";
+import type { ShellProcessBackend } from "./backend.ts";
+import {
+	normalizePipeOutput,
+	truncateOutput,
+	truncateToTail,
+} from "./output.ts";
+import {
+	createProcessSessionRuntime,
+	type ProcessExecSession,
+	type ProcessSessionHooks,
+} from "./process-session.ts";
+import {
+	makeExecResult,
+	makeSnapshotResult,
+	makeSnapshotSince,
+	snapshotSession,
+} from "./results.ts";
+import {
+	clampExecYieldTime,
+	clampWriteYieldTime,
+	DEFAULT_EXEC_YIELD_TIME_MS,
+	DEFAULT_MAX_EMPTY_WRITE_YIELD_TIME_MS,
+	DEFAULT_WRITE_YIELD_TIME_MS,
+	normalizeMinEmptyWriteYieldTime,
+	normalizeMinNonInteractiveExecYieldTime,
+	resolveExecution,
+	resolveShell,
+} from "./shell.ts";
+import { registerAbortHandler, waitForExitOrInactivity } from "./wait.ts";
+
+export type UnifiedExecResult = {
+	chunk_id: string;
+	wall_time_seconds: number;
+	output: string;
+	exit_code?: number;
+	session_id?: number;
+	original_token_count?: number;
+	truncated?: true;
+};
+
+export interface ExecSessionSnapshot {
+	id: number;
+	command: string;
+	running: boolean;
+	exitCode?: number | undefined;
+	startedAt: number;
+	updatedAt: number;
+	outputTail: string;
+	terminating: boolean;
+}
+
+type ExecSessionChangeReason = "start" | "output" | "exit" | "terminate";
+
+interface ExecCommandInput {
+	cmd: string;
+	workdir?: string | undefined;
+	shell?: string | undefined;
+	defaultShell?: string | undefined;
+	env?: NodeJS.ProcessEnv | undefined;
+	tty?: boolean | undefined;
+	yield_time_ms?: number | undefined;
+	max_yield_time_ms?: number | undefined;
+	max_output_tokens?: number | undefined;
+	login?: boolean | undefined;
+	wait_until_exit?: boolean | undefined;
+}
+
+interface WriteStdinInput {
+	session_id: number;
+	chars?: string | undefined;
+	yield_time_ms?: number | undefined;
+	max_output_tokens?: number | undefined;
+}
+
+type ExecSession = ProcessExecSession;
+
+type ExecSessionUpdateCallback = (result: UnifiedExecResult) => void;
+
+export interface ExecSessionManager {
+	setBaseEnv(env: NodeJS.ProcessEnv): void;
+	exec(
+		input: ExecCommandInput,
+		cwd: string,
+		signal?: AbortSignal,
+		onUpdate?: ExecSessionUpdateCallback,
+	): Promise<UnifiedExecResult>;
+	write(
+		input: WriteStdinInput,
+		signal?: AbortSignal,
+		onUpdate?: ExecSessionUpdateCallback,
+	): Promise<UnifiedExecResult>;
+	hasSession(sessionId: number): boolean;
+	getSessionCommand(sessionId: number): string | undefined;
+	listSessions(maxOutputChars?: number): ExecSessionSnapshot[];
+	terminateSession(sessionId: number): boolean;
+	onSessionChange(
+		listener: (reason: ExecSessionChangeReason) => void,
+	): () => void;
+	onSessionExit(
+		listener: (sessionId: number, command: string) => void,
+	): () => void;
+	shutdown(): Promise<void>;
+}
+
+export interface ExecSessionManagerOptions {
+	env?: NodeJS.ProcessEnv | undefined;
+	backend: ShellProcessBackend;
+	defaultExecYieldTimeMs?: number | undefined;
+	defaultWriteYieldTimeMs?: number | undefined;
+	minNonInteractiveExecYieldTimeMs?: number | undefined;
+	minEmptyWriteYieldTimeMs?: number | undefined;
+	maxEmptyWriteYieldTimeMs?: number | undefined;
+	maxSessionBufferChars?: number | undefined;
+}
+
+const MAX_COMMAND_HISTORY = 256;
+const MAX_COMPLETED_SESSION_HISTORY = 32;
+const MAX_COMPLETED_SESSION_OUTPUT_CHARS = 64 * 1024;
+const MAX_COMPLETED_SESSION_OUTPUT_TOKENS =
+	MAX_COMPLETED_SESSION_OUTPUT_CHARS / 4;
+const DEFAULT_MAX_TTY_SESSION_BUFFER_CHARS = 1024 * 1024;
+const DEFAULT_MAX_PIPE_SESSION_BUFFER_CHARS = 256 * 1024 * 1024;
+
+export function createExecSessionManager(
+	options: ExecSessionManagerOptions,
+): ExecSessionManager {
+	// Random epoch prevents old persisted IDs from addressing new processes after restart.
+	let nextSessionId = randomBytes(6).readUIntBE(0, 6);
+	const sessions = new Map<number, ExecSession>();
+	const commandHistory = new Map<number, string>();
+	const completedResults = new Map<number, UnifiedExecResult>();
+	const changeListeners = new Set<(reason: ExecSessionChangeReason) => void>();
+	const exitListeners = new Set<(sessionId: number, command: string) => void>();
+	const processSessions = createProcessSessionRuntime(options.backend);
+	let shuttingDown = false;
+	let shutdownPromise: Promise<void> | undefined;
+	let baseEnv: NodeJS.ProcessEnv = { ...(options.env ?? options.backend.env) };
+	const defaultExecYieldTimeMs =
+		options.defaultExecYieldTimeMs ?? DEFAULT_EXEC_YIELD_TIME_MS;
+	const defaultWriteYieldTimeMs =
+		options.defaultWriteYieldTimeMs ?? DEFAULT_WRITE_YIELD_TIME_MS;
+	const minNonInteractiveExecYieldTimeMs =
+		normalizeMinNonInteractiveExecYieldTime(
+			options.minNonInteractiveExecYieldTimeMs,
+		);
+	const minEmptyWriteYieldTimeMs = normalizeMinEmptyWriteYieldTime(
+		options.minEmptyWriteYieldTimeMs,
+	);
+	const maxEmptyWriteYieldTimeMs = Math.max(
+		minEmptyWriteYieldTimeMs,
+		options.maxEmptyWriteYieldTimeMs ?? DEFAULT_MAX_EMPTY_WRITE_YIELD_TIME_MS,
+	);
+	const configuredMaxSessionBufferChars =
+		options.maxSessionBufferChars === undefined
+			? undefined
+			: Math.max(1024, options.maxSessionBufferChars);
+
+	function rememberCommand(sessionId: number, command: string): void {
+		commandHistory.set(sessionId, command);
+		if (commandHistory.size <= MAX_COMMAND_HISTORY) {
+			return;
+		}
+		const oldest = commandHistory.keys().next().value;
+		if (oldest !== undefined) {
+			commandHistory.delete(oldest);
+		}
+	}
+
+	function rememberCompletedResult(
+		sessionId: number,
+		result: UnifiedExecResult,
+	): void {
+		const bounded = truncateToTail(
+			result.output,
+			MAX_COMPLETED_SESSION_OUTPUT_CHARS,
+		);
+		completedResults.set(sessionId, {
+			...result,
+			output:
+				bounded.removed > 0
+					? `[Earlier completed output omitted]\n${bounded.output}`
+					: bounded.output,
+			...(bounded.removed > 0 ? { truncated: true } : {}),
+		});
+		if (completedResults.size <= MAX_COMPLETED_SESSION_HISTORY) return;
+		const oldest = completedResults.keys().next().value;
+		if (oldest !== undefined) completedResults.delete(oldest);
+	}
+
+	function replayCompletedResult(
+		result: UnifiedExecResult,
+		maxOutputTokens?: number,
+	): UnifiedExecResult {
+		const originalCharCount =
+			!result.truncated || result.original_token_count === undefined
+				? result.output.length
+				: result.original_token_count * 4;
+		return {
+			...result,
+			...truncateOutput(result.output, maxOutputTokens, originalCharCount),
+		};
+	}
+
+	function finishResult(
+		session: ExecSession,
+		waitMs: number,
+		maxOutputTokens?: number,
+	): UnifiedExecResult {
+		const completed =
+			session.exitCode !== undefined && session.exitCode !== null;
+		const replaySnapshot = completed
+			? makeSnapshotResult(
+					session,
+					waitMs,
+					MAX_COMPLETED_SESSION_OUTPUT_TOKENS,
+					true,
+				)
+			: undefined;
+		const result = makeExecResult(
+			session,
+			waitMs,
+			maxOutputTokens,
+			exposeSession,
+			(sessionId) => sessions.delete(sessionId),
+		);
+		if (!replaySnapshot || sessions.has(session.id)) return result;
+		rememberCompletedResult(session.id, {
+			...replaySnapshot,
+			chunk_id: result.chunk_id,
+			wall_time_seconds: result.wall_time_seconds,
+		});
+		return result;
+	}
+
+	function notify(
+		session: ExecSession,
+		reason: ExecSessionChangeReason = "output",
+	): void {
+		session.updatedAt = Date.now();
+		for (const listener of session.listeners) {
+			listener();
+		}
+		if (session.exposed) notifyChanged(reason);
+	}
+
+	function notifyChanged(reason: ExecSessionChangeReason): void {
+		for (const listener of changeListeners) {
+			listener(reason);
+		}
+	}
+
+	function finalizeSession(
+		session: ExecSession,
+		reason: ExecSessionChangeReason = "exit",
+	): void {
+		if (session.finalized) return;
+		session.finalized = true;
+		for (const listener of exitListeners) {
+			listener(session.id, session.command);
+		}
+		notify(session, reason);
+	}
+
+	function exposeSession(session: ExecSession): void {
+		if (
+			session.exposed ||
+			(session.exitCode !== undefined && session.exitCode !== null)
+		)
+			return;
+		session.exposed = true;
+		notifyChanged("start");
+	}
+
+	function appendOutput(session: ExecSession, text: string): void {
+		if (text.length === 0) return;
+		const output = session.tty ? text : normalizePipeOutput(text);
+		session.buffer += output;
+		session.outputVersion += 1;
+		const maxSessionBufferChars =
+			configuredMaxSessionBufferChars ??
+			(session.tty
+				? DEFAULT_MAX_TTY_SESSION_BUFFER_CHARS
+				: DEFAULT_MAX_PIPE_SESSION_BUFFER_CHARS);
+		if (session.buffer.length > maxSessionBufferChars) {
+			const bounded = truncateToTail(session.buffer, maxSessionBufferChars);
+			session.buffer = bounded.output;
+			session.bufferStartOffset += bounded.removed;
+		}
+		notify(session);
+	}
+
+	function setBaseEnv(env: NodeJS.ProcessEnv): void {
+		baseEnv = { ...env };
+	}
+
+	const processHooks: ProcessSessionHooks = {
+		isOwned: (session) => !shuttingDown && sessions.get(session.id) === session,
+		onOutput: (session, text) => appendOutput(session, text),
+		onExit: (session) => finalizeSession(session),
+	};
+
+	return {
+		setBaseEnv,
+		exec: async (input, cwd, signal, onUpdate) => {
+			if (shuttingDown) throw new Error("exec manager is shut down");
+			signal?.throwIfAborted();
+			const requestedShell = input.shell ?? input.defaultShell;
+			const shell = resolveShell(
+				requestedShell,
+				options.backend.platform,
+				options.backend.defaultShell,
+			);
+			const workdir = input.workdir ?? cwd;
+			const execution = resolveExecution(
+				requestedShell,
+				input.cmd,
+				input.env,
+				baseEnv,
+				options.backend.platform,
+				options.backend.defaultShell,
+			);
+			const session = processSessions.create({
+				id: nextSessionId++,
+				input: {
+					command: input.cmd,
+					executionCommand: execution.command,
+					executionEnv: execution.env,
+					...(input.tty === undefined ? {} : { tty: input.tty }),
+					...(input.login === undefined ? {} : { login: input.login }),
+				},
+				workdir,
+				shell,
+				...(signal ? { signal } : {}),
+				hooks: processHooks,
+			});
+			sessions.set(session.id, session);
+			rememberCommand(session.id, session.command);
+			const abortCleanup = registerAbortHandler(signal, () => {
+				if (session.exitCode === undefined) session.terminating = true;
+			});
+
+			try {
+				onUpdate?.(
+					makeSnapshotResult(session, 0, input.max_output_tokens, true),
+				);
+				const execYieldMs = clampExecYieldTime(
+					input.yield_time_ms,
+					defaultExecYieldTimeMs,
+					session.interactive,
+					minNonInteractiveExecYieldTimeMs,
+					input.max_yield_time_ms,
+				);
+				const maxExecWaitMs = Math.max(
+					execYieldMs,
+					input.max_yield_time_ms ?? execYieldMs,
+				);
+				let waitedMs = 0;
+				let idleTimeMs = execYieldMs;
+				for (;;) {
+					const elapsedMs = await waitForExitOrInactivity(
+						session,
+						idleTimeMs,
+						maxExecWaitMs,
+						signal,
+						onUpdate
+							? (elapsed) =>
+									onUpdate(
+										makeSnapshotResult(
+											session,
+											waitedMs + elapsed,
+											input.max_output_tokens,
+										),
+									)
+							: undefined,
+					);
+					waitedMs += elapsedMs;
+					if (signal?.aborted) {
+						throw signal.reason instanceof Error
+							? signal.reason
+							: new Error("exec aborted");
+					}
+					if (
+						!input.wait_until_exit ||
+						(session.exitCode !== undefined && session.exitCode !== null)
+					)
+						break;
+					idleTimeMs = Math.min(maxExecWaitMs, idleTimeMs * 2);
+				}
+				await processSessions.waitForStartup(session, signal);
+				if (session.exitCode === undefined || session.exitCode === null)
+					session.nextEmptyPollYieldMs = growEmptyPollYield(
+						Math.max(execYieldMs, waitedMs),
+						maxEmptyWriteYieldTimeMs,
+					);
+				return finishResult(session, waitedMs, input.max_output_tokens);
+			} catch (error) {
+				if (signal?.aborted) {
+					await processSessions.terminate(session);
+					sessions.delete(session.id);
+				}
+				throw error;
+			} finally {
+				abortCleanup();
+			}
+		},
+		write: async (input, signal, onUpdate) => {
+			if (shuttingDown) throw new Error("exec manager is shut down");
+			if (signal?.aborted) {
+				throw new Error("write_stdin aborted");
+			}
+			const session = sessions.get(input.session_id);
+			if (!session) {
+				const completed = completedResults.get(input.session_id);
+				if (completed) {
+					if ((input.chars ?? "").length > 0) {
+						throw new Error(
+							`Process id ${input.session_id} already exited with code ${completed.exit_code}; cannot write stdin`,
+						);
+					}
+					return replayCompletedResult(completed, input.max_output_tokens);
+				}
+				throw new Error(
+					`Unknown or expired process id ${input.session_id}; sessions are process-local and do not survive restart`,
+				);
+			}
+			const updateBaseline = session.bufferStartOffset + session.buffer.length;
+			const chars = input.chars ?? "";
+			const isEmptyPoll = chars.length === 0;
+			if (!isEmptyPoll) {
+				if (!session.interactive) {
+					throw new Error(
+						"stdin is closed for this session; rerun exec_command with tty=true to keep stdin open",
+					);
+				}
+				await processSessions.write(session, chars);
+				session.nextEmptyPollYieldMs = undefined;
+			}
+			onUpdate?.(
+				makeSnapshotSince(session, 0, updateBaseline, input.max_output_tokens),
+			);
+			const requestedYieldMs = clampWriteYieldTime(
+				input.yield_time_ms,
+				defaultWriteYieldTimeMs,
+				isEmptyPoll,
+				minEmptyWriteYieldTimeMs,
+				maxEmptyWriteYieldTimeMs,
+			);
+			const effectiveYieldMs = isEmptyPoll
+				? Math.max(requestedYieldMs, session.nextEmptyPollYieldMs ?? 0)
+				: requestedYieldMs;
+			const abortCleanup = registerAbortHandler(signal, () => {
+				session.terminating = true;
+			});
+			try {
+				const waitedMs =
+					session.exitCode === undefined
+						? await waitForExitOrInactivity(
+								session,
+								effectiveYieldMs,
+								effectiveYieldMs,
+								signal,
+								onUpdate
+									? (elapsedMs) =>
+											onUpdate(
+												makeSnapshotSince(
+													session,
+													elapsedMs,
+													updateBaseline,
+													input.max_output_tokens,
+												),
+											)
+									: undefined,
+							)
+						: 0;
+				await processSessions.waitForStartup(session, signal);
+				if (
+					isEmptyPoll &&
+					(session.exitCode === undefined || session.exitCode === null)
+				)
+					session.nextEmptyPollYieldMs = growEmptyPollYield(
+						effectiveYieldMs,
+						maxEmptyWriteYieldTimeMs,
+					);
+				signal?.throwIfAborted();
+				return finishResult(session, waitedMs, input.max_output_tokens);
+			} catch (error) {
+				if (signal?.aborted) await processSessions.terminate(session);
+				throw error;
+			} finally {
+				abortCleanup();
+			}
+		},
+		hasSession: (sessionId) => sessions.has(sessionId),
+		getSessionCommand: (sessionId) =>
+			sessions.get(sessionId)?.command ?? commandHistory.get(sessionId),
+		listSessions: (maxOutputChars) => {
+			const snapshotsById = new Map<number, ExecSessionSnapshot>();
+			for (const session of sessions.values()) {
+				if (!session.exposed) continue;
+				if (session.exitCode !== undefined && session.exitCode !== null)
+					continue;
+				snapshotsById.set(session.id, snapshotSession(session, maxOutputChars));
+			}
+			return Array.from(snapshotsById.values()).sort((a, b) => a.id - b.id);
+		},
+		terminateSession: (sessionId) => {
+			const session = sessions.get(sessionId);
+			if (!session || session.exitCode !== undefined || session.terminating)
+				return false;
+			session.terminating = true;
+			void processSessions.terminate(session).catch((error) => {
+				session.terminating = false;
+				appendOutput(
+					session,
+					`Process termination failed: ${error instanceof Error ? error.message : String(error)}; outcome uncertain\n`,
+				);
+			});
+			notify(session, "terminate");
+			return true;
+		},
+		onSessionChange: (listener) => {
+			changeListeners.add(listener);
+			return () => changeListeners.delete(listener);
+		},
+		onSessionExit: (listener) => {
+			exitListeners.add(listener);
+			return () => exitListeners.delete(listener);
+		},
+		shutdown: () =>
+			(shutdownPromise ??= (async () => {
+				shuttingDown = true;
+				try {
+					await processSessions.shutdown();
+				} finally {
+					sessions.clear();
+					commandHistory.clear();
+					completedResults.clear();
+				}
+			})()),
+	};
+}
+
+function growEmptyPollYield(currentMs: number, maximumMs: number): number {
+	return Math.min(maximumMs, currentMs * 2);
+}

@@ -1,0 +1,60 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"workspaces": {
+		".": {
+			// Published Google/gaxios declarations reference these undeclared peers.
+			"ignoreDependencies": ["@modelcontextprotocol/sdk", "undici-types"],
+			"entry": [
+				"scripts/*.mjs",
+				"test/**/*.test.ts",
+				"packages/execution/test/**/*.test.ts"
+			],
+			"project": [
+				"scripts/*.mjs",
+				"test/**/*.ts",
+				"packages/execution/src/**/*.ts",
+				"packages/execution/test/**/*.ts",
+				"packages/codex/src/**/*.ts"
+			]
+		},
+		"packages/*": {
+			"entry": ["test/**/*.test.ts"],
+			"project": ["src/**/*.ts", "test/**/*.ts"]
+		},
+		"packages/browser": {
+			"entry": ["src/remote-worker.ts", "test/**/*.test.ts"],
+			"project": ["src/**/*.ts", "test/**/*.ts"]
+		},
+		"packages/code": {
+			"entry": ["test/**/*.test.ts"],
+			"project": ["src/**/*.ts", "test/**/*.ts"],
+			// execution/src is internal source compiled into this public package.
+			"ignoreDependencies": ["node-pty", "smol-toml"]
+		},
+		"packages/notebook": {
+			"entry": ["test/**/*.test.ts"],
+			"project": ["src/**/*.ts", "test/**/*.ts"],
+			// Internal shell/custom-command source and the lazy Deno provisioner's proxy loader.
+			"ignoreDependencies": ["node-pty", "smol-toml", "proxy-from-env"]
+		},
+		"packages/web": {
+			"entry": [],
+			"project": ["src/**/*.ts"],
+			// codex/src is internal source compiled into this public package.
+			"ignoreDependencies": ["proxy-from-env", "undici"]
+		},
+		"packages/imagegen": {
+			"entry": [],
+			"project": ["src/**/*.ts"],
+			"ignoreDependencies": ["proxy-from-env", "undici"]
+		},
+		"packages/apply-patch": {
+			"entry": ["test/differential.ts"],
+			"project": ["src/**/*.ts", "test/**/*.ts"]
+		},
+		"packages/view-image": {
+			"entry": ["test/**/*.test.ts", "test/differential.ts"],
+			"project": ["src/**/*.ts", "test/**/*.ts"]
+		}
+	}
+}

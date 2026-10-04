@@ -1,0 +1,64 @@
+#!/usr/bin/env node
+
+import { createHash } from "node:crypto";
+import { readFileSync, realpathSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+	requestBrowserWorker,
+	serveBrowserWorker,
+} from "./browser/worker-server.ts";
+
+async function readStdin(): Promise<string> {
+	let input = "";
+	let bytes = 0;
+	process.stdin.setEncoding("utf8");
+	for await (const chunk of process.stdin) {
+		bytes += Buffer.byteLength(chunk);
+		if (bytes > 8 * 1024 * 1024)
+			throw new Error("Browser worker input exceeded 8 MiB");
+		input += chunk;
+	}
+	return input;
+}
+
+async function main(): Promise<void> {
+	const entryPath = fileURLToPath(import.meta.url);
+	const workerId = createHash("sha256")
+		.update(readFileSync(entryPath))
+		.digest("hex")
+		.slice(0, 12);
+	if (process.argv.includes("--daemon")) {
+		await serveBrowserWorker(workerId);
+		return;
+	}
+	const controller = new AbortController();
+	const abort = () => controller.abort(new Error("Remote browser interrupted"));
+	process.once("SIGINT", abort);
+	process.once("SIGTERM", abort);
+	try {
+		const result = await requestBrowserWorker(
+			await readStdin(),
+			entryPath,
+			workerId,
+			controller.signal,
+		);
+		process.stdout.write(`${JSON.stringify(result)}\n`);
+	} finally {
+		process.removeListener("SIGINT", abort);
+		process.removeListener("SIGTERM", abort);
+	}
+}
+
+if (
+	process.argv[1] &&
+	realpathSync(fileURLToPath(import.meta.url)) ===
+		realpathSync(resolve(process.argv[1]))
+) {
+	main().catch((error) => {
+		process.stderr.write(
+			`pi-durable-browser-worker: ${error instanceof Error ? error.message : String(error)}\n`,
+		);
+		process.exitCode = 1;
+	});
+}
