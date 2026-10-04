@@ -90,7 +90,7 @@ export class NotebookClient implements NotebookExecutionClient {
 				agentDir: options.agentDir,
 				maxBytes: session.checkpointMaxBytes,
 			}),
-			metadata: () => session.metadata(),
+			metadata: () => session.observations.metadata(),
 			runtimeHealth: () => session.runtimeHealth(),
 		});
 	}
@@ -137,10 +137,10 @@ export class NotebookClient implements NotebookExecutionClient {
 			throw error;
 		}
 		try {
-			this.session.materializeJournal();
+			this.session.observations.materializeJournal();
 		} catch (error) {
 			if (!pins) throw error;
-			this.session.addNotice(
+			this.session.observations.addNotice(
 				`Notebook journal was not materialized: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
@@ -158,7 +158,7 @@ export class NotebookClient implements NotebookExecutionClient {
 			await this.session.recoverFromBootstrapFailure(error);
 			throw error;
 		}
-		const notice = this.session.takeNotice();
+		const notice = this.session.observations.takeNotice();
 		return notice
 			? {
 					message: `${notice}\n${result.message}`,
@@ -176,9 +176,9 @@ export class NotebookClient implements NotebookExecutionClient {
 			.flush({ force: true })
 			.catch(() => undefined);
 		try {
-			this.session.materializeJournal();
+			this.session.observations.materializeJournal();
 		} catch {}
-		await this.lifecycle
+		await this.lifecycle.releases
 			.disposeAll(AbortSignal.timeout(1_500))
 			.catch(() => undefined);
 		this.execution.clear();

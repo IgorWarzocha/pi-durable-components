@@ -1,0 +1,3 @@
+- Record every committed write before checking cancellation again. A move is a destination add until source removal succeeds, including in partial-failure outcomes.
+- Serialization covers both source and move destinations in the environment's path namespace. Keep canonical queue warnings attached to success and failure outcomes.
+- Missing-parent write retries are allowed only after an explicit `not_found` result with no cancellation. Never retry an interrupted mutation.

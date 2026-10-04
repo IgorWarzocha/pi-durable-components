@@ -1,0 +1,4 @@
+- Select recent images from the active `Conversation.context()` after edits and compaction, not from raw stored entries. Retain chronological order in the selected tail.
+- Generation, local edits and recent-image edits share one execution path. Preserve the absence of selectors as generation and validate local image bytes before sending them.
+- Artifact paths and `latest.png` belong to `api.env`. A successful remote request followed by decode or save failure is an uncertain side effect, never a retry invitation.
+- Keep native image content and artifact metadata together. Report provider usage as returned metadata rather than inventing priced Durable usage.

@@ -1,4 +1,7 @@
+import { NotebookBridgeServer } from "./bridge-server.ts";
+import type { NotebookCell } from "./cell.ts";
 import type {
+	NotebookMemoryUsage,
 	NotebookToolDefinition,
 	RuntimeResponse,
 	ToolExecutionContext,
@@ -6,6 +9,7 @@ import type {
 
 /** The kernel owns hook dispatch. This host boundary owns cancellation of its HTTP callbacks. */
 export class NotebookToolCallbacks {
+	readonly bridge: NotebookBridgeServer;
 	private readonly cells = new Map<
 		string,
 		{
@@ -15,6 +19,41 @@ export class NotebookToolCallbacks {
 			notifications: string[];
 		}
 	>();
+
+	constructor(options: {
+		activeCell(): NotebookCell | undefined;
+		recordMemory(usage: NotebookMemoryUsage): void;
+	}) {
+		const requireActiveCell = (cellId: string): NotebookCell => {
+			const cell = options.activeCell();
+			if (!cell || cell.id !== cellId)
+				throw new Error(`Notebook cell "${cellId}" is not active`);
+			return cell;
+		};
+		this.bridge = new NotebookBridgeServer({
+			callTool: async (cellId, requestId, toolName, input) => {
+				requireActiveCell(cellId);
+				return this.invokeDirect(cellId, requestId, toolName.name, input);
+			},
+			cancelTools: (cellId) => {
+				requireActiveCell(cellId);
+				this.cancelCell(cellId);
+			},
+			emit: (cellId, items) => requireActiveCell(cellId).emit(items),
+			notify: (cellId, text) => {
+				requireActiveCell(cellId);
+				this.notifyDirect(cellId, text);
+			},
+			yield: async (cellId) => {
+				const cell = requireActiveCell(cellId);
+				await cell.context.onYield?.();
+				cell.requestYield();
+			},
+			memory: (cellId, usage) => {
+				if (options.activeCell()?.id === cellId) options.recordMemory(usage);
+			},
+		});
+	}
 
 	bindCell(
 		id: string,

@@ -1,12 +1,10 @@
 import { type Context, copyJson } from "@earendil-works/chord";
 import {
-	defineDocFamily,
 	defineExtension,
 	defineTool,
 	type Harness,
 	section,
 	type TaskId,
-	type ToolExecutionApi,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 import {
@@ -14,11 +12,7 @@ import {
 	CODE_MODE_EXEC_CONSTRAINED_SAMPLING as NOTEBOOK_EXEC_CONSTRAINED_SAMPLING,
 	parseExecSource,
 } from "../../execution/src/exec-source.ts";
-import {
-	type CellObservation,
-	createCellCoordinator,
-} from "../../execution/src/index.ts";
-import { boundOutput } from "../../execution/src/output.ts";
+import { createCellCoordinator } from "../../execution/src/index.ts";
 import {
 	createShellRuntime,
 	type ShellRuntimeOptions,
@@ -31,6 +25,7 @@ import {
 	NOTEBOOK_PARAMETERS,
 	parseNotebookRequest,
 } from "./notebook-control.ts";
+import { notebookCellTaskId, observeNotebookCell } from "./tool-observation.ts";
 
 export type {
 	CustomCommandBackend,
@@ -70,16 +65,6 @@ export type {
 } from "../../execution/src/shell.ts";
 export { createNodeShellBackend } from "../../execution/src/shell.ts";
 export type { NotebookEngineOptions } from "./engine.ts";
-
-const ObservationCursor = defineDocFamily<{ items: number }, null>({
-	kind: "howaboua.notebook.observation",
-	version: 1,
-	family: true,
-	scope: "conversation",
-	history: "latest",
-	fork: "initial",
-	initial: () => ({ items: 0 }),
-});
 
 export interface NotebookModeOptions extends NotebookEngineOptions {
 	shell: ShellRuntimeOptions;
@@ -139,7 +124,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 				api,
 				context,
 			);
-			return observed(
+			return observeNotebookCell(
 				await coordinator.wait(id, api, context, yieldTimeMs),
 				parsed.maxOutputTokens ?? 10000,
 				api,
@@ -167,7 +152,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 			{ additionalProperties: false },
 		),
 		async execute(args, api, context) {
-			const id = taskId(args.cell_id);
+			const id = notebookCellTaskId(args.cell_id);
 			try {
 				const observation = args.terminate
 					? await coordinator.cancel(id, api, context)
@@ -183,7 +168,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 				if (observation.status === "running")
 					waitAttempts.set(id, (waitAttempts.get(id) ?? 0) + 1);
 				else waitAttempts.delete(id);
-				return await observed(
+				return await observeNotebookCell(
 					observation,
 					args.max_tokens ?? 10000,
 					api,
@@ -248,78 +233,5 @@ export function createNotebookMode(options: NotebookModeOptions) {
 				shell.close(),
 			]).then(() => undefined));
 		},
-	};
-}
-
-function taskId(
-	value: string,
-): TaskId<import("@earendil-works/pi-durable").ToolExecutionResult> {
-	const id = Number(value);
-	if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(id))
-		throw new Error("Invalid notebook cell_id");
-	return id as TaskId<import("@earendil-works/pi-durable").ToolExecutionResult>;
-}
-
-async function observed(
-	observation: CellObservation,
-	maxTokens: number,
-	api: ToolExecutionApi,
-	context: Context,
-) {
-	const result = observation.result;
-	const allContent = result.content ?? [];
-	const previous = await api.commit(async (tx) => {
-		const cursor = await tx.doc(
-			ObservationCursor,
-			api.conversationId,
-			String(observation.cellId),
-			null,
-		);
-		const previous = cursor.items;
-		cursor.items = allContent.length;
-		return previous;
-	}, context);
-	const content = allContent.slice(previous);
-	const text = content
-		.filter((each) => each.type === "text")
-		.map((each) => each.text)
-		.join("\n");
-	const bounded = boundOutput(text, {
-		maxBytes: maxTokens * 4,
-		maxLines: Number.MAX_SAFE_INTEGER,
-		retain: "head",
-	});
-	const marker =
-		observation.status === "running"
-			? `Still running (exec cell "${observation.cellId}"). Use wait near expected completion`
-			: observation.status === "aborted"
-				? "Script terminated; external side effects were not rolled back"
-				: undefined;
-	const emitted = [
-		...(marker ? [{ type: "text" as const, text: marker }] : []),
-		...(bounded.text ? [{ type: "text" as const, text: bounded.text }] : []),
-		...content.filter((each) => each.type !== "text"),
-	];
-	if (emitted.length === 0) emitted.push({ type: "text", text: "OK" });
-	return {
-		...result,
-		content: emitted,
-		details: {
-			cell_id: String(observation.cellId),
-			status: observation.status,
-			...(result.details === undefined ? {} : { runtime: result.details }),
-		},
-		...(bounded.droppedBytes
-			? {
-					diagnostics: [
-						...(result.diagnostics ?? []),
-						{
-							severity: "warn" as const,
-							code: "truncated",
-							message: `${bounded.droppedBytes} bytes omitted by max_tokens`,
-						},
-					],
-				}
-			: {}),
 	};
 }

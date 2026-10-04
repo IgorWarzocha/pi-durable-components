@@ -1,25 +1,19 @@
 // Adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f, MIT. See ../NOTICE.
+
 import {
 	DEFAULT_CODE_MODE_EXEC_YIELD_MS,
 	parseExecSource,
 } from "../../execution/src/exec-source.ts";
-import { NotebookBridgeServer } from "./bridge-server.ts";
+import type { NotebookBridgeServer } from "./bridge-server.ts";
 import { NotebookCell } from "./cell.ts";
-import {
-	beginNotebookJournalCell,
-	finishNotebookJournalCell,
-} from "./journal.ts";
+import { NotebookCellSettlement } from "./execution-settlement.ts";
+import { beginNotebookJournalCell } from "./journal.ts";
 import type {
-	NotebookMemoryUsage,
 	NotebookToolDefinition,
-	NotebookToolIdentity,
 	RuntimeResponse,
 	ToolExecutionContext,
 } from "./runtime-contract.ts";
-import {
-	NOTEBOOK_INTERRUPTED_NOTICE,
-	withNotebookRecoveryGuidance,
-} from "./runtime-health.ts";
+import { NOTEBOOK_INTERRUPTED_NOTICE } from "./runtime-health.ts";
 import type { NotebookSessionRuntime } from "./session-runtime.ts";
 import { NotebookToolCallbacks } from "./tool-callbacks.ts";
 
@@ -34,6 +28,7 @@ export class NotebookExecutionRuntime {
 		signal?: AbortSignal,
 	) => Promise<void>;
 	private readonly delegate: NotebookToolCallbacks;
+	private readonly settlement: NotebookCellSettlement;
 	private readonly stopOperations = new WeakMap<NotebookCell, Promise<void>>();
 	private activeCell: NotebookCell | undefined;
 	private nextCellId = 1;
@@ -48,20 +43,19 @@ export class NotebookExecutionRuntime {
 	) {
 		this.session = session;
 		this.prepareSession = prepareSession;
-		this.delegate = new NotebookToolCallbacks();
-		this.bridge = new NotebookBridgeServer({
-			callTool: (cellId, requestId, toolName, input) =>
-				this.callTool(cellId, requestId, toolName, input),
-			cancelTools: (cellId) => this.cancelTools(cellId),
-			emit: (cellId, items) => this.requireActiveCell(cellId).emit(items),
-			notify: (cellId, text) => this.notify(cellId, text),
-			yield: async (cellId) => {
-				const cell = this.requireActiveCell(cellId);
-				await cell.context.onYield?.();
-				cell.requestYield();
-			},
-			memory: (cellId, usage) => this.recordMemory(cellId, usage),
+		this.delegate = new NotebookToolCallbacks({
+			activeCell: () => this.activeCell,
+			recordMemory: (usage) => this.session().observations.recordMemory(usage),
 		});
+		this.bridge = this.delegate.bridge;
+		this.settlement = new NotebookCellSettlement(
+			this.session,
+			this.delegate,
+			this.bridge.exitToken,
+			() => {
+				if (this.activeCell) this.delegate.cancelCell(this.activeCell.id);
+			},
+		);
 	}
 
 	activeCellId(): string | undefined {
@@ -110,10 +104,10 @@ export class NotebookExecutionRuntime {
 		const effectiveYieldTime = yieldTimeMs ?? DEFAULT_CODE_MODE_EXEC_YIELD_MS;
 		this.nextCellId = Math.max(
 			this.nextCellId,
-			(session.journal()?.cells ?? 0) + 1,
+			(session.observations.journal()?.cells ?? 0) + 1,
 		);
 		const id = `notebook-${this.nextCellId++}`;
-		session.recordMemory(undefined);
+		session.observations.recordMemory(undefined);
 		const cell = new NotebookCell({
 			id,
 			source: code,
@@ -121,7 +115,7 @@ export class NotebookExecutionRuntime {
 			maxOutputTokens: maxOutputTokens ?? 10_000,
 		});
 		cell.context = this.withCellContext(cell, context);
-		const notice = session.takeNotice();
+		const notice = session.observations.takeNotice();
 		this.activeCell = cell;
 		if (notice) cell.emit([{ type: "input_text", text: notice }]);
 		this.delegate.bindCell(
@@ -130,13 +124,13 @@ export class NotebookExecutionRuntime {
 			new Map(tools.map((tool) => [tool.name, tool])),
 		);
 		let journaled = false;
-		const journal = session.journal();
+		const journal = session.observations.journal();
 		if (journal) {
 			try {
 				beginNotebookJournalCell(journal, { id, source: cell.source });
 				journaled = true;
 			} catch (error) {
-				this.reportJournalFailure(error, "start", cell);
+				this.settlement.reportJournalFailure(error, "start", cell);
 			}
 		}
 		const metadata = tools.map((tool) => ({
@@ -166,9 +160,9 @@ export class NotebookExecutionRuntime {
 			void this.stopAndCloseCell(cell).catch(() => undefined);
 		};
 		signal?.addEventListener("abort", abort, { once: true });
-		void this.runCell(cell, wrapped, journaled).finally(() =>
-			signal?.removeEventListener("abort", abort),
-		);
+		void this.settlement
+			.run(cell, wrapped, journaled)
+			.finally(() => signal?.removeEventListener("abort", abort));
 		try {
 			return await this.observe(cell, effectiveYieldTime, signal);
 		} catch (error) {
@@ -233,88 +227,7 @@ export class NotebookExecutionRuntime {
 	clear(): void {
 		this.activeCell = undefined;
 		this.delegate.clear();
-		this.session().recordMemory(undefined);
-	}
-
-	private async runCell(
-		cell: NotebookCell,
-		source: string,
-		journaled: boolean,
-	): Promise<void> {
-		const session = this.session();
-		try {
-			const result = await session.kernel()!.execute(source, {
-				cellSource: cell.source,
-				signal: cell.controller.signal,
-				interruptOnAbort: false,
-				onOutput: (item) => cell.emit([item]),
-			});
-			const normalized =
-				result.errorName === "PiNotebookExit" &&
-				result.errorValue === this.bridge.exitToken
-					? {
-							...result,
-							status: "ok" as const,
-							errorText: undefined,
-							errorName: undefined,
-							errorValue: undefined,
-						}
-					: result;
-			cell.result = normalized;
-			if (!(await session.recoverFromBootstrapFailure(normalized))) {
-				await this.endCellRuntime(cell);
-				if (cell.result.status === "ok") {
-					await session.recordNpmImports(cell.source);
-					session.checkpoints.schedule();
-				}
-			}
-		} catch (error) {
-			this.delegate.cancelCell(cell.id);
-			const recovery = cell.controller.signal.aborted
-				? undefined
-				: await this.recoverAfterFatal(cell.context);
-			cell.result = {
-				status: cell.controller.signal.aborted ? "aborted" : "error",
-				items: [],
-				errorText: `${error instanceof Error ? error.message : String(error)}${recovery ? `\n${recovery}` : ""}`,
-			};
-		} finally {
-			const journal = session.journal();
-			if (cell.result && journal) {
-				try {
-					finishNotebookJournalCell(journal, {
-						id: cell.id,
-						source: cell.source,
-						items: cell.items,
-						result: cell.result,
-					});
-				} catch (error) {
-					this.reportJournalFailure(
-						error,
-						journaled ? "completion" : "update",
-						cell,
-					);
-				}
-			}
-			cell.markCompleted();
-		}
-	}
-
-	private async endCellRuntime(cell: NotebookCell): Promise<void> {
-		const kernel = this.session().kernel();
-		if (!kernel) return;
-		const id = JSON.stringify(cell.id);
-		const result = await kernel.execute(
-			`if (typeof globalThis.__piNotebook?.finish !== "function") throw new Error("Notebook runtime bootstrap unavailable: __piNotebook.finish"); await globalThis.__piNotebook.finish(${id}); undefined;`,
-		);
-		await this.session().recoverFromBootstrapFailure(result);
-		if (result.status !== "ok" && cell.result?.status === "ok") {
-			cell.result = {
-				status: "error",
-				items: [],
-				errorText: result.errorText ?? "Notebook helper flush failed",
-			};
-		}
+		this.session().observations.recordMemory(undefined);
 	}
 
 	private async observe(
@@ -333,7 +246,7 @@ export class NotebookExecutionRuntime {
 		cell: NotebookCell,
 		kind: RuntimeResponse["kind"],
 	): RuntimeResponse {
-		const notice = this.session().takeNotice();
+		const notice = this.session().observations.takeNotice();
 		if (notice) cell.emit([{ type: "input_text", text: notice }]);
 		const contentItems = cell.takeContent();
 		const response: RuntimeResponse =
@@ -396,36 +309,6 @@ export class NotebookExecutionRuntime {
 		this.closeCell(cell);
 	}
 
-	private async recoverAfterFatal(
-		context: ToolExecutionContext,
-	): Promise<string> {
-		const extension = context.sessionContext;
-		if (!extension)
-			return "Notebook kernel could not restart because its session context is unavailable";
-		if (this.activeCell) this.delegate.cancelCell(this.activeCell.id);
-		try {
-			const restoreNotice = await this.session().restart(extension);
-			return `Notebook kernel restarted from the last completed checkpoint; external side effects were not rolled back${restoreNotice ? `. ${restoreNotice}` : ""}`;
-		} catch (error) {
-			return withNotebookRecoveryGuidance(
-				`Notebook kernel restart failed: ${error instanceof Error ? error.message : String(error)}`,
-			);
-		}
-	}
-
-	private reportJournalFailure(
-		error: unknown,
-		operation: string,
-		cell: NotebookCell,
-	): void {
-		cell.emit([
-			{
-				type: "input_text",
-				text: `Notebook journal ${operation} failed: ${error instanceof Error ? error.message : String(error)}`,
-			},
-		]);
-	}
-
 	private closeCell(cell: NotebookCell): void {
 		if (this.activeCell === cell) this.activeCell = undefined;
 		this.delegate.closeCell(cell.id);
@@ -441,40 +324,9 @@ export class NotebookExecutionRuntime {
 		};
 	}
 
-	private async callTool(
-		cellId: string,
-		requestId: number,
-		toolName: NotebookToolIdentity,
-		input: unknown,
-	): Promise<unknown> {
-		this.requireActiveCell(cellId);
-		return this.delegate.invokeDirect(cellId, requestId, toolName.name, input);
-	}
-
-	private cancelTools(cellId: string): void {
-		this.requireActiveCell(cellId);
-		this.delegate.cancelCell(cellId);
-	}
-
-	private notify(cellId: string, text: string): void {
-		this.requireActiveCell(cellId);
-		this.delegate.notifyDirect(cellId, text);
-	}
-
-	private recordMemory(cellId: string, usage: NotebookMemoryUsage): void {
-		if (this.activeCell?.id === cellId) this.session().recordMemory(usage);
-	}
-
 	private withMemory(response: RuntimeResponse): RuntimeResponse {
-		const memory = this.session().memory();
+		const memory = this.session().observations.memory();
 		return memory ? { ...response, notebookMemory: memory } : response;
-	}
-
-	private requireActiveCell(cellId: string): NotebookCell {
-		const cell = this.activeCell;
-		if (!cell || cell.id !== cellId)
-			throw new Error(`Notebook cell "${cellId}" is not active`);
-		return cell;
 	}
 }
 

@@ -9,7 +9,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
-import { projectStatePaths } from "./project-state-format.ts";
+import { projectStatePaths } from "./project-state-files.ts";
 import { withProjectStateLock } from "./project-state-lock.ts";
 
 const NPM_IMPORTS_SCHEMA = 1;

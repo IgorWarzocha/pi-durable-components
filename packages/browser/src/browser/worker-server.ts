@@ -1,54 +1,24 @@
-import { spawn } from "node:child_process";
-import { chmod, lstat, mkdir, rm } from "node:fs/promises";
-import { createConnection, createServer, type Socket } from "node:net";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { StringDecoder } from "node:string_decoder";
+import { rm } from "node:fs/promises";
+import { createServer, type Socket } from "node:net";
+import { dirname } from "node:path";
 import { nodeArtifactStore } from "./artifact-store.ts";
 import type { BrowserOperation } from "./operation.ts";
 import { isRecordValue, parseActionRequest } from "./parse-operation.ts";
 import { BrowserRoutes } from "./routes.ts";
 import { BrowserRuntime } from "./runtime.ts";
+import {
+	ensureWorkerSocketDirectory,
+	readLine,
+	type WorkerResponse,
+	workerSocketPath,
+} from "./worker-socket.ts";
 
-const INPUT_LIMIT_BYTES = 8 * 1_024 * 1_024;
-const START_TIMEOUT_MS = 5_000;
 const IDLE_TIMEOUT_MS = 20 * 60 * 1_000;
 const IS_WINDOWS = process.platform === "win32";
-
-type WorkerResponse =
-	| { ok: true; result: Record<string, unknown> }
-	| { ok: false; error: string };
 
 interface WorkerRequest {
 	operations: BrowserOperation[];
 	ownerId: string;
-}
-
-function workerSocketPath(workerId: string): string {
-	if (IS_WINDOWS) return `\\\\.\\pipe\\pi-durable-browser-worker-${workerId}`;
-	const directory = process.env["XDG_RUNTIME_DIR"]
-		? join(process.env["XDG_RUNTIME_DIR"], "pi-durable-browser")
-		: join(tmpdir(), `pi-durable-browser-${process.getuid?.() ?? "user"}`);
-	return join(directory, `worker-${workerId}.sock`);
-}
-
-async function ensureWorkerSocketDirectory(workerId: string): Promise<void> {
-	if (IS_WINDOWS) return;
-	const directory = dirname(workerSocketPath(workerId));
-	await mkdir(directory, { recursive: true, mode: 0o700 });
-	const info = await lstat(directory);
-	const uid = process.getuid?.();
-	if (info.isSymbolicLink() || !info.isDirectory()) {
-		throw new Error(
-			`Browser worker socket directory is not a directory: ${directory}`,
-		);
-	}
-	if (uid === undefined || info.uid !== uid) {
-		throw new Error(
-			`Browser worker socket directory is not owned by this user: ${directory}`,
-		);
-	}
-	if ((info.mode & 0o077) !== 0) await chmod(directory, 0o700);
 }
 
 function parseWorkerRequest(input: string): WorkerRequest {
@@ -90,40 +60,6 @@ function parseWorkerRequest(input: string): WorkerRequest {
 		return parsed;
 	});
 	return { operations, ownerId: value["owner_id"] };
-}
-
-function readLine(socket: Socket): Promise<string> {
-	return new Promise((resolveValue, reject) => {
-		let input = "";
-		let bytes = 0;
-		const decoder = new StringDecoder("utf8");
-		const cleanup = () => {
-			socket.off("data", onData);
-			socket.off("end", onEnd);
-			socket.off("error", onError);
-		};
-		const onError = (error: Error) => {
-			cleanup();
-			reject(error);
-		};
-		const onEnd = () => onError(new Error("Browser worker closed early"));
-		const onData = (chunk: Buffer) => {
-			bytes += chunk.length;
-			if (bytes > INPUT_LIMIT_BYTES) {
-				cleanup();
-				reject(new Error("Browser worker input exceeded 8 MiB"));
-				return;
-			}
-			input += decoder.write(chunk);
-			const newline = input.indexOf("\n");
-			if (newline < 0) return;
-			cleanup();
-			resolveValue(input.slice(0, newline));
-		};
-		socket.on("data", onData);
-		socket.once("end", onEnd);
-		socket.once("error", onError);
-	});
 }
 
 async function handleConnection(
@@ -207,110 +143,4 @@ export async function serveBrowserWorker(workerId: string): Promise<void> {
 		await runtime.close();
 		if (!IS_WINDOWS && ownsSocket) await rm(path, { force: true });
 	}
-}
-
-async function requestOnce(
-	input: string,
-	workerId: string,
-	signal?: AbortSignal,
-): Promise<WorkerResponse> {
-	if (signal?.aborted) {
-		return Promise.reject(
-			signal.reason ?? new Error("Browser worker request aborted"),
-		);
-	}
-	await ensureWorkerSocketDirectory(workerId);
-	if (signal?.aborted) {
-		throw signal.reason ?? new Error("Browser worker request aborted");
-	}
-	return new Promise((resolveValue, reject) => {
-		const socket = createConnection(workerSocketPath(workerId));
-		const abort = () => {
-			socket.destroy();
-			reject(signal?.reason ?? new Error("Browser worker request aborted"));
-		};
-		signal?.addEventListener("abort", abort, { once: true });
-		socket.once("connect", () => socket.write(`${input}\n`));
-		void readLine(socket).then(
-			(line) => {
-				signal?.removeEventListener("abort", abort);
-				socket.destroy();
-				try {
-					const response: unknown = JSON.parse(line);
-					if (!isRecordValue(response) || typeof response["ok"] !== "boolean") {
-						throw new Error("Browser worker returned an invalid response");
-					}
-					if (response["ok"] === true && isRecordValue(response["result"])) {
-						resolveValue({ ok: true, result: response["result"] });
-					} else if (
-						response["ok"] === false &&
-						typeof response["error"] === "string"
-					) {
-						resolveValue({ ok: false, error: response["error"] });
-					} else {
-						throw new Error("Browser worker returned an invalid response");
-					}
-				} catch (error) {
-					reject(error);
-				}
-			},
-			(error) => {
-				signal?.removeEventListener("abort", abort);
-				socket.destroy();
-				reject(error);
-			},
-		);
-	});
-}
-
-function canStartWorker(error: unknown): boolean {
-	return (
-		error instanceof Error &&
-		"code" in error &&
-		(error.code === "ENOENT" || error.code === "ECONNREFUSED")
-	);
-}
-
-export async function requestBrowserWorker(
-	input: string,
-	entryPath: string,
-	workerId: string,
-	signal?: AbortSignal,
-): Promise<Record<string, unknown>> {
-	try {
-		const response = await requestOnce(input, workerId, signal);
-		if (!response.ok)
-			throw new Error(response.error ?? "Browser worker failed");
-		if (!response.result) throw new Error("Browser worker returned no result");
-		return response.result;
-	} catch (error) {
-		if (!canStartWorker(error)) throw error;
-	}
-	if (!IS_WINDOWS) await rm(workerSocketPath(workerId), { force: true });
-	signal?.throwIfAborted();
-	const child = spawn(
-		process.execPath,
-		["--preserve-symlinks-main", entryPath, "--daemon"],
-		{ detached: true, stdio: "ignore" },
-	);
-	child.unref();
-	const deadline = Date.now() + START_TIMEOUT_MS;
-	let lastError: unknown;
-	while (Date.now() < deadline) {
-		try {
-			const response = await requestOnce(input, workerId, signal);
-			if (!response.ok)
-				throw new Error(response.error ?? "Browser worker failed");
-			if (!response.result)
-				throw new Error("Browser worker returned no result");
-			return response.result;
-		} catch (error) {
-			if (!canStartWorker(error)) throw error;
-			lastError = error;
-			await new Promise((resolveValue) => setTimeout(resolveValue, 50));
-		}
-	}
-	throw new Error(
-		`Browser worker did not start within ${START_TIMEOUT_MS}ms${lastError instanceof Error ? `: ${lastError.message}` : ""}`,
-	);
 }

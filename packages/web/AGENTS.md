@@ -1,0 +1,3 @@
+- Keep web commands separate from settings in the `/alpha/search` envelope. Preserve unknown command fields, the fixed response-token budget and `ProviderDoc` session affinity.
+- Tool output limits must accommodate the HTTP response envelope. Generic Durable truncation can otherwise drop usable references while reporting success.
+- Keep authentication and redirect policy in the internal `codex` owner. A conversation using another model provider can still use the explicitly enabled Codex credential fallback.

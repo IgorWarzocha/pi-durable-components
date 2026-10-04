@@ -14,12 +14,8 @@ import {
 	type ToolExecutionResult,
 	type ToolRegistration,
 } from "@earendil-works/pi-durable";
-import {
-	boundOutput,
-	OutputBuffer,
-	type OutputLimits,
-	Progress,
-} from "./output.ts";
+import { boundOutput, OutputBuffer, type OutputLimits } from "./output.ts";
+import { Progress } from "./progress.ts";
 
 type StoredResult = JsonRepresentation<ToolExecutionResult>;
 export type InvocationState = {

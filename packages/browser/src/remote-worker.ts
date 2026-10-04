@@ -4,10 +4,8 @@ import { createHash } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-	requestBrowserWorker,
-	serveBrowserWorker,
-} from "./browser/worker-server.ts";
+import { requestBrowserWorker } from "./browser/worker-client.ts";
+import { serveBrowserWorker } from "./browser/worker-server.ts";
 
 async function readStdin(): Promise<string> {
 	let input = "";

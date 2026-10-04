@@ -1,21 +1,21 @@
 // Adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f, MIT. See ../NOTICE.
 
+import { type NotebookCheckpointIdentity } from "./checkpoint.ts";
 import {
-	type NotebookCheckpointIdentity,
 	notebookCheckpointBindingNames,
 	removeNotebookCheckpoint,
-} from "./checkpoint.ts";
+} from "./checkpoint-store.ts";
 import { ensureNotebookDenoBinary } from "./deno-binary.ts";
 import { initializeNotebookJournal } from "./journal.ts";
 import { formatNameList } from "./lifecycle-result.ts";
 import { diagnoseNotebook } from "./notebook-diagnostics.ts";
 import { notebookProfileBindingNames } from "./profile-state.ts";
 import { resolveNotebookProject } from "./project-identity.ts";
+import { unpinProjectStateBindings } from "./project-state-commit.ts";
 import {
 	projectStateBindingNames,
-	unpinProjectStateBindings,
-} from "./project-state.ts";
-import { readRetainedProjectBindings } from "./project-state-metadata.ts";
+	readRetainedProjectBindings,
+} from "./project-state-metadata.ts";
 import type {
 	NotebookControlResult,
 	NotebookSessionContext,

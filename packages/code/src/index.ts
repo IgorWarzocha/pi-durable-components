@@ -5,11 +5,13 @@ import {
 	type ToolExecutionResult,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
-import { CODE_MODE_EXEC_CONSTRAINED_SAMPLING } from "../../execution/src/exec-source.ts";
+import {
+	CODE_MODE_EXEC_CONSTRAINED_SAMPLING,
+	parseExecSource,
+} from "../../execution/src/exec-source.ts";
 import {
 	adaptiveWaitMs,
 	type CellCoordinatorOptions,
-	type CellObservation,
 	createCellCoordinator,
 	directToolYieldTime,
 	readToolContract,
@@ -19,8 +21,8 @@ import {
 	type ShellRuntimeOptions,
 } from "../../execution/src/shell.ts";
 import type { HostOptions } from "./binary.ts";
+import { observeCodeCell } from "./cell-output.ts";
 import { CodeEngine } from "./engine.ts";
-import { parseExecSource } from "./host-protocol.ts";
 
 export type {
 	CustomCommandBackend,
@@ -79,6 +81,7 @@ const waitSchema = Type.Object({
 export function createCodeMode(options: CodeModeOptions) {
 	const shell = createShellRuntime(options.shell);
 	const engine = new CodeEngine(options);
+	const acknowledge = engine.acknowledge.bind(engine);
 	const coordinator = createCellCoordinator({
 		name: "code",
 		engine,
@@ -109,10 +112,10 @@ export function createCodeMode(options: CodeModeOptions) {
 				parsed.yieldTimeMs ??
 				30_000;
 			const id = await coordinator.start({ code: args.code }, api, context);
-			return observed(
+			return observeCodeCell(
 				await coordinator.wait(id, api, context, yieldMs),
 				parsed.maxOutputTokens ?? 10_000,
-				engine,
+				acknowledge,
 			);
 		},
 	});
@@ -145,7 +148,11 @@ export function createCodeMode(options: CodeModeOptions) {
 				if (observation.status === "running")
 					waitAttempts.set(id, (waitAttempts.get(id) ?? 0) + 1);
 				else waitAttempts.delete(id);
-				return observed(observation, args.max_tokens ?? 10_000, engine);
+				return observeCodeCell(
+					observation,
+					args.max_tokens ?? 10_000,
+					acknowledge,
+				);
 			} catch (error) {
 				waitAttempts.delete(id);
 				throw error;
@@ -195,63 +202,4 @@ function execArguments(value: unknown): { code: string } {
 	)
 		throw new Error("exec requires JavaScript source");
 	return { code: value.code };
-}
-
-function observed(
-	observation: CellObservation,
-	maxTokens: number,
-	engine: CodeEngine,
-): ToolExecutionResult {
-	const details = observation.result.details;
-	const revision =
-		details !== null && typeof details === "object" && !Array.isArray(details)
-			? details["deliveryRevision"]
-			: undefined;
-	const fresh =
-		typeof revision !== "number" ||
-		engine.acknowledge(observation.cellId, revision);
-	let remaining = maxTokens * 4;
-	let truncated = false;
-	const content: NonNullable<ToolExecutionResult["content"]> = [];
-	for (const item of fresh || observation.status !== "running"
-		? (observation.result.content ?? [])
-		: []) {
-		if (item.type !== "text") {
-			content.push(item);
-			continue;
-		}
-		if (remaining <= 0) {
-			if (!truncated) content.push({ ...item, text: "[Output truncated]" });
-			truncated = true;
-		} else if (item.text.length > remaining) {
-			content.push({
-				...item,
-				text: `${item.text.slice(0, remaining)}\n[Output truncated]`,
-			});
-			remaining = 0;
-			truncated = true;
-		} else {
-			content.push(item);
-			remaining -= item.text.length;
-		}
-	}
-	if (observation.status === "running")
-		content.unshift({
-			type: "text",
-			text: `Still running (exec cell "${observation.cellId}"). Use wait near expected completion`,
-		});
-	if (!content.length) content.push({ type: "text", text: "OK" });
-	return {
-		...observation.result,
-		content,
-		details: {
-			...(details !== null &&
-			typeof details === "object" &&
-			!Array.isArray(details)
-				? details
-				: {}),
-			cellId: observation.cellId,
-			status: observation.status,
-		},
-	};
 }

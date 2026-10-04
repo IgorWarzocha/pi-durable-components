@@ -1,18 +1,19 @@
 import { Type } from "@earendil-works/pi-ai";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
+import { executePatch } from "./executor.ts";
 import {
 	ExecutePatchError,
 	type ExecutePatchResult,
-	executePatch,
 	type FileChange,
-} from "./executor.ts";
+} from "./patch-outcome.ts";
 
+export { executePatch } from "./executor.ts";
 export type {
 	ExecutePatchResult,
 	FileChange,
 	PatchOutcome,
-} from "./executor.ts";
-export { ExecutePatchError, executePatch } from "./executor.ts";
+} from "./patch-outcome.ts";
+export { ExecutePatchError } from "./patch-outcome.ts";
 
 const parameters = Type.Object({
 	input: Type.String({

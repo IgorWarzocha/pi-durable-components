@@ -9,7 +9,7 @@ The port carries the source Deno provisioning, authenticated HTTP kernel bridge,
 | Source behavior | Durable owner and evidence |
 | --- | --- |
 | Lazy Deno 2.9.7 download, platform pins and executable validation | `deno-assets.ts`, `deno-binary.ts`, `deno-archive.ts`. Live smoke downloads and starts the pinned Linux executable. Other platform pins are carried unchanged. |
-| Persistent TS bindings, imports and top-level await | `jupyter-kernel.ts`, `kernel-runtime.ts`. Live smoke uses typed functions, builtin module imports, Map, Uint8Array, and bigint. |
+| Persistent TS bindings, imports and top-level await | `jupyter-kernel.ts`, `jupyter-execution.ts`, `notebook-bootstrap.ts`. Live smoke uses typed functions, builtin module imports, Map, Uint8Array, and bigint. |
 | Text, images, notifications, store/load, exit and yield helpers | Original injected bootstrap retained. Live Durable smoke checks typed nested calls, emitted PNG bytes, explicit yield, model-visible continuation handles, and nonduplicated wait output. |
 | One active cell and cancellation | `execution-runtime.ts` reserves startup as well as active execution. Shared coordinator admits one live task atomically. `cell.ts` waits for helper and journal settlement, not merely the first Jupyter result. The retained Harness workflow checks cancellation and joining of an unawaited ordinary nested tool and back-to-back cell cleanup. |
 | By-value checkpoint and function metadata | Original V8 serialization and safe manifest validation retained. Smoke reopens the kernel and verifies values, function behavior, description metadata, and a side-effect counter unchanged by restore. |

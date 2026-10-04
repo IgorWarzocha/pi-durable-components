@@ -1,4 +1,5 @@
 // Adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f, MIT. See ../NOTICE.
+import { randomUUID } from "node:crypto";
 import type { KernelExecutionResult } from "./jupyter-kernel.ts";
 
 interface NotebookBindingStatus {
@@ -156,4 +157,19 @@ export function parseNotebookRuntimeResult<T>(
 	} catch {
 		throw new Error("Notebook lifecycle operation returned an invalid result");
 	}
+}
+
+export function notebookToolHooksSource(
+	names: readonly string[],
+	enabled: boolean,
+): string {
+	const entries = names.map(
+		(name) =>
+			`[${JSON.stringify(name)}, ${enabled ? `() => ${name}` : "null"}]`,
+	);
+	return `if (typeof globalThis.__piNotebook?.configureToolHooks !== "function") throw new Error("Notebook runtime bootstrap unavailable: __piNotebook.configureToolHooks"); globalThis.__piNotebook.configureToolHooks([${entries.join(",")}]); undefined;`;
+}
+
+export function lifecycleMarker(): string {
+	return `__PI_NOTEBOOK_LIFECYCLE_${randomUUID()}__`;
 }

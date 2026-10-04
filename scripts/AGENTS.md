@@ -1,0 +1,3 @@
+- Build against the pinned packages' published `dist` exports. Their `source` conditions reference files absent from the npm artifacts.
+- Keep live-service requests opt-in and outside the default gate. The smoke runner may read explicitly supplied credentials but must not refresh, persist or print them.
+- Package checks must exercise emitted entry points and reject missing notices or bundled development state. Browser's remote worker needs its separate Node bundle and Durable-specific ownership marker.

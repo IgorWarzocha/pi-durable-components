@@ -1,6 +1,7 @@
 import type { Context, JsonValue } from "@earendil-works/chord";
 import type {
 	ConversationId,
+	Harness,
 	JsonObject,
 	TaskId,
 	ToolExecutionApi,
@@ -49,4 +50,15 @@ export type CellObservation = {
 		| "interrupted";
 	readonly result: ToolExecutionResult;
 	readonly checkpoint?: JsonValue;
+};
+
+export type CellCoordinatorOptions = {
+	readonly name: string;
+	readonly engine: CellEngine;
+	readonly surfaceTools: readonly string[];
+	/** Individual task cancellation is a host operation, not part of the tool invocation API. */
+	readonly cancelTask: (
+		id: TaskId,
+		context: Context,
+	) => ReturnType<Harness["abortTask"]>;
 };

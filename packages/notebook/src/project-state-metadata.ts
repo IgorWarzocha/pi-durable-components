@@ -1,10 +1,16 @@
 // Adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f, MIT. See ../NOTICE.
+const MAX_NOTICE_NAMES = 24;
+
 import { lstatSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
-	type ProjectStateEntry,
 	projectStatePaths,
 	readProjectStateManifest,
+	readProjectStatePayload,
+} from "./project-state-files.ts";
+import {
+	type ProjectStateEntry,
+	type ProjectStateSummary,
 } from "./project-state-format.ts";
 
 export interface RetainedProjectBinding {
@@ -70,4 +76,44 @@ function hasPayloadLayout(
 	} catch {
 		return false;
 	}
+}
+
+export function projectStateBindingNames(
+	identity: { project: string; agentDir: string },
+	maxBytes: number,
+): string[] {
+	const paths = projectStatePaths(identity.project, identity.agentDir);
+	const manifest = readProjectStateManifest(paths.manifest);
+	return manifest?.project === resolve(identity.project) &&
+		readProjectStatePayload(
+			manifest,
+			join(paths.directory, manifest.payload),
+			maxBytes,
+		)
+		? manifest.entries.map(({ name }) => name)
+		: [];
+}
+
+export function formatProjectStateNotice(
+	summary: ProjectStateSummary,
+): string | undefined {
+	if (summary.message) return summary.message;
+	const values = summary.restored.filter(({ kind }) => kind === "value").length;
+	const definitions = summary.restored.length - values;
+	const restored =
+		summary.restored.length > 0
+			? `Project notebook restored ${values} value${values === 1 ? "" : "s"} and ${definitions} definition${definitions === 1 ? "" : "s"}`
+			: undefined;
+	const conflicts =
+		summary.conflicts.length > 0
+			? `Project notebook conflicts preserved without overwrite: ${formatNameList(summary.conflicts)}`
+			: undefined;
+	return [restored, conflicts].filter(Boolean).join(". ") || undefined;
+}
+
+function formatNameList(names: string[]): string {
+	const shown = names.slice(0, MAX_NOTICE_NAMES).join(", ");
+	return names.length > MAX_NOTICE_NAMES
+		? `${shown}, and ${names.length - MAX_NOTICE_NAMES} more`
+		: shown;
 }

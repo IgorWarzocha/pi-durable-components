@@ -1,0 +1,5 @@
+- Use the pinned native V8 host, not a Node sandbox. Each cell gets a fresh isolate. Only store/load persist within a conversation's host session.
+- Native tool globals normalize punctuation. Preserve original registration names through private wire aliases and the bootstrap registry, including colliding normalized names.
+- Keep host-envelope validation separate from runtime-outcome validation. Treat lost admission or host failure as uncertain, never as permission to replay source.
+- Retain one bounded output observation until its exact delivery revision is acknowledged. Exec and each wait apply independent budgets. Do not drain the host into an unbounded backlog or repeat a running snapshot.
+- Preserve the public exports in src/index.ts. Shared execution stays in the internal sibling source tree and is compiled into this product.

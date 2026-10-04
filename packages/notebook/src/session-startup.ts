@@ -1,20 +1,18 @@
 // Adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f, MIT. See ../NOTICE.
+
 import { randomUUID } from "node:crypto";
 import type { NotebookBridgeServer } from "./bridge-server.ts";
 import {
-	garbageCollectSupersededNotebookCheckpoints,
 	type NotebookCheckpointIdentity,
 	restoreNotebookCheckpoint,
 } from "./checkpoint.ts";
+import { garbageCollectSupersededNotebookCheckpoints } from "./checkpoint-store.ts";
 import { notebookExecStartupNotice } from "./control-contract.ts";
 import { ensureNotebookDenoBinary } from "./deno-binary.ts";
 import { initializeNotebookJournal, type NotebookJournal } from "./journal.ts";
 import { DenoJupyterKernel } from "./jupyter-kernel.ts";
-import {
-	notebookBootstrapSource,
-	notebookExampleSource,
-	notebookToolHooksSource,
-} from "./kernel-runtime.ts";
+import { notebookToolHooksSource } from "./lifecycle-runtime.ts";
+import { notebookBootstrapSource } from "./notebook-bootstrap.ts";
 import {
 	formatNotebookNpmImportsNotice,
 	readNotebookNpmImports,
@@ -25,10 +23,10 @@ import {
 } from "./profile-state.ts";
 import { resolveNotebookProject } from "./project-identity.ts";
 import {
-	formatProjectStateNotice,
 	type ProjectStateBaseline,
 	restoreProjectState,
 } from "./project-state.ts";
+import { formatProjectStateNotice } from "./project-state-metadata.ts";
 import type {
 	NotebookRuntimeOptions,
 	NotebookSessionContext,
@@ -255,4 +253,38 @@ async function installNotebookExamples(
 		signal?.throwIfAborted();
 		return [];
 	}
+}
+
+function notebookExampleSource(marker: string, occupied = false): string {
+	return `{
+	  const __conflict = ${occupied} || "foo" in globalThis || "bar" in globalThis;
+  let __injected = [];
+  if (!__conflict) {
+    const __foo = [
+      { id: "alpha", value: "first example record" },
+      { id: "bravo", value: "second example record" },
+    ];
+    const __bar = (__item) => Object.fromEntries(Object.entries(__item).slice(0, 4));
+    Object.defineProperties(__foo, {
+      description: { value: "Example records for reusable helper patterns", writable: true, configurable: true },
+      usage: { value: "Inspect: foo.map((item, index) => ({ index, keys: Object.keys(item) }))", writable: true, configurable: true },
+    });
+    Object.defineProperties(__bar, {
+      description: { value: "Summarize one foo item without mutating foo", writable: true, configurable: true },
+      usage: { value: "Inspect: foo.map((item, index) => ({ index, keys: Object.keys(item) }))\\nRun: bar(foo[index])", writable: true, configurable: true },
+    });
+    try {
+      Object.defineProperties(globalThis, {
+        foo: { value: __foo, writable: true, configurable: true, enumerable: true },
+        bar: { value: __bar, writable: true, configurable: true, enumerable: true },
+      });
+      __injected = ["foo", "bar"];
+    } catch {
+      delete globalThis.foo;
+      delete globalThis.bar;
+    }
+  }
+  console.log(${JSON.stringify(marker)} + JSON.stringify(__injected));
+  undefined;
+}`;
 }

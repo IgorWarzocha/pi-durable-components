@@ -24,11 +24,11 @@ import {
 	readProfileStateManifest,
 	readProfileStatePayload,
 } from "./profile-state-format.ts";
+import { readProjectStateCandidate } from "./project-state-files.ts";
 import {
 	MAX_PROJECT_ENTRIES,
 	MAX_PROJECT_MANIFEST_BYTES,
 	MAX_PROJECT_NAME_BYTES,
-	readProjectStateCandidate,
 } from "./project-state-format.ts";
 import {
 	projectStateCaptureSource,

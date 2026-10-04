@@ -4,21 +4,17 @@
 import { randomBytes } from "node:crypto";
 import type { ShellProcessBackend } from "./backend.ts";
 import {
-	normalizePipeOutput,
-	truncateOutput,
-	truncateToTail,
-} from "./output.ts";
-import {
 	createProcessSessionRuntime,
 	type ProcessExecSession,
 	type ProcessSessionHooks,
 } from "./process-session.ts";
+import { makeSnapshotResult, makeSnapshotSince } from "./results.ts";
 import {
-	makeExecResult,
-	makeSnapshotResult,
-	makeSnapshotSince,
-	snapshotSession,
-} from "./results.ts";
+	type ExecSessionChangeReason,
+	type ExecSessionSnapshot,
+	ExecSessionStore,
+	type UnifiedExecResult,
+} from "./session-store.ts";
 import {
 	clampExecYieldTime,
 	clampWriteYieldTime,
@@ -31,29 +27,6 @@ import {
 	resolveShell,
 } from "./shell.ts";
 import { registerAbortHandler, waitForExitOrInactivity } from "./wait.ts";
-
-export type UnifiedExecResult = {
-	chunk_id: string;
-	wall_time_seconds: number;
-	output: string;
-	exit_code?: number;
-	session_id?: number;
-	original_token_count?: number;
-	truncated?: true;
-};
-
-export interface ExecSessionSnapshot {
-	id: number;
-	command: string;
-	running: boolean;
-	exitCode?: number | undefined;
-	startedAt: number;
-	updatedAt: number;
-	outputTail: string;
-	terminating: boolean;
-}
-
-type ExecSessionChangeReason = "start" | "output" | "exit" | "terminate";
 
 interface ExecCommandInput {
 	cmd: string;
@@ -75,8 +48,6 @@ interface WriteStdinInput {
 	yield_time_ms?: number | undefined;
 	max_output_tokens?: number | undefined;
 }
-
-type ExecSession = ProcessExecSession;
 
 type ExecSessionUpdateCallback = (result: UnifiedExecResult) => void;
 
@@ -117,24 +88,11 @@ export interface ExecSessionManagerOptions {
 	maxSessionBufferChars?: number | undefined;
 }
 
-const MAX_COMMAND_HISTORY = 256;
-const MAX_COMPLETED_SESSION_HISTORY = 32;
-const MAX_COMPLETED_SESSION_OUTPUT_CHARS = 64 * 1024;
-const MAX_COMPLETED_SESSION_OUTPUT_TOKENS =
-	MAX_COMPLETED_SESSION_OUTPUT_CHARS / 4;
-const DEFAULT_MAX_TTY_SESSION_BUFFER_CHARS = 1024 * 1024;
-const DEFAULT_MAX_PIPE_SESSION_BUFFER_CHARS = 256 * 1024 * 1024;
-
 export function createExecSessionManager(
 	options: ExecSessionManagerOptions,
 ): ExecSessionManager {
 	// Random epoch prevents old persisted IDs from addressing new processes after restart.
 	let nextSessionId = randomBytes(6).readUIntBE(0, 6);
-	const sessions = new Map<number, ExecSession>();
-	const commandHistory = new Map<number, string>();
-	const completedResults = new Map<number, UnifiedExecResult>();
-	const changeListeners = new Set<(reason: ExecSessionChangeReason) => void>();
-	const exitListeners = new Set<(sessionId: number, command: string) => void>();
 	const processSessions = createProcessSessionRuntime(options.backend);
 	let shuttingDown = false;
 	let shutdownPromise: Promise<void> | undefined;
@@ -159,148 +117,17 @@ export function createExecSessionManager(
 			? undefined
 			: Math.max(1024, options.maxSessionBufferChars);
 
-	function rememberCommand(sessionId: number, command: string): void {
-		commandHistory.set(sessionId, command);
-		if (commandHistory.size <= MAX_COMMAND_HISTORY) {
-			return;
-		}
-		const oldest = commandHistory.keys().next().value;
-		if (oldest !== undefined) {
-			commandHistory.delete(oldest);
-		}
-	}
-
-	function rememberCompletedResult(
-		sessionId: number,
-		result: UnifiedExecResult,
-	): void {
-		const bounded = truncateToTail(
-			result.output,
-			MAX_COMPLETED_SESSION_OUTPUT_CHARS,
-		);
-		completedResults.set(sessionId, {
-			...result,
-			output:
-				bounded.removed > 0
-					? `[Earlier completed output omitted]\n${bounded.output}`
-					: bounded.output,
-			...(bounded.removed > 0 ? { truncated: true } : {}),
-		});
-		if (completedResults.size <= MAX_COMPLETED_SESSION_HISTORY) return;
-		const oldest = completedResults.keys().next().value;
-		if (oldest !== undefined) completedResults.delete(oldest);
-	}
-
-	function replayCompletedResult(
-		result: UnifiedExecResult,
-		maxOutputTokens?: number,
-	): UnifiedExecResult {
-		const originalCharCount =
-			!result.truncated || result.original_token_count === undefined
-				? result.output.length
-				: result.original_token_count * 4;
-		return {
-			...result,
-			...truncateOutput(result.output, maxOutputTokens, originalCharCount),
-		};
-	}
-
-	function finishResult(
-		session: ExecSession,
-		waitMs: number,
-		maxOutputTokens?: number,
-	): UnifiedExecResult {
-		const completed =
-			session.exitCode !== undefined && session.exitCode !== null;
-		const replaySnapshot = completed
-			? makeSnapshotResult(
-					session,
-					waitMs,
-					MAX_COMPLETED_SESSION_OUTPUT_TOKENS,
-					true,
-				)
-			: undefined;
-		const result = makeExecResult(
-			session,
-			waitMs,
-			maxOutputTokens,
-			exposeSession,
-			(sessionId) => sessions.delete(sessionId),
-		);
-		if (!replaySnapshot || sessions.has(session.id)) return result;
-		rememberCompletedResult(session.id, {
-			...replaySnapshot,
-			chunk_id: result.chunk_id,
-			wall_time_seconds: result.wall_time_seconds,
-		});
-		return result;
-	}
-
-	function notify(
-		session: ExecSession,
-		reason: ExecSessionChangeReason = "output",
-	): void {
-		session.updatedAt = Date.now();
-		for (const listener of session.listeners) {
-			listener();
-		}
-		if (session.exposed) notifyChanged(reason);
-	}
-
-	function notifyChanged(reason: ExecSessionChangeReason): void {
-		for (const listener of changeListeners) {
-			listener(reason);
-		}
-	}
-
-	function finalizeSession(
-		session: ExecSession,
-		reason: ExecSessionChangeReason = "exit",
-	): void {
-		if (session.finalized) return;
-		session.finalized = true;
-		for (const listener of exitListeners) {
-			listener(session.id, session.command);
-		}
-		notify(session, reason);
-	}
-
-	function exposeSession(session: ExecSession): void {
-		if (
-			session.exposed ||
-			(session.exitCode !== undefined && session.exitCode !== null)
-		)
-			return;
-		session.exposed = true;
-		notifyChanged("start");
-	}
-
-	function appendOutput(session: ExecSession, text: string): void {
-		if (text.length === 0) return;
-		const output = session.tty ? text : normalizePipeOutput(text);
-		session.buffer += output;
-		session.outputVersion += 1;
-		const maxSessionBufferChars =
-			configuredMaxSessionBufferChars ??
-			(session.tty
-				? DEFAULT_MAX_TTY_SESSION_BUFFER_CHARS
-				: DEFAULT_MAX_PIPE_SESSION_BUFFER_CHARS);
-		if (session.buffer.length > maxSessionBufferChars) {
-			const bounded = truncateToTail(session.buffer, maxSessionBufferChars);
-			session.buffer = bounded.output;
-			session.bufferStartOffset += bounded.removed;
-		}
-		notify(session);
-	}
-
 	function setBaseEnv(env: NodeJS.ProcessEnv): void {
 		baseEnv = { ...env };
 	}
 
+	const store = new ExecSessionStore(configuredMaxSessionBufferChars);
 	const processHooks: ProcessSessionHooks = {
-		isOwned: (session) => !shuttingDown && sessions.get(session.id) === session,
-		onOutput: (session, text) => appendOutput(session, text),
-		onExit: (session) => finalizeSession(session),
+		isOwned: (session: ProcessExecSession) =>
+			!shuttingDown && store.get(session.id) === session,
+		onOutput: (session: ProcessExecSession, text: string) =>
+			store.appendOutput(session, text),
+		onExit: (session: ProcessExecSession) => store.finalizeSession(session),
 	};
 
 	return {
@@ -337,8 +164,7 @@ export function createExecSessionManager(
 				...(signal ? { signal } : {}),
 				hooks: processHooks,
 			});
-			sessions.set(session.id, session);
-			rememberCommand(session.id, session.command);
+			store.add(session);
 			const abortCleanup = registerAbortHandler(signal, () => {
 				if (session.exitCode === undefined) session.terminating = true;
 			});
@@ -396,11 +222,11 @@ export function createExecSessionManager(
 						Math.max(execYieldMs, waitedMs),
 						maxEmptyWriteYieldTimeMs,
 					);
-				return finishResult(session, waitedMs, input.max_output_tokens);
+				return store.finishResult(session, waitedMs, input.max_output_tokens);
 			} catch (error) {
 				if (signal?.aborted) {
 					await processSessions.terminate(session);
-					sessions.delete(session.id);
+					store.remove(session.id);
 				}
 				throw error;
 			} finally {
@@ -412,17 +238,14 @@ export function createExecSessionManager(
 			if (signal?.aborted) {
 				throw new Error("write_stdin aborted");
 			}
-			const session = sessions.get(input.session_id);
+			const session = store.get(input.session_id);
 			if (!session) {
-				const completed = completedResults.get(input.session_id);
-				if (completed) {
-					if ((input.chars ?? "").length > 0) {
-						throw new Error(
-							`Process id ${input.session_id} already exited with code ${completed.exit_code}; cannot write stdin`,
-						);
-					}
-					return replayCompletedResult(completed, input.max_output_tokens);
-				}
+				const completed = store.completedPoll(
+					input.session_id,
+					input.chars ?? "",
+					input.max_output_tokens,
+				);
+				if (completed) return completed;
 				throw new Error(
 					`Unknown or expired process id ${input.session_id}; sessions are process-local and do not survive restart`,
 				);
@@ -486,7 +309,7 @@ export function createExecSessionManager(
 						maxEmptyWriteYieldTimeMs,
 					);
 				signal?.throwIfAborted();
-				return finishResult(session, waitedMs, input.max_output_tokens);
+				return store.finishResult(session, waitedMs, input.max_output_tokens);
 			} catch (error) {
 				if (signal?.aborted) await processSessions.terminate(session);
 				throw error;
@@ -494,51 +317,20 @@ export function createExecSessionManager(
 				abortCleanup();
 			}
 		},
-		hasSession: (sessionId) => sessions.has(sessionId),
-		getSessionCommand: (sessionId) =>
-			sessions.get(sessionId)?.command ?? commandHistory.get(sessionId),
-		listSessions: (maxOutputChars) => {
-			const snapshotsById = new Map<number, ExecSessionSnapshot>();
-			for (const session of sessions.values()) {
-				if (!session.exposed) continue;
-				if (session.exitCode !== undefined && session.exitCode !== null)
-					continue;
-				snapshotsById.set(session.id, snapshotSession(session, maxOutputChars));
-			}
-			return Array.from(snapshotsById.values()).sort((a, b) => a.id - b.id);
-		},
-		terminateSession: (sessionId) => {
-			const session = sessions.get(sessionId);
-			if (!session || session.exitCode !== undefined || session.terminating)
-				return false;
-			session.terminating = true;
-			void processSessions.terminate(session).catch((error) => {
-				session.terminating = false;
-				appendOutput(
-					session,
-					`Process termination failed: ${error instanceof Error ? error.message : String(error)}; outcome uncertain\n`,
-				);
-			});
-			notify(session, "terminate");
-			return true;
-		},
-		onSessionChange: (listener) => {
-			changeListeners.add(listener);
-			return () => changeListeners.delete(listener);
-		},
-		onSessionExit: (listener) => {
-			exitListeners.add(listener);
-			return () => exitListeners.delete(listener);
-		},
+		hasSession: (id) => store.hasSession(id),
+		getSessionCommand: (id) => store.getSessionCommand(id),
+		listSessions: (maxOutputChars) => store.listSessions(maxOutputChars),
+		terminateSession: (id) =>
+			store.terminateSession(id, processSessions.terminate),
+		onSessionChange: (listener) => store.onSessionChange(listener),
+		onSessionExit: (listener) => store.onSessionExit(listener),
 		shutdown: () =>
 			(shutdownPromise ??= (async () => {
 				shuttingDown = true;
 				try {
 					await processSessions.shutdown();
 				} finally {
-					sessions.clear();
-					commandHistory.clear();
-					completedResults.clear();
+					store.clear();
 				}
 			})()),
 	};

@@ -1,0 +1,5 @@
+- This directory is internal source compiled into both Code and Notebook. Do not add a manifest, publish a shell package or depend on either product.
+- Keep cells conversation-owned after exec returns, nested invocations cell-owned, and controls ordered by invocation rather than completion. Dispatch selected wrapped registrations through the nested task path so preparation, hooks, output and usage survive.
+- Keep durable recovery separate from live drivers. Interrupted cells never replay. Nested calls may replay only when both the recorded intent and current registration explicitly declare them safe.
+- Bound each delivered observation independently. Keep committed partial results available after task documents retire. Shell IDs and native process state remain process-local.
+- Shell backends must match the conversation environment. Preserve asynchronous-startup ownership, per-stream decoding and cancellation cleanup when changing session state or wait policy.

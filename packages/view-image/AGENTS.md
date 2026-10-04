@@ -1,0 +1,3 @@
+- Validate PNG, JPEG and WebP through the Rust image decoder before returning their original bytes. Sharp accepts and rejects different malformed inputs, so it is not an interchangeable validator. GIF alone converts its first frame to PNG.
+- Codecs receive bytes read through `api.env`, never host paths. Do not resize or EXIF-rotate the original-image path.
+- `detail: "original"` selects byte preservation, not a provider transport override. Description requests use the injected Models collection and must preserve usage, cancellation and replay-unsafe classification.

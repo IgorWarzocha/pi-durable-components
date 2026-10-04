@@ -1,0 +1,5 @@
+- Checkpoints restore bindings by value, never by replaying cells. Preserve unknown side-effect outcomes when interruption invalidates a kernel.
+- Session checkpoint collection stays within the conversation family before the first NUL in its identity. Other conversations and storage namespaces sharing a state directory keep their checkpoints.
+- Kernel tool maps and `ALL_TOOLS` use original registered names. Punctuation and normalization collisions must not alias tools.
+- Deno runs only in the explicitly matched native execution namespace. Keep kernel startup, bridge lifetime and checkpoint files under that owner.
+- Bootstrap generators emit source for a separate Deno lexical environment. Keep its state and hook scope there, not in Node closures. Preserve begin, flush, finish and cancellation ordering when moving generators.

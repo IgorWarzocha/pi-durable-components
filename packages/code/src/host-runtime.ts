@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { parseExecSource } from "../../execution/src/exec-source.ts";
 import {
 	type DelegateRequestMessage,
 	executionCellId,
 	type HostMessage,
-	parseExecSource,
-	parseRuntimeResponse,
 	runtimeOutcome,
 } from "./host-protocol.ts";
 import { CodeModeHostSession } from "./host-session.ts";
@@ -13,6 +12,7 @@ import type {
 	RuntimeResponse,
 	RuntimeTool,
 } from "./runtime-contract.ts";
+import { parseRuntimeResponse } from "./runtime-response.ts";
 
 interface Cell {
 	tools: ReadonlyMap<string, RuntimeTool>;

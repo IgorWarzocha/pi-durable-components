@@ -12,7 +12,7 @@ import {
 import type {
 	ExecSessionSnapshot,
 	UnifiedExecResult,
-} from "./session-manager.ts";
+} from "./session-store.ts";
 
 export interface ExecResultSessionState extends ExecOutputSessionState {
 	id: number;

@@ -7,8 +7,8 @@ import { formatUnifiedExecResult } from "./shell/format.ts";
 import {
 	createExecSessionManager,
 	type ExecSessionManagerOptions,
-	type UnifiedExecResult,
 } from "./shell/session-manager.ts";
+import type { UnifiedExecResult } from "./shell/session-store.ts";
 import { MAX_EXEC_YIELD_TIME_MS } from "./shell/shell.ts";
 
 export type {

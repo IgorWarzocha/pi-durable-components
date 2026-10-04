@@ -3,24 +3,18 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { rmSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
-import { diagnoseDenoSyntax } from "./deno-syntax-diagnostics.ts";
 import {
 	createJupyterConnectionFile,
 	type JupyterConnectionInfo,
 } from "./jupyter-connection.ts";
-import {
-	type ActiveKernelExecution,
-	applyExecuteReplyError,
-	applyKernelOutput,
-	finishKernelExecution,
-	type KernelExecutionResult,
-} from "./jupyter-output.ts";
+import { JupyterExecution } from "./jupyter-execution.ts";
+import type { KernelExecutionResult } from "./jupyter-output.ts";
+import { JupyterShellChannel } from "./jupyter-shell.ts";
 import { JupyterSocket } from "./jupyter-socket.ts";
 import {
 	createJupyterMessage,
 	decodeJupyterMessage,
 	encodeJupyterMessage,
-	type JupyterMessage,
 } from "./jupyter-wire.ts";
 import type { RuntimeContentItem } from "./runtime-contract.ts";
 
@@ -31,15 +25,10 @@ const MAX_STDERR_CHARS = 16_384;
 
 export type { KernelExecutionResult } from "./jupyter-output.ts";
 
-interface ShellReplyWaiter {
-	resolve(message: JupyterMessage): void;
-	reject(error: Error): void;
-	timer?: ReturnType<typeof setTimeout> | undefined;
-	abort?: (() => void) | undefined;
-}
-
 export class DenoJupyterKernel {
 	private readonly deno: string;
+	private readonly execution: JupyterExecution;
+	private readonly shellChannel: JupyterShellChannel;
 	private readonly env: NodeJS.ProcessEnv;
 	private readonly maxHeapMiB: number;
 	private readonly onFailure:
@@ -49,14 +38,11 @@ export class DenoJupyterKernel {
 	private process: ChildProcess | undefined;
 	private tempDir: string | undefined;
 	private connection: JupyterConnectionInfo | undefined;
-	private shell: JupyterSocket | undefined;
 	private control: JupyterSocket | undefined;
 	private iopub: JupyterSocket | undefined;
 	private shellPump: Promise<void> | undefined;
 	private iopubPump: Promise<void> | undefined;
 	private startup: Promise<void> | undefined;
-	private active: ActiveKernelExecution | undefined;
-	private readonly shellReplies = new Map<string, ShellReplyWaiter>();
 	private stderr = "";
 	private terminalFailure: Error | undefined;
 
@@ -70,6 +56,20 @@ export class DenoJupyterKernel {
 		this.env = options.env ?? process.env;
 		this.maxHeapMiB = options.maxHeapMiB;
 		this.onFailure = options.onFailure;
+		this.shellChannel = new JupyterShellChannel(
+			this.session,
+			() => this.stderr,
+			(error) => this.failKernel(error),
+		);
+		this.execution = new JupyterExecution(this.session, {
+			deno: this.deno,
+			env: this.env,
+			start: (signal) => this.start(signal),
+			sendShellRequest: (request, timeoutMs, requestType) =>
+				this.shellChannel.send(request, timeoutMs, requestType),
+			interrupt: () => this.interrupt(),
+			failKernel: (error) => this.failKernel(error),
+		});
 	}
 
 	async start(signal?: AbortSignal): Promise<void> {
@@ -97,145 +97,7 @@ export class DenoJupyterKernel {
 			interruptOnAbort?: boolean | undefined;
 		} = {},
 	): Promise<KernelExecutionResult> {
-		await this.start(options.signal);
-		options.signal?.throwIfAborted();
-		if (this.active)
-			throw new Error("Notebook kernel already has an active cell");
-		const message = createJupyterMessage(
-			"execute_request",
-			{
-				code,
-				silent: false,
-				store_history: true,
-				user_expressions: {},
-				allow_stdin: false,
-				stop_on_error: true,
-			},
-			this.session,
-		);
-		let resolve!: (result: KernelExecutionResult) => void;
-		let reject!: (error: Error) => void;
-		const completion = new Promise<KernelExecutionResult>((done, fail) => {
-			resolve = done;
-			reject = fail;
-		});
-		const execution: ActiveKernelExecution = {
-			requestId: message.header.msg_id,
-			items: [],
-			outputChars: 0,
-			outputTruncated: false,
-			status: "ok",
-			...(options.onOutput ? { onOutput: options.onOutput } : {}),
-			resolve,
-			reject,
-		};
-		let abortTimer: ReturnType<typeof setTimeout> | undefined;
-		let finished = false;
-		const abort = () => {
-			if (options.interruptOnAbort !== false)
-				void this.interrupt().catch(() => undefined);
-			abortTimer = setTimeout(() => {
-				if (!finished) {
-					this.failKernel(
-						options.signal?.reason instanceof Error
-							? options.signal.reason
-							: new Error(
-									"Deno Jupyter execution did not stop after cancellation",
-								),
-					);
-				}
-			}, SHUTDOWN_GRACE_MS);
-			abortTimer.unref?.();
-		};
-		options.signal?.addEventListener("abort", abort, { once: true });
-		this.active = execution;
-		try {
-			const completionState = completion.then((result) => ({
-				kind: "completion" as const,
-				result,
-			}));
-			const replyState = this.sendShellRequest(
-				message,
-				undefined,
-				"execute_request",
-			).then((reply) => ({ kind: "reply" as const, reply }));
-			let result: KernelExecutionResult;
-			let reply: JupyterMessage;
-			try {
-				const first = await Promise.race([completionState, replyState]);
-				if (first.kind === "completion") {
-					result = first.result;
-					reply = (
-						await withTimeout(
-							replyState,
-							REQUEST_TIMEOUT_MS,
-							() =>
-								new Error(
-									`Deno Jupyter did not answer execute_request after the cell became idle within ${REQUEST_TIMEOUT_MS}ms`,
-								),
-						)
-					).reply;
-				} else {
-					reply = first.reply;
-					result = (
-						await withTimeout(
-							completionState,
-							REQUEST_TIMEOUT_MS,
-							() =>
-								new Error(
-									`Deno Jupyter did not become idle after execute_reply within ${REQUEST_TIMEOUT_MS}ms`,
-								),
-						)
-					).result;
-				}
-			} catch (error) {
-				this.failKernel(
-					error instanceof Error ? error : new Error(String(error)),
-				);
-				throw error;
-			}
-			if (reply.header.msg_type !== "execute_reply") {
-				throw new Error(
-					`Deno Jupyter returned ${reply.header.msg_type} for execute_request`,
-				);
-			}
-			const replied = applyExecuteReplyError(result, reply);
-			if (options.signal?.aborted) {
-				if (options.interruptOnAbort !== false)
-					this.failKernel(new Error("Deno Jupyter execution was aborted"));
-				return { ...replied, status: "aborted" };
-			}
-			if (
-				replied.errorName === "Error" &&
-				replied.errorValue === "Execution failed" &&
-				replied.errorText === "Error: Execution failed"
-			) {
-				const diagnostic = await diagnoseDenoSyntax(
-					this.deno,
-					code,
-					this.env,
-					options.cellSource,
-				);
-				if (diagnostic) {
-					return {
-						...replied,
-						errorName: "SyntaxError",
-						errorValue: diagnostic
-							.split("\n")[0]!
-							.replace(/^SyntaxError:\s*/, ""),
-						errorText: diagnostic,
-					};
-				}
-			}
-			return replied;
-		} catch (error) {
-			if (this.active === execution) this.active = undefined;
-			throw error;
-		} finally {
-			finished = true;
-			if (abortTimer) clearTimeout(abortTimer);
-			options.signal?.removeEventListener("abort", abort);
-		}
+		return this.execution.execute(code, options);
 	}
 
 	async complete(
@@ -245,11 +107,11 @@ export class DenoJupyterKernel {
 	): Promise<string[]> {
 		await this.start(signal);
 		signal?.throwIfAborted();
-		if (this.active)
+		if (this.execution.isActive())
 			throw new Error(
 				"Cannot request notebook completions while a cell is active",
 			);
-		const response = await this.shellRequest(
+		const response = await this.shellChannel.request(
 			"complete_request",
 			{
 				code,
@@ -358,15 +220,16 @@ export class DenoJupyterKernel {
 		});
 		const connection = info;
 		this.connection = connection;
-		this.shell = new JupyterSocket("DEALER", connection.shell_port);
+		const shell = new JupyterSocket("DEALER", connection.shell_port);
+		this.shellChannel.attach(shell, connection);
 		this.control = new JupyterSocket("DEALER", connection.control_port);
 		this.iopub = new JupyterSocket("SUB", connection.iopub_port);
 		await Promise.all([
-			this.shell.connect(signal),
+			shell.connect(signal),
 			this.control.connect(signal),
 			this.iopub.connect(signal),
 		]);
-		this.shellPump = this.runShellPump(this.shell, connection);
+		this.shellPump = this.shellChannel.pump(shell, connection);
 		let markIopubReady!: () => void;
 		const iopubReady = new Promise<void>((resolve) => {
 			markIopubReady = resolve;
@@ -388,111 +251,17 @@ export class DenoJupyterKernel {
 					`Deno Jupyter IOPub did not become ready within ${STARTUP_TIMEOUT_MS}ms${this.stderr ? `\n${this.stderr}` : ""}`,
 				);
 			}
-			await this.shellRequest("kernel_info_request", {}, remaining, signal);
+			await this.shellChannel.request(
+				"kernel_info_request",
+				{},
+				remaining,
+				signal,
+			);
 			const ready = await Promise.race([
 				iopubReady.then(() => true),
 				sleep(Math.min(100, remaining), false, signal ? { signal } : undefined),
 			]);
 			if (ready) return;
-		}
-	}
-
-	private async shellRequest(
-		type: string,
-		content: Record<string, unknown>,
-		timeoutMs = REQUEST_TIMEOUT_MS,
-		signal?: AbortSignal,
-	): Promise<JupyterMessage> {
-		const shell = this.shell;
-		const connection = this.connection;
-		if (!shell || !connection)
-			throw new Error("Deno Jupyter shell is not connected");
-		const request = createJupyterMessage(type, content, this.session);
-		return this.sendShellRequest(request, timeoutMs, type, signal);
-	}
-
-	private async sendShellRequest(
-		request: JupyterMessage,
-		timeoutMs?: number,
-		requestType = "request",
-		signal?: AbortSignal,
-	): Promise<JupyterMessage> {
-		const shell = this.shell;
-		const connection = this.connection;
-		if (!shell || !connection)
-			throw new Error("Deno Jupyter shell is not connected");
-		const requestId = request.header.msg_id;
-		if (this.shellReplies.has(requestId))
-			throw new Error(`Duplicate Deno Jupyter shell request: ${requestId}`);
-		let waiter!: ShellReplyWaiter;
-		const reply = new Promise<JupyterMessage>((resolve, reject) => {
-			waiter = { resolve, reject };
-		});
-		if (timeoutMs !== undefined) {
-			waiter.timer = setTimeout(() => {
-				if (this.shellReplies.get(requestId) !== waiter) return;
-				this.shellReplies.delete(requestId);
-				waiter.reject(
-					new Error(
-						`Deno Jupyter did not answer ${requestType} within ${timeoutMs}ms${this.stderr ? `\n${this.stderr}` : ""}`,
-					),
-				);
-			}, timeoutMs);
-		}
-		if (signal) {
-			waiter.abort = () => {
-				if (this.shellReplies.get(requestId) !== waiter) return;
-				this.shellReplies.delete(requestId);
-				if (waiter.timer) clearTimeout(waiter.timer);
-				waiter.reject(
-					signal.reason instanceof Error
-						? signal.reason
-						: new Error("Deno Jupyter request aborted"),
-				);
-			};
-			signal.addEventListener("abort", waiter.abort, { once: true });
-		}
-		this.shellReplies.set(requestId, waiter);
-		try {
-			signal?.throwIfAborted();
-			const [, response] = await Promise.all([
-				shell.send(encodeJupyterMessage(request, connection.key)),
-				reply,
-			]);
-			return response;
-		} catch (error) {
-			if (this.shellReplies.get(requestId) === waiter)
-				this.shellReplies.delete(requestId);
-			if (waiter.timer) clearTimeout(waiter.timer);
-			throw error;
-		} finally {
-			if (waiter.abort) signal?.removeEventListener("abort", waiter.abort);
-		}
-	}
-
-	private async runShellPump(
-		socket: JupyterSocket,
-		connection: JupyterConnectionInfo,
-	): Promise<void> {
-		try {
-			for await (const frames of socket) {
-				const message = decodeJupyterMessage(
-					[...frames] as Buffer[],
-					connection.key,
-				);
-				const requestId = message?.parent_header["msg_id"];
-				if (typeof requestId !== "string") continue;
-				const waiter = this.shellReplies.get(requestId);
-				if (!waiter) continue;
-				this.shellReplies.delete(requestId);
-				if (waiter.timer) clearTimeout(waiter.timer);
-				waiter.resolve(message!);
-			}
-		} catch (error) {
-			if (this.shell === socket)
-				this.failKernel(
-					error instanceof Error ? error : new Error(String(error)),
-				);
 		}
 	}
 
@@ -509,7 +278,7 @@ export class DenoJupyterKernel {
 				if (message) {
 					markReady?.();
 					markReady = undefined;
-					this.handleIopub(message);
+					this.execution.accept(message);
 				}
 			}
 		} catch (error) {
@@ -520,24 +289,12 @@ export class DenoJupyterKernel {
 		}
 	}
 
-	private handleIopub(message: JupyterMessage): void {
-		const execution = this.active;
-		if (!execution || message.parent_header["msg_id"] !== execution.requestId)
-			return;
-		if (applyKernelOutput(message, execution) === "idle") {
-			this.active = undefined;
-			execution.resolve(finishKernelExecution(execution));
-		}
-	}
-
 	private failKernel(error: Error): void {
 		if (!this.terminalFailure) {
 			this.terminalFailure = error;
 			this.onFailure?.(this, error);
 		}
-		const active = this.active;
-		this.active = undefined;
-		active?.reject(error);
+		this.execution.reject(error);
 		this.dispose();
 	}
 
@@ -553,14 +310,7 @@ export class DenoJupyterKernel {
 			killTimer.unref?.();
 			child.once("exit", () => clearTimeout(killTimer));
 		}
-		const shell = this.shell;
-		this.shell = undefined;
-		for (const waiter of this.shellReplies.values()) {
-			if (waiter.timer) clearTimeout(waiter.timer);
-			waiter.reject(new Error("Deno Jupyter shell disconnected"));
-		}
-		this.shellReplies.clear();
-		shell?.close();
+		this.shellChannel.close();
 		this.control?.close();
 		this.iopub?.close();
 		this.control = undefined;

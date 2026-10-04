@@ -1,0 +1,3 @@
+- This is internal source compiled into both web and imagegen, not a separately published package. Runtime dependency changes must reach both consumers' manifests.
+- Explicit route configuration outranks the hosted resolver. Resolve credentials through injected Models or the host capability, never by reading ambient Pi authentication files.
+- Re-evaluate proxies and permitted ChatGPT cookies on each redirect. Strip cross-origin credentials, retain body limits and cancellation, and close owned dispatchers on every outcome.

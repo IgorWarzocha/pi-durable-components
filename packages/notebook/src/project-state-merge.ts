@@ -8,6 +8,7 @@ import {
 	type ProjectStateEntry,
 	type ProjectStateManifest,
 } from "./project-state-format.ts";
+
 import type { NotebookHook } from "./runtime-contract.ts";
 
 export interface ProjectStateMerge {

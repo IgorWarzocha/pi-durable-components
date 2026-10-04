@@ -14,6 +14,7 @@ import { join, resolve } from "node:path";
 import {
 	applyNotebookJournalEvent,
 	emptyNotebookDocument,
+	journalOutputs,
 	type NotebookJournalEvent,
 	notebookCellId,
 	notebookCellStatus,
@@ -294,58 +295,4 @@ function journalEventsPath(path: string): string {
 
 function previousJournalPath(path: string): string {
 	return path.replace(/\.ipynb$/, ".previous.ipynb");
-}
-
-function journalOutputs(
-	items: RuntimeContentItem[],
-	result: KernelExecutionResult,
-	maxChars: number,
-): Array<Record<string, unknown>> {
-	const outputs: Array<Record<string, unknown>> = [];
-	let remaining = maxChars;
-	for (const item of items) {
-		if (remaining <= 0) break;
-		if (item.type === "input_text" && item.text) {
-			const text = item.text.slice(0, remaining);
-			remaining -= text.length;
-			outputs.push({ name: "stdout", output_type: "stream", text });
-			continue;
-		}
-		const match =
-			item.type === "input_image" &&
-			item.image_url?.match(/^data:([^;,]+);base64,(.+)$/s);
-		if (!match) continue;
-		if (match[2]!.length > remaining) {
-			remaining = 0;
-			continue;
-		}
-		const data = match[2]!;
-		remaining -= data.length;
-		outputs.push({
-			output_type: "display_data",
-			data: { [match[1]!]: data },
-			metadata: {},
-		});
-	}
-	if (remaining <= 0)
-		outputs.push({
-			name: "stderr",
-			output_type: "stream",
-			text: ["[notebook journal output truncated]\n"],
-		});
-	if (result.status === "error" && result.errorText) {
-		const marker = "\n[notebook journal error truncated]";
-		const errorBudget = Math.floor(Math.max(0, remaining) / 2);
-		const errorText =
-			result.errorText.length > errorBudget
-				? `${result.errorText.slice(0, Math.max(0, errorBudget - marker.length))}${marker.slice(0, errorBudget)}`
-				: result.errorText;
-		outputs.push({
-			output_type: "error",
-			ename: "NotebookCellError",
-			evalue: errorText,
-			traceback: errorText.split("\n"),
-		});
-	}
-	return outputs;
 }

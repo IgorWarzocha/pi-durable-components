@@ -1,0 +1,3 @@
+- Hidden-skill discovery follows loader YAML and ignore rules. Visible inventory uses the tool's separate document parser. Do not merge those policies or apply loader ignore rules to package path listings.
+- Package traversal confines canonical paths to the package, breaks symlink cycles, skips `node_modules` and lists only immediate `assets` children. Keep those rules together.
+- Read selectors resolve left to right. Selecting another skill changes the local reference context. Reference-only additions omit the primary skill body.

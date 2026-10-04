@@ -21,8 +21,9 @@ import {
 import { typeAtFocus, typeRef } from "../cdp/actions/type.ts";
 import { waitForCondition } from "../cdp/actions/wait.ts";
 import { evaluateText } from "../cdp/evaluate.ts";
-import { type ActiveTab, BrowserCdpSession } from "../cdp/session.ts";
+import { BrowserCdpSession } from "../cdp/session.ts";
 import { snapshotData } from "../cdp/snapshot.ts";
+import type { ActiveTab } from "../cdp/tab-bridge.ts";
 import { BrowserArtifacts } from "./artifacts.ts";
 import { boundSnapshot, boundTabs } from "./bounds.ts";
 import { startBrowser } from "./launcher.ts";

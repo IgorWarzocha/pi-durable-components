@@ -1,0 +1,4 @@
+- Tab bridges own their CDP connections, serial turns, idle timers and element references. Session shutdown must also abort and close connections still being established.
+- Snapshot element IDs must not repeat within a tab bridge, even after a new snapshot clears its reference map. Keep full-tree reference replacement before response pagination.
+- Keep remote workers isolated from installed Pi helpers. Deployment path, ownership marker and socket namespace must remain `pi-durable-browser` owned.
+- Browser JSON can exceed Durable's default output cap. Preserve the registration's output limits and artifact continuation cursors.

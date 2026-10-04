@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Igor Warzocha. MIT licensed.
 // Host algorithms adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f.
-import type { UnifiedExecResult } from "./session-manager.ts";
+import type { UnifiedExecResult } from "./session-store.ts";
 
 export function formatUnifiedExecResult(result: UnifiedExecResult): string {
 	const sections: string[] = [];
