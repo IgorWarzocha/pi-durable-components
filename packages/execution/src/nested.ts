@@ -24,6 +24,7 @@ import {
 	type Runtime,
 } from "./nested-call.ts";
 import { interrupted, settle } from "./nested-result.ts";
+import { readToolContract } from "./tool-contract.ts";
 export function createNestedToolTask(name: string) {
 	return defineTask<
 		NestedInput,
@@ -39,7 +40,7 @@ export function createNestedToolTask(name: string) {
 				const call = nestedCall(runtime, task.input);
 				const agent = await runtime.agent(context);
 				const tool = agent.tools.find((each) => each.name === call.name);
-				if (tool === undefined)
+				if (tool === undefined || readToolContract(tool).nativeOnly)
 					return settle(
 						runtime,
 						call,
@@ -135,7 +136,8 @@ export function createNestedToolTask(name: string) {
 				const tool = agent.tools.find((each) => each.name === call.name);
 				if (
 					task.state.checkpoint.replay === "safe" &&
-					tool?.replay === "safe"
+					tool?.replay === "safe" &&
+					!readToolContract(tool).nativeOnly
 				) {
 					await runtime.commit(async (tx) => {
 						const doc = await tx.doc(InvocationDoc, runtime.taskId);

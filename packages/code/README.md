@@ -5,7 +5,7 @@ Run JavaScript that composes ordinary Durable tools. `exec` and `wait` are the m
 Requires Node 22.19 or newer and Durable 1.0.2.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.1.0/howaboua-pi-durable-code-0.1.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.2.0/howaboua-pi-durable-code-0.2.0.tgz
 ```
 
 The shell's native PTY addon requires Python, Make and a C++ compiler on Linux. If install scripts are disabled, run `npm rebuild node-pty` before using interactive shells. Pipe-based commands do not require the addon.
@@ -25,6 +25,7 @@ const registry = createRegistry();
 registry.install(code.extension);
 // Install your other extensions in the same registry.
 harness = await Harness.open(storage, { models, registry, env }, context);
+code.bind(harness);
 const conversation = await harness.root(context, {
   agent: { model, extensions: [code.extension, otherExtension] },
 });
@@ -33,6 +34,8 @@ const conversation = await harness.root(context, {
 `storage`, `models`, `model`, `env`, and `context` are your normal Durable setup. The shell backend's `environmentId` must equal your execution environment's `id`. A sandbox or remote environment needs a backend for that environment. No operation silently uses local shell execution instead.
 
 An agent can now use JavaScript such as `text(await tools.some_tool({ ... }))`. Installed tools need no Code-specific adapter. `ALL_TOOLS` contains their original names, usage, descriptions, and input schemas. Names with punctuation remain callable through `tools[name]`.
+
+Registrations with `executionHints.nativeOnly: true` remain native model tools and cannot be called inside cells. Binding the Harness enables this projection using the conversation's selected tools. Context management uses it for `new_context`.
 
 Tool results expose meaningful `details` together with their result content. Empty details fall back to parsed JSON text or unchanged text. Images add a base64 `image_url` suitable for `image(result)` and `generatedImage(result)`. Tool failures throw in JavaScript. Durable still owns validation, wrappers, hooks, usage accounting, cancellation, and unsafe-operation recovery.
 
@@ -64,7 +67,7 @@ Each top-level `.toml` filename names a tool. Required fields are `usage` and `c
 
 `input` is `"arg"` by default or `"stdin"`. Successful output is stdout with trailing whitespace removed, then stderr when stdout is empty, then `(no output)`. Nonzero exits include stderr. Combined output is capped at 50 KiB. Cancellation drains the owned process group where supported.
 
-Definitions are reread before execution. The live loader refreshes ordinary registry registrations before model requests, so additions, removals, and metadata changes appear in `ALL_TOOLS`. `defer_loading = false` promotes only the usage line into the Code prompt. Promotion stays fixed until a new conversation or model selection. `yield_time_ms` overrides the initial exec wait when source directly calls that tool. Multiple direct calls use the largest configured value.
+Definitions are reread before execution. The live loader refreshes ordinary registry registrations before model requests, so additions, removals, and metadata changes appear in `ALL_TOOLS`. `defer_loading = false` promotes only the current usage line into the Code prompt. `yield_time_ms` overrides the initial exec wait when source directly calls that tool. Multiple direct calls use the largest configured value.
 
 `loadCustomCommandTools(options, context)` provides a snapshot loader instead when the host wants to publish registry updates itself. `commands.errors` exposes discovery errors. Call `await commands.close()` when removing the live loader.
 

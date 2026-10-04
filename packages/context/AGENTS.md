@@ -1,0 +1,5 @@
+- Keep one notes-and-retained-history policy. No provider, backend, tree, sharing or hybrid selectors.
+- Use the host's Durable storage and public task, document and submission APIs. Do not add a transcript database, private Durable imports or an admission monkeypatch.
+- A raw head write is safe only after foreground work and the native inbox are idle, verified in the same transaction as the cut. Initialization must never cut existing history.
+- Persist original held input and cancellation intent before releasing admission. Observe real native settlement; never infer idle deadlines from assistant timestamps.
+- Replayed note writes must return their original receipt without refreshing freshness. Forks inherit notes as of the fork entry, not a running rollover or admission queue.

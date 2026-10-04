@@ -17,7 +17,7 @@ Reference: `howaboua-pi-stuff` revision `b2006db9def12c373ae48e70044d30f7d6b7e34
 
 ## Deliberate integration changes
 
-Pi ExtensionAPI, TUI renderers, provider authentication, remote context, opaque results, context-window control, and voice are excluded by the accepted Durable-native scope. TOML custom commands are loaded as ordinary registrations using explicit trust and namespace-bound capabilities. Code and Notebook each expose the same factories from one internal implementation, so Notebook does not depend on Code. There is no component-specific dispatch bridge. Native host execution remains a runtime dependency, not an embedded Rust shell tool bundle.
+Pi ExtensionAPI, TUI renderers, provider authentication, remote context, opaque results and voice are excluded by the accepted Durable-native scope. Context-window control belongs to the separate Context component and uses generic native-only tool registration metadata. TOML custom commands are loaded as ordinary registrations using explicit trust and namespace-bound capabilities. Code and Notebook each expose the same factories from one internal implementation, so Notebook does not depend on Code. There is no component-specific dispatch bridge. Native host execution remains a runtime dependency, not an embedded Rust shell tool bundle.
 
 JavaScript receives the shared ordinary-tool result projection: meaningful `details` with result content preserved, otherwise parsed JSON text or raw text. Image content adds an `image_url`. Errors throw. The Durable result itself is retained in audit records. This replaces source-specific Pi adapters without dropping their content.
 

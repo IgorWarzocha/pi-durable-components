@@ -188,14 +188,15 @@ export function notebookBootstrapSource(
       return { configurable: true, enumerable: true };
     },
     get(_target, name) {
-      if (typeof name !== "string") return undefined;
+      if (typeof name !== "string" || !Object.hasOwn(__state.toolNames, name)) return undefined;
       return (input) => {
         if (!__state.cellId) throw new Error("Nested tool called outside an active exec cell");
+		if (!Object.hasOwn(__state.toolNames, name)) throw new Error("Tool " + name + " is not selected");
 		const cellId = __state.cellId;
 		const hookCellId = __hookScope.getStore();
 		if (hookCellId && hookCellId !== cellId) throw new Error("Notebook hook tool called outside its originating exec cell");
         const requestId = ++__state.requestId;
-		const toolName = __state.toolNames[name] || { name };
+		const toolName = __state.toolNames[name];
 		let observe = __state.toolHooks.size > 0 && !hookCellId;
 		let eventInput;
 		if (observe) {

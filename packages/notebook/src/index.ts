@@ -64,6 +64,10 @@ export type {
 	ShellSpawnRequest,
 } from "../../execution/src/shell.ts";
 export { createNodeShellBackend } from "../../execution/src/shell.ts";
+export type {
+	ExecutionToolHints,
+	ExecutionToolRegistration,
+} from "../../execution/src/tool-contract.ts";
 export type { NotebookEngineOptions } from "./engine.ts";
 
 export interface NotebookModeOptions extends NotebookEngineOptions {
@@ -111,7 +115,9 @@ export function createNotebookMode(options: NotebookModeOptions) {
 		},
 		async execute(args, api, context) {
 			const parsed = parseExecSource(args.code);
-			const contracts = (await api.agent(context)).tools.map(readToolContract);
+			const contracts = (await api.agent(context)).tools
+				.map(readToolContract)
+				.filter((contract) => !contract.nativeOnly);
 			const yieldTimeMs =
 				directToolYieldTime(parsed.code, contracts) ??
 				parsed.yieldTimeMs ??
@@ -217,7 +223,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 				const promoted = input.agent.tools
 					.filter((tool) => !["exec", "wait", "notebook"].includes(tool.name))
 					.map(readToolContract)
-					.filter((contract) => !contract.deferLoading)
+					.filter((contract) => !contract.nativeOnly && !contract.deferLoading)
 					.map((contract) => contract.usage);
 				return [base, ...promoted].join("\n");
 			}),
@@ -226,6 +232,8 @@ export function createNotebookMode(options: NotebookModeOptions) {
 	let closing: Promise<void> | undefined;
 	return {
 		extension,
+		/** Bind the same Harness that owns this extension to retain native-only provider tools. */
+		bind: coordinator.bind,
 		close(): Promise<void> {
 			waitAttempts.clear();
 			return (closing ??= Promise.all([

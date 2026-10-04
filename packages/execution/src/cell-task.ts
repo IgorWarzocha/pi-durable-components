@@ -19,6 +19,7 @@ import {
 	storeResult,
 } from "./invocation.ts";
 import { createNestedToolTask } from "./nested.ts";
+import { readToolContract } from "./tool-contract.ts";
 
 function yieldSignal() {
 	let resolve!: () => void;
@@ -84,7 +85,8 @@ export function createCellTask(
 					if (closed) throw new Error("Execution host is closed");
 					invocation = createInvocation(runtime, {}, cellContext);
 					const registrations = (await runtime.agent(cellContext)).tools.filter(
-						(tool) => !excluded.has(tool.name),
+						(tool) =>
+							!excluded.has(tool.name) && !readToolContract(tool).nativeOnly,
 					);
 					const toolApi = await invocation.executionApi();
 					const tools = cellTools(

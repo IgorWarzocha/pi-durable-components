@@ -61,6 +61,10 @@ export type {
 	ShellSpawnRequest,
 } from "../../execution/src/shell.ts";
 export { createNodeShellBackend } from "../../execution/src/shell.ts";
+export type {
+	ExecutionToolHints,
+	ExecutionToolRegistration,
+} from "../../execution/src/tool-contract.ts";
 
 export interface CodeModeOptions extends HostOptions {
 	shell: ShellRuntimeOptions;
@@ -89,7 +93,6 @@ export function createCodeMode(options: CodeModeOptions) {
 		cancelTask: options.cancelTask,
 	});
 	const waitAttempts = new Map<number, number>();
-	const promotions = new Map<number, { model: string; usage: string }>();
 	const exec = defineTool({
 		name: "exec",
 		description: "Run JavaScript; bare values are discarded",
@@ -106,7 +109,8 @@ export function createCodeMode(options: CodeModeOptions) {
 			const parsed = parseExecSource(args.code);
 			const contracts = (await api.agent(context)).tools
 				.filter((tool) => tool.name !== "exec" && tool.name !== "wait")
-				.map(readToolContract);
+				.map(readToolContract)
+				.filter((contract) => !contract.nativeOnly);
 			const yieldMs =
 				directToolYieldTime(parsed.code, contracts) ??
 				parsed.yieldTimeMs ??
@@ -160,25 +164,24 @@ export function createCodeMode(options: CodeModeOptions) {
 		},
 	});
 	return {
+		/** Bind the same Harness that owns this extension to retain native-only provider tools. */
+		bind: coordinator.bind,
 		extension: {
 			...coordinator.extension,
 			tools: [exec, wait, ...shell.tools],
 			sections: [
 				section("code", (input) => {
-					const model = `${input.agent.model?.provider ?? ""}:${input.agent.model?.modelId ?? ""}`;
-					if (promotions.get(input.conversationId)?.model !== model)
-						promotions.set(input.conversationId, {
-							model,
-							usage: input.agent.tools
-								.filter((tool) => tool.name !== "exec" && tool.name !== "wait")
-								.map(readToolContract)
-								.filter((contract) => !contract.deferLoading)
-								.map((contract) => contract.usage)
-								.join("\n"),
-						});
+					const usage = input.agent.tools
+						.filter((tool) => tool.name !== "exec" && tool.name !== "wait")
+						.map(readToolContract)
+						.filter(
+							(contract) => !contract.nativeOnly && !contract.deferLoading,
+						)
+						.map((contract) => contract.usage)
+						.join("\n");
 					return [
 						'exec accepts JavaScript source with optional // @exec: {"yield_time_ms":30000,"max_output_tokens":10000}. Await work and emit with text(value), image(value), generatedImage(value), notify(value). tools contains ordinary registered tools. ALL_TOOLS lists callable contracts. store(key,value)/load(key) retain serializable values between cells. Cells have no filesystem, network or Node globals. Shell tools follow the conversation environment. Use wait for exec cells and tools.write_stdin for shell sessions.',
-						promotions.get(input.conversationId)?.usage,
+						usage,
 					]
 						.filter(Boolean)
 						.join("\n");
@@ -187,7 +190,6 @@ export function createCodeMode(options: CodeModeOptions) {
 		},
 		async close(): Promise<void> {
 			waitAttempts.clear();
-			promotions.clear();
 			await Promise.all([coordinator.close(), shell.close()]);
 		},
 	};

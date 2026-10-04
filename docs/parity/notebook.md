@@ -23,7 +23,7 @@ The port carries the source Deno provisioning, authenticated HTTP kernel bridge,
 
 ## Deliberate native boundaries
 
-- Pi `ExtensionAPI`, TUI rendering, session trees, context-window handling, provider-encrypted results, and voice integration are not emulated. The component uses Durable tools, tasks, hooks, and prompt sections.
+- Pi `ExtensionAPI`, TUI rendering, session trees, provider-encrypted results and voice integration are not emulated. Context-window handling belongs to the separate Context component through ordinary tool registrations. Notebook uses Durable tools, tasks, hooks and prompt sections.
 - Factory inputs require `stateDirectory`, an explicit native environment capability, a shell backend, and host task cancellation. A persisted Durable storage namespace plus conversation ID replaces Pi session tree identities. Independent stores cannot collide on their numeric conversation IDs. Kernels remain private conversation forks. Persistent files use the `pi-durable-notebook` namespace.
 - `exec` retains the source constrained-sampling grammar and pragma. Its ordinary Durable JSON schema is `{code:string}`. `prepareArguments` also accepts plain source. `wait` retains `cell_id`, `yield_time_ms`, `max_tokens`, and `terminate`. Durable task IDs are the public continuation handles.
 - Top-level `notebook` retains `{input:"help"}` and JSON action objects. Inside exec, the native direct-action proxy permits status without a binding query, list, and diagnostics. Other actions return the exact top-level retry rather than running concurrently.

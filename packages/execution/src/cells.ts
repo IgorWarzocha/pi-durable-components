@@ -37,14 +37,16 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 	);
 	const driver = createCellTask(options, nestedTask);
 	const task = driver.task;
+	const projection = providerProjection(options.surfaceTools);
 	const extension = defineExtension({
 		name: options.name,
 		tasks: [task, nestedTask],
-		hooks: [providerProjection(options.surfaceTools)],
+		hooks: [projection.hook],
 	});
 
 	return {
 		extension,
+		bind: projection.bind,
 		async start(
 			input: JsonObject,
 			api: ToolExecutionApi,

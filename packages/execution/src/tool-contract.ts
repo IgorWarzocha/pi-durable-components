@@ -3,12 +3,14 @@ import type { TSchema } from "@earendil-works/pi-ai";
 import type { ToolRegistration } from "@earendil-works/pi-durable";
 
 /** Optional runtime presentation and observation policy on an ordinary registration. */
-interface ExecutionToolHints {
+export interface ExecutionToolHints {
 	readonly usage?: string;
 	readonly output?: string;
 	readonly deferLoading?: boolean;
 	readonly yieldTimeMs?: number;
 	readonly inputSchema?: JsonValue;
+	/** Keep the tool on the provider surface and prohibit calls from execution cells. */
+	readonly nativeOnly?: boolean;
 }
 
 export type ExecutionToolRegistration<
@@ -25,11 +27,12 @@ interface ExecutionToolContract {
 	readonly output?: string;
 	readonly inputSchema: JsonValue;
 	readonly deferLoading: boolean;
+	readonly nativeOnly: boolean;
 	readonly yieldTimeMs?: number;
 	readonly help: string;
 }
 
-/** Metadata does not change implementation parameters, repair, validation or dispatch. */
+/** Validate ordinary registration metadata before presentation or execution policy uses it. */
 export function readToolContract(
 	tool: ToolRegistration | ExecutionToolRegistration,
 ): ExecutionToolContract {
@@ -49,6 +52,7 @@ export function readToolContract(
 		"deferLoading",
 		"yieldTimeMs",
 		"inputSchema",
+		"nativeOnly",
 	]);
 	for (const key of Object.keys(hints))
 		if (!supported.has(key))
@@ -70,6 +74,11 @@ export function readToolContract(
 	if (deferred !== undefined && typeof deferred !== "boolean")
 		throw new Error(
 			`Tool ${tool.name} executionHints.deferLoading must be a boolean`,
+		);
+	const nativeOnly = "nativeOnly" in hints ? hints.nativeOnly : undefined;
+	if (nativeOnly !== undefined && typeof nativeOnly !== "boolean")
+		throw new Error(
+			`Tool ${tool.name} executionHints.nativeOnly must be a boolean`,
 		);
 	const yieldTimeMs = "yieldTimeMs" in hints ? hints.yieldTimeMs : undefined;
 	if (
@@ -98,6 +107,7 @@ export function readToolContract(
 		usage,
 		inputSchema,
 		deferLoading: typeof deferred === "boolean" ? deferred : true,
+		nativeOnly: nativeOnly === true,
 		...(typeof yieldTimeMs === "number" ? { yieldTimeMs } : {}),
 		...(outputHint === undefined ? {} : { output: outputHint }),
 		help: [

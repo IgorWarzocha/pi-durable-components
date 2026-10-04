@@ -5,7 +5,7 @@ Run TypeScript in a persistent Deno kernel. Globals and imports survive between 
 Requires Node 22.19 or newer and Durable 1.0.2.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.1.0/howaboua-pi-durable-notebook-0.1.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.2.0/howaboua-pi-durable-notebook-0.2.0.tgz
 ```
 
 The shell's native PTY addon requires Python, Make and a C++ compiler on Linux. If install scripts are disabled, run `npm rebuild node-pty` before using interactive shells. Pipe-based commands do not require the addon.
@@ -29,6 +29,7 @@ const registry = createRegistry();
 registry.install(notebook.extension);
 // Install the other tools you want the notebook to call.
 harness = await Harness.open(storage, { models, registry, env: () => env }, context);
+notebook.bind(harness);
 ```
 
 `storage`, `models`, and `context` are your normal Durable setup. Select the Notebook extension and the other extensions you want in the conversation. Select only one of Code and Notebook at a time.
@@ -36,6 +37,8 @@ harness = await Harness.open(storage, { models, registry, env: () => env }, cont
 The agent uses `exec` with TypeScript source. Plain source is accepted by the tool's freeform preparation. JSON tool callers use `{ "code": "text(await tools.some_tool({ ... }))" }`. `ALL_TOOLS` contains the selected tool contracts. Every ordinary Durable registration is callable without a Notebook adapter. Durable owns validation, wrappers, hooks, task ownership, usage accounting, and interruption handling.
 
 Ordinary registration `executionHints` can supply custom usage, output help, a discovery schema, promotion, and a direct-call yield budget. Tools remain deferred by default. Promoted tools add one usage line to the prompt. Direct-call yield hints take precedence over the cell's pragma. Tool names remain unchanged and punctuation is callable through `tools[name]`.
+
+Registrations with `executionHints.nativeOnly: true` stay native model tools and are unavailable inside cells, including through retained tool functions. Binding the Harness enables their native projection. Context management uses this boundary for `new_context`.
 
 Tool results preserve their details and content. Images expose a base64 `image_url` usable with `image(result)`. Tool failures throw inside the cell. Bare expression values are discarded, so use `text(value)` to emit output.
 

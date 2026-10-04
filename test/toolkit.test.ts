@@ -16,6 +16,7 @@ import {
 	defineExtension,
 	Harness,
 	MemoryStorage,
+	type SettledTask,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import {
@@ -32,6 +33,10 @@ import {
 	createCodeMode,
 	createNodeShellBackend,
 } from "../packages/code/src/index.ts";
+import {
+	createContextManagement,
+	type InputResult,
+} from "../packages/context/src/index.ts";
 import { createImageGenerationExtension } from "../packages/imagegen/src/index.ts";
 import { createNotebookMode } from "../packages/notebook/src/index.ts";
 import { skills } from "../packages/skills/src/index.ts";
@@ -51,6 +56,9 @@ const ordinaryNames = [
 	"imagegen",
 	"exec_command",
 	"write_stdin",
+	"notes",
+	"history",
+	"get_context_remaining",
 ];
 type Mode = "code" | "notebook";
 
@@ -66,6 +74,7 @@ test("use the actual toolkit through Code, switch to Notebook, and retain each m
 		models: [{ id: "toolkit", input: ["text", "image"] }],
 	});
 	models.setProvider(faux.provider);
+	const management = createContextManagement({ models });
 	const files = defineExtension({
 		name: "files",
 		tools: [createReadTool(), createWriteTool()],
@@ -114,6 +123,7 @@ test("use the actual toolkit through Code, switch to Notebook, and retain each m
 			browser.extension,
 			createWebSearchExtension({ models }),
 			createImageGenerationExtension({ models }),
+			management.extension,
 		];
 		const registry = createRegistry();
 		for (const extension of [...ordinary, code.extension, notebook.extension])
@@ -154,12 +164,20 @@ test("use the actual toolkit through Code, switch to Notebook, and retain each m
 				);
 				assert.deepEqual(
 					[...offered].sort(),
-					active === "code" ? ["exec", "wait"] : ["exec", "notebook", "wait"],
+					active === "code"
+						? ["exec", "new_context", "wait"]
+						: ["exec", "new_context", "notebook", "wait"],
 					"ordinary tools must fold automatically into the selected execution surface",
 				);
 				if (last?.role === "toolResult") {
 					observed.push(last);
 					assert.equal(last.isError, false, messageText(last));
+					if (user === `toolkit:${active}:rollover`) {
+						return fauxAssistantMessage(
+							fauxToolCall("new_context", {}, { id: `rotate-${++call}` }),
+							{ stopReason: "toolUse" },
+						);
+					}
 					const details = last.details;
 					if (
 						details &&
@@ -179,6 +197,21 @@ test("use the actual toolkit through Code, switch to Notebook, and retain each m
 						);
 					}
 					return fauxAssistantMessage("toolkit complete");
+				}
+				if (user === "Continue from your saved notes.") {
+					assert.equal(
+						request.messages.some(
+							(message) =>
+								message.role === "user" &&
+								messageText(message).startsWith("toolkit:"),
+						),
+						false,
+						"rollover must remove the old active transcript",
+					);
+					program =
+						active === "code"
+							? 'text(load("toolkit"));'
+							: "text(toolkitState);";
 				}
 				return fauxAssistantMessage(
 					fauxToolCall("exec", { code: program }, { id: `exec-${++call}` }),
@@ -203,6 +236,9 @@ test("use the actual toolkit through Code, switch to Notebook, and retain each m
 			context,
 		);
 		agents.bind(harness, storage);
+		management.bind(harness, storage);
+		code.bind(harness);
+		notebook.bind(harness);
 		const root = await harness.root(context, {
 			agent: {
 				model: { provider: faux.getModel().provider, modelId: "toolkit" },
@@ -277,6 +313,31 @@ test("use the actual toolkit through Code, switch to Notebook, and retain each m
 						item.data === pixel.toString("base64"),
 				),
 				"view_image must deliver the unchanged shell-copied PNG to the model",
+			);
+			program =
+				'text(await tools.notes({action:"write_file",path:"handoff",text:"Retain toolkit state"})); text(ALL_TOOLS.some(t => t.name === "new_context")); try { await tools.new_context({}); throw new Error("nested rollover escaped"); } catch (error) { text(String(error)); }';
+			observed.length = 0;
+			const rollover = await management.submit(
+				root.id,
+				{ type: "input", content: `toolkit:${mode}:rollover` },
+				context,
+			);
+			const rolloverResult: SettledTask<InputResult> =
+				await harness.waitForTask(rollover, context);
+			assert.equal(
+				rolloverResult.state.outcome.status,
+				"completed",
+				JSON.stringify(rolloverResult.state.outcome),
+			);
+			if (rolloverResult.state.outcome.status === "completed")
+				assert.equal(rolloverResult.state.outcome.result.status, "done");
+			const rolloverOutput = observed.map(messageText).join("\n");
+			assert.match(rolloverOutput, /false/);
+			assert.doesNotMatch(rolloverOutput, /nested rollover escaped/);
+			assert.match(
+				rolloverOutput,
+				new RegExp(`"mode":"${mode}"`),
+				"the same live execution state must survive the context cut",
 			);
 		}
 		assert.equal(
