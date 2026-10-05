@@ -12,7 +12,7 @@ Tool arguments, outputs, errors, cancellation, state, and recovery are part of p
 | Web | Search and navigation | [Real authenticated search and returned-reference navigation](parity/web-imagegen.md) |
 | Image generation | Generation, editing, recent images, artifacts | [Real generation, viewing and recent-image editing](parity/web-imagegen.md) |
 | Browser | Logged-in browser control | [CDP lifecycle and output contracts](parity/browser.md) |
-| Agents | Durable-native delegation and coordination | [Real Harness delegation, recovery and watches](parity/agents.md) |
+| Agents | Durable-native delegation and shared discussion board | [Real Harness delegation, board, recovery and watches](parity/agents.md) |
 | Code | Code execution with included `exec_command` and `write_stdin` | [Actual V8 execution and tool dispatch](parity/code.md) |
 | Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
 | Context | Local notes, retained history, checkpoint rollover and managed idle admission | [SQLite recovery and real execution-mode rollover](parity/context.md) |
@@ -32,7 +32,7 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 
 ## Accepted native differences
 
-- Agent delegation uses Durable conversations. Herdr machine and pane control, SSH routing, context-board attachment and Ask answers are excluded.
+- Agent delegation and board membership use Durable conversations. Herdr machine and pane control, SSH routing, shared-context attachment and Ask answers are excluded.
 - Images use native Durable image content. The provider owns transport detail selection. Original bytes and optional descriptions remain available.
 - Host configuration replaces ambient Pi directories, extension globals and terminal rendering. Code and Notebook consume ordinary registrations, not per-tool bridges.
 - Context management and OpenAI Responses follow the later source revisions pinned in their parity documents. Context uses one notes-and-history policy, without source backend or continuity-mode selectors.

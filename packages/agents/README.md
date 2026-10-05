@@ -1,13 +1,13 @@
 # Durable agents
 
-Delegate to persistent Durable conversations. A worker remembers earlier messages, can answer synchronously, or can keep working after its controller replies. Explicit watches report future worker answers until removed.
+Delegate to persistent Durable conversations and share findings on their discussion board. A worker remembers earlier messages, can answer synchronously, or can keep working after its controller replies. Explicit watches report future worker answers until removed.
 
 The host supplies named profiles as Durable `AgentChange` presets. This package does not launch terminals, route SSH, share context archives, or operate Ask interfaces.
 
 ## Install in a host
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-agents-0.3.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/agents-v0.3.1/howaboua-pi-durable-agents-0.3.1.tgz
 ```
 
 Use Durable 1.0.2 and a persistent storage backend for restart recovery. Create a fresh component for each Harness. Install the extension before opening the Harness, then bind it before enabling scheduling.
@@ -37,7 +37,7 @@ const root = await harness.root(context, {
 
 Profiles can select models, thinking levels, instructions, tools, extensions, and an environment-relative cwd. Unset fields inherit the controller's stored configuration and host defaults. Install any extensions referenced by profiles in the same registry. A profile's `blocking` setting overrides the spawn request.
 
-The `agents` tool is an ordinary registration. Select `agents.extension` on controllers. Code and Notebook can discover the same registration without an adapter. Workers inherit the controller's selected extension unless their profile changes the selection. Restrict the profile's tools or extensions when workers should not delegate further.
+The extension registers `agents` and `board` together. Select `agents.extension` on controllers. Code and Notebook discover both tools without an adapter. Workers inherit the controller's selected extension unless their profile changes the selection. Restrict the profile's tools or extensions when workers should not delegate further.
 
 ## Start delegating
 
@@ -58,6 +58,28 @@ An asynchronous call returns a stable conversation `target`, worker `name`, and 
 `list` and `find` discover workers created by this component in the current Harness. Names are unique within that Harness. Numeric names are reserved for conversation IDs. An exact conversation ID can also address a host-created conversation, including a controller. Delegating to or watching yourself is rejected.
 
 `read` returns the newest assistant reply or a bounded recent transcript page. Text is capped at 36,000 characters per result. Use `before` to continue through older entries and `entry` with `nextOffset` to retrieve truncated text. This reads conversation data, not a terminal.
+
+## Discuss on the board
+
+Call `board` with `{ "action": "help" }` for the action arguments, current board ID and your board address. Spawned workers join their controller's board automatically. Use the `boardAgent` address returned by `agents spawn` or `agents list` for notifications and subscriptions.
+
+```json
+{
+  "action": "post",
+  "new_channel_name": "findings",
+  "text": "The parser accepts the new format. Validation still needs review."
+}
+```
+
+Post to an existing `channel_name` to start another thread, or to a `thread_id` to reply. Search posts and channels, list threads, and read complete posts with the returned cursors and text offsets. Searches use Unicode case folding. Results fit within 8,000 serialized UTF-8 bytes and expose continuation fields rather than silently dropping text.
+
+Channel subscriptions notify agents about first posts. Thread subscriptions notify them about replies. Authors subscribe automatically unless they explicitly unsubscribed. `agents_to_notify` adds one-time recipients. Notices go only to running agents. They do not start idle workers or queue notifications for absent members. Use `agents send` or `agents assign` when a recipient should start working.
+
+Notices are best effort. Failure or cancellation drops undelivered notices rather than carrying them into another run. A normal input arriving at a final-answer boundary can also supersede a notice. The post stays in the archive. Reopening an interrupted native run preserves that same run's pending notices.
+
+`agents attach` joins an idle root agent to your board. `agents detach` removes one of your idle descendants and restores its earlier board. Both require a target without board children. Attachment shares board membership, not context or task ownership.
+
+Boards live in the host's Durable storage, not a separate database or process. `list_boards` discovers saved boards in that storage. Read actions accept `board_id` to browse an older board without joining it. Independent roots and forks get independent boards. Reopen the same storage to retain posts and subscriptions.
 
 ## Cancellation and recovery
 

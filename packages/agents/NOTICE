@@ -3,6 +3,11 @@ Delegation contracts and name-normalization behavior adapted from
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-shepherdr
 Revision: b2006db9def12c373ae48e70044d30f7d6b7e34f
 
+Discussion board contracts, paging, subscriptions, and query behavior adapted
+from @howaboua/pi-shepherdr 0.2.13.
+Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb/packages/pi-shepherdr/src/board
+Revision: 5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb
+
 Background ownership and idempotent report submission patterns adapted from
 Durable examples 22 and 23. Implementation targets the public
 @earendil-works/pi-durable 1.0.2 API.
@@ -11,7 +16,8 @@ Revision: f5d20047b3ad43d068a8eb61bd4e1f193bedbce6
 
 Modifications: Durable-native profile configuration, conversation identity,
 background delegation, real input-settlement watches, host binding, bounded
-transcript reads, and native submission idempotence. No Pi compatibility API
+transcript reads, native submission idempotence, and a transaction-backed
+discussion archive with conversation-tree membership. No Pi compatibility API
 or Herdr process integration is included.
 
 MIT License

@@ -1,5 +1,8 @@
 import type { Harness, Storage } from "@earendil-works/pi-durable";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
+import { changeMembership } from "./board/membership.ts";
+import { createBoardNoticeHooks } from "./board/notice-hooks.ts";
+import { createBoardTool } from "./board/tool.ts";
 import type { AgentsOptions } from "./contract.ts";
 import { AgentsParameters, help } from "./contract.ts";
 import { delegate, send } from "./delegation.ts";
@@ -18,7 +21,7 @@ export function createAgents(options: AgentsOptions) {
 	const binding = () => {
 		if (host === undefined)
 			throw new Error(
-				"Persistent watches are unavailable. Delegation and message-only send remain available",
+				"Bind the Agents component before using persistent watches or board posts. Delegation and message-only send remain available",
 			);
 		return host;
 	};
@@ -48,20 +51,26 @@ export function createAgents(options: AgentsOptions) {
 					return updateSubscription(args, api, context, Watch, binding);
 				case "send":
 					return send(args, api, context);
+				case "attach":
+				case "detach":
+					return changeMembership(args, api, context);
 				case "spawn":
 				case "assign":
 					return delegate(args, api, context, options.profiles);
 			}
 		},
 	});
+	const boardTool = createBoardTool(binding);
 	const extension = defineExtension({
 		name: "howaboua.agents",
-		tools: [tool],
+		tools: [tool, boardTool],
 		tasks: [Anchor, Dispatch, Completion, Watch],
+		hooks: createBoardNoticeHooks(binding),
 	});
 	return {
 		extension,
 		tool,
+		boardTool,
 		bind(harness: Harness, storage: Storage) {
 			if (
 				host !== undefined &&

@@ -7,6 +7,7 @@ import type {
 	ToolExecutionApi,
 } from "@earendil-works/pi-durable";
 import { LiveDoc } from "@earendil-works/pi-durable";
+import { BoardMembers } from "./board/membership.ts";
 import type { Request } from "./contract.ts";
 import { response } from "./contract.ts";
 import { Fleet, resolveTarget, textOf } from "./state.ts";
@@ -17,6 +18,7 @@ export async function discoverAgents(
 	context: Context,
 ) {
 	const fleet = await api.snapshot(Fleet, context);
+	const directory = await api.snapshot(BoardMembers, context);
 	const records = Object.values(fleet?.agents ?? {});
 	const found: JsonObject[] = [];
 	for (const agent of records) {
@@ -35,8 +37,10 @@ export async function discoverAgents(
 		const watchId = fleet?.watches[`${api.conversationId}:${agent.target}`];
 		const watcher =
 			watchId === undefined ? undefined : await api.getTask(watchId, context);
+		const member = directory?.members[String(agent.target)];
 		found.push({
 			...agent,
+			...(member === undefined ? {} : { boardAgent: member.agentName }),
 			target: String(agent.target),
 			status,
 			...(live?.run === undefined ? {} : { run: live.run.taskId }),

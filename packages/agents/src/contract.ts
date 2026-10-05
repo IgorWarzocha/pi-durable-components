@@ -76,6 +76,8 @@ export const AgentsParameters = Type.Union([
 	),
 	Type.Object({ ...action("watch"), target }, object),
 	Type.Object({ ...action("unwatch"), target }, object),
+	Type.Object({ ...action("attach"), target }, object),
+	Type.Object({ ...action("detach"), target }, object),
 ]);
 export type Request = Static<typeof AgentsParameters>;
 export type WorkRequest = Extract<Request, { action: "spawn" | "assign" }>;
@@ -97,6 +99,8 @@ export function help(profiles: AgentsOptions["profiles"]) {
 			read: "target source? limit? before? entry? offset?",
 			watch: "target",
 			unwatch: "target",
+			attach: "target",
+			detach: "target",
 		},
 		profiles: Object.fromEntries(
 			Object.entries(profiles).map(([name, profile]) => [
@@ -116,6 +120,8 @@ export function help(profiles: AgentsOptions["profiles"]) {
 				"Defaults true; spawn profile policy overrides. False reports completion after you reply. No polling",
 			send: "Admits a message, wakes idle recipients, steers active work. No wait or implicit watch",
 			watch: "Persists until unwatch; delegation reports are task-scoped",
+			attach:
+				"Joins an idle root agent to your discussion board. Detach restores its previous board. Targets must have no board children. No shared context or task assignment",
 			read: "latest returns the newest assistant; recent returns a bounded transcript page. before continues older entries; entry + nextOffset retrieves truncated text",
 		},
 	});

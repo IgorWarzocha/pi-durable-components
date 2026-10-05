@@ -51,6 +51,7 @@ const ordinaryNames = [
 	"view_image",
 	"skills",
 	"agents",
+	"board",
 	"browser",
 	"web_run",
 	"imagegen",
@@ -279,6 +280,7 @@ test("use the actual toolkit through Code, switch to Notebook, and retain each m
 				"interop",
 				"Follow the filesystem evidence",
 				"worker read:",
+				`BOARD_READ:${mode}`,
 				"BROWSER_HELP",
 				"WEB_UNAVAILABLE",
 				"IMAGEGEN_UNAVAILABLE",
@@ -421,6 +423,9 @@ function workflow(mode: Mode): string {
   text(await tools.agents({action:"help"}));
   text(await tools.agents({action:"spawn",agent_type:"reader",label:"Filesystem reader",message:${JSON.stringify(`READ ${mode}.txt`)},blocking:true}));
   text(await tools.agents({action:"list"}));
+  text(await tools.board({action:"help"}));
+  const posted = await tools.board({action:"post",new_channel_name:${JSON.stringify(`interop-${mode}`)},text:${JSON.stringify(`BOARD_READ:${mode}`)}});
+  text(await tools.board({action:"read_post",message_id:posted.message_id}));
   text("BROWSER_HELP"); text(await tools.browser({command:"help"}));
   // No configured remote provider and no billable requests. Live provider checks are separate.
   try { await tools.web_run({search_query:[{q:"Durable toolkit"}]}); throw new Error("unexpected web success"); }

@@ -1,6 +1,11 @@
 import type { Context } from "@earendil-works/chord";
 import type { ToolExecutionApi, Tx } from "@earendil-works/pi-durable";
 import { configure, LiveDoc } from "@earendil-works/pi-durable";
+import {
+	boardScope,
+	membership,
+	registerBoardChild,
+} from "./board/membership.ts";
 import type { AgentsOptions, Request, WorkRequest } from "./contract.ts";
 import { response } from "./contract.ts";
 import type { Delegation, WorkResult } from "./state.ts";
@@ -51,6 +56,7 @@ async function admitWork(
 	args: WorkRequest,
 	api: ToolExecutionApi,
 	profiles: AgentsOptions["profiles"],
+	ownerFolder: string,
 ): Promise<Delegation> {
 	const fleet = await tx.doc(Fleet);
 	const existing = fleet.delegations[String(api.taskId)];
@@ -59,6 +65,9 @@ async function admitWork(
 		return {
 			target: existing.target,
 			name: existing.name,
+			...(existing.boardAgent === undefined
+				? {}
+				: { boardAgent: existing.boardAgent }),
 			blocking: existing.blocking,
 			dispatch: existing.dispatch,
 			reporter: existing.reporter,
@@ -66,6 +75,7 @@ async function admitWork(
 	if (!args.message.trim()) throw new Error("message must not be blank");
 	let targetId;
 	let name;
+	let boardAgent;
 	let blocking = args.blocking ?? true;
 	if (args.action === "spawn") {
 		const profile = Object.hasOwn(profiles, args.agent_type)
@@ -85,11 +95,14 @@ async function admitWork(
 			args.label,
 			args.name,
 		);
+		await boardScope(tx, api.conversationId, ownerFolder);
+		const directory = await membership(tx, api.conversationId);
 		const anchor = await tx.createTask(Anchor, null, background);
 		const child = await tx.createConversation({
 			ownership: { kind: "task", taskId: anchor },
 		});
 		targetId = child.id;
+		boardAgent = registerBoardChild(directory, api.conversationId, child.id);
 		await configure(tx, child.id, {
 			...profile.agent,
 			...(args.cwd === undefined ? {} : { cwd: args.cwd }),
@@ -128,7 +141,14 @@ async function admitWork(
 		},
 		background,
 	);
-	const receipt = { target: targetId, name, blocking, dispatch, reporter };
+	const receipt = {
+		target: targetId,
+		name,
+		blocking,
+		dispatch,
+		reporter,
+		...(boardAgent === undefined ? {} : { boardAgent }),
+	};
 	fleet.delegations[String(api.taskId)] = receipt;
 	return receipt;
 }
@@ -164,8 +184,9 @@ export async function delegate(
 	context: Context,
 	profiles: AgentsOptions["profiles"],
 ) {
+	const agent = await api.agent(context);
 	const receipt = await api.commit(
-		(tx) => admitWork(tx, args, api, profiles),
+		(tx) => admitWork(tx, args, api, profiles, api.env?.cwd ?? agent.cwd ?? ""),
 		context,
 	);
 	await api.details(
@@ -193,6 +214,9 @@ export async function delegate(
 		{
 			[args.action === "spawn" ? "spawned" : "assigned"]: true,
 			name: receipt.name,
+			...(receipt.boardAgent === undefined
+				? {}
+				: { boardAgent: receipt.boardAgent }),
 			dispatch: receipt.dispatch,
 			reporter: receipt.reporter,
 			...(result ?? { status: "working" }),
