@@ -16,7 +16,7 @@ Tool arguments, outputs, errors, cancellation, state, and recovery are part of p
 | Code | Code execution with included `exec_command` and `write_stdin` | [Actual V8 execution and tool dispatch](parity/code.md) |
 | Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
 | Context | Local notes, retained history, checkpoint rollover and managed idle admission | [SQLite recovery and real execution-mode rollover](parity/context.md) |
-| OpenAI Responses | Optimised Codex subscription provider, cached transport, Lite and replay | [Protocol extraction and live Durable provider use](parity/openai-responses.md) |
+| OpenAI Responses | OpenAI and Codex subscription provider, cached transport, explicit Worker runtime, Lite and replay | [Protocol extraction and runtime evidence](parity/openai-responses.md) |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 

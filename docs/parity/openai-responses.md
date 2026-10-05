@@ -2,7 +2,25 @@
 
 The reference is `packages/pi-codex-conversion/src/providers` in `IgorWarzocha/howaboua-pi-stuff` at `5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb`. The checkout was read-only. Its uncommitted context-management changes did not affect the extracted provider files. The package preserves the source MIT notices and credits the Pi-derived protocol code.
 
-This is a pi-ai 1.0.2 Provider consumed by Durable's Models collection. It is not a Pi ExtensionAPI compatibility layer. It does not replace the separate standard OpenAI API provider.
+This is a pi-ai 1.0.2 Provider consumed by Durable's Models collection. It is not a Pi ExtensionAPI compatibility layer. Codex remains the default. Explicit direct mode replaces the ordinary `openai` registration only in the host's Models collection.
+
+## Explicit direct Responses adaptation
+
+Direct mode uses `api.openai.com/v1/responses`, ordinary bearer authentication, the stock pi-ai OpenAI catalog and the existing `openai` direct-subscription credential. It does not decode a Codex account claim or emit Codex account, originator, turn-affinity or Lite headers. Credential identity is hashed for canonical lane validation. No application-specific bridge was added.
+
+Request preparation was traced against installed `@earendil-works/pi-ai` 1.0.2 `dist/api/openai-responses.js`. Both modes share transcript reconstruction, positional system messages, model switching, strict schemas, grammar and native tool conversion, final tool-pair normalization and payload hooks. The direct envelope preserves stock system messages in input rather than inventing Codex instructions. Direct-subscription credentials omit temperature, output-token caps and cache-retention controls. API keys retain supported controls. Stock thinking-level maps, sampling parameters and tool selection are preserved. Codex's request envelope and defaults remain unchanged.
+
+Direct refresh follows the installed stock `dist/auth/oauth/openai-chatgpt.js` grant, issued client ID, resource, direct-token scope validation and three-minute expiry margin. Only refresh and credential-to-auth derivation are carried locally so Worker bundles do not need a runtime-only module import. Interactive login delegates to stock pi-ai on a Node host. Failed refresh responses do not dump credential-bearing bodies. Notices identify the published source version.
+
+Direct mode is WebSocket-only. The shared explicit `websocketFallback: "error"` policy disables SSE fallback in both speculative preparation and generation recovery. Default Codex fallback remains unchanged. Direct WebSocket events omit HTTP-only `stream` and `background`. Validated cached continuation, reconstructed reconnects, ordinary non-generating prewarm, isolated generated keepalive and owned cancellation/reset/close reuse the existing transport implementation. Lite and Codex compaction are rejected rather than claimed compatible.
+
+`runtime: "workerd"` selects native authenticated `fetch` Upgrade. Ownership is registered before `accept()`, handshake cancellation and timeouts reach fetch, and close waits for the socket's close event with a visible bounded failure. Node's supported Undici and Bun connectors remain unchanged. Node proxy environment routing is not used by the Worker connector. Live sockets remain scoped to the owning runtime instance, not persisted across restarts.
+
+OpenAI documents direct WebSocket continuation with `store: false` and `generate: false` prewarm at [WebSocket mode](https://developers.openai.com/api/docs/guides/websocket-mode). Cloudflare documents its socket lifecycle at [Workers WebSockets](https://developers.cloudflare.com/workers/runtime-apis/websockets/). Documentation establishes the protocol contract, not account authorization.
+
+Focused validation used the actual provider through pi-ai Models against the real local HTTP/WebSocket fixture. It compared direct subscription and API-key requests with stock pi-ai's prepared requests, completed native grammar calls and receipts, reused an exact-prefix continuation, rebuilt changed history, reset a session and rejected SSE and Lite without sending generation. The API-key differential protects stock output-token clamping while retaining additional provider options. Upgrade rejection produced no SSE request. All four existing Codex workflows also passed.
+
+On 2026-10-05 the provider's source and actual dependencies bundled and ran in local workerd with Wrangler 4.147.0 and `nodejs_compat`. A native authenticated Upgrade reached `/v1/responses`, non-generating prewarm and two generated turns reused one socket, the follow-up sent one input item with `previous_response_id`, usage reached Models, and close reached the backend. Reset aborted a held generation and joined socket close. HTTP 426 remained a visible error with no SSE request. This is runtime and owned-protocol evidence. Direct live-account WebSocket authorization and live OAuth refresh were not exercised by this check.
 
 ## Carried behavior
 

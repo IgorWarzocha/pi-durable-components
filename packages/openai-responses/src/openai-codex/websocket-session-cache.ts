@@ -28,12 +28,16 @@ function routeIdentityHeaders(headers: Headers): [string, string][] {
 }
 
 async function websocketRouteKey(
+	transportState: CodexTransportState,
 	url: string,
 	headers: Headers,
 	accountId: string,
 	env: ProviderEnv | undefined,
 ): Promise<string> {
-	const proxy = await resolveWebSocketProxyForTarget(url, env);
+	const proxy =
+		transportState.runtime === "workerd"
+			? undefined
+			: await resolveWebSocketProxyForTarget(url, env);
 	const handshakeIdentity = JSON.stringify([
 		accountId,
 		new URL(url).href,
@@ -165,7 +169,13 @@ export function preconnectWebSocket(
 	combinedSignal.addEventListener("abort", onAbort, { once: true });
 	if (combinedSignal.aborted) release(false);
 	const operation = (async () => {
-		attemptedRoute = await websocketRouteKey(url, headers, accountId, env);
+		attemptedRoute = await websocketRouteKey(
+			transportState,
+			url,
+			headers,
+			accountId,
+			env,
+		);
 		lease = await acquireWebSocket(
 			transportState,
 			url,
@@ -193,6 +203,7 @@ export function preconnectWebSocket(
 			await operation;
 			if (!lease && !failure) return;
 			const finalRoute = await websocketRouteKey(
+				transportState,
 				finalUrl,
 				finalHeaders,
 				finalAccountId,
@@ -276,6 +287,7 @@ async function connectOwnedWebSocket(
 			socket.addEventListener("close", onClose);
 			if (socket.readyState === 3) onClose();
 		},
+		transportState.runtime,
 	);
 	if (signal?.aborted) {
 		closeWebSocketSilently(socket);
@@ -318,7 +330,13 @@ async function acquireOwnedWebSocket(
 		};
 	}
 
-	const routeKey = await websocketRouteKey(url, headers, accountId, env);
+	const routeKey = await websocketRouteKey(
+		transportState,
+		url,
+		headers,
+		accountId,
+		env,
+	);
 	if (signal?.aborted) throw new Error("Request was aborted");
 	let routeEntries = transportState.websocketSessionCache.get(sessionId);
 	const cached = routeEntries?.get(routeKey);

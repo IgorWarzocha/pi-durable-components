@@ -1,3 +1,4 @@
+import type { WebSocketRuntime } from "../protocol.ts";
 import {
 	DEFAULT_WEBSOCKET_CLOSE_TIMEOUT_MS,
 	DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS,
@@ -9,6 +10,7 @@ import type {
 	WebSocketConstructorLike,
 	WebSocketLike,
 } from "./types.ts";
+import { connectWorkerWebSocket } from "./worker-websocket.ts";
 
 const PROXY_ENV_KEYS = new Set([
 	"all_proxy",
@@ -415,7 +417,16 @@ export async function connectWebSocket(
 	connectTimeoutMs = DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS,
 	env?: ProviderEnv,
 	onSocketCreated?: (socket: WebSocketLike) => void,
+	runtime: WebSocketRuntime = "node",
 ): Promise<WebSocketLike> {
+	if (runtime === "workerd")
+		return connectWorkerWebSocket(
+			url,
+			headers,
+			signal,
+			connectTimeoutMs,
+			onSocketCreated,
+		);
 	const WebSocketCtor = await getWebSocketConstructor(url, env);
 	if (signal?.aborted) throw new Error("Request was aborted");
 	if (!WebSocketCtor) {

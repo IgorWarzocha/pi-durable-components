@@ -16,6 +16,12 @@ import {
 	withRemoteCompactionV2Feature,
 } from "../openai-responses/compaction-v2-feature.ts";
 import {
+	responsesIdentity,
+	responsesWebSocketHeaders,
+	responsesWebSocketUrl,
+	type WebSocketFallback,
+} from "../protocol.ts";
+import {
 	DEFAULT_MAX_RETRY_DELAY_MS,
 	DEFAULT_RATE_LIMIT_RECOVERY_BUDGET_MS,
 	DEFAULT_SSE_HEADER_TIMEOUT_MS,
@@ -38,12 +44,9 @@ import {
 } from "./errors.ts";
 import {
 	buildSSEHeaders,
-	buildWebSocketHeaders,
 	createCodexRequestId,
-	extractAccountId,
 	headersToRecord,
 	resolveCodexUrl,
-	resolveCodexWebSocketUrl,
 } from "./headers.ts";
 import { osInfoReady } from "./node-runtime.ts";
 import { resolveCodexTranscript } from "./request-body.ts";
@@ -109,6 +112,7 @@ import { preconnectWebSocket } from "./websocket-session-cache.ts";
 import { processWebSocketStream } from "./websocket-stream.ts";
 
 export interface CodexProviderRuntimeConfig {
+	websocketFallback?: WebSocketFallback;
 	forceCachedWebSockets?: boolean;
 	originator?: string;
 	responsesLite?: boolean;
@@ -371,7 +375,10 @@ export function createCodexTransportStream<TApi extends Api>(
 				throw new Error(`No API key for provider: ${model.provider}`);
 			}
 
-			const accountId = extractAccountId(apiKey);
+			const mode = deps.transportState.mode;
+			const allowFallback = runtimeConfig?.websocketFallback !== "error";
+			const accountId = responsesIdentity(mode, apiKey);
+			const websocketUrl = responsesWebSocketUrl(mode, model.baseUrl);
 			const canonicalSessionToken = captureCanonicalSessionToken(
 				deps.transportState,
 				effectiveOptions?.sessionId,
@@ -393,8 +400,9 @@ export function createCodexTransportStream<TApi extends Api>(
 				await osInfoReady;
 				preconnect = preconnectWebSocket(
 					deps.transportState,
-					resolveCodexWebSocketUrl(model.baseUrl),
-					buildWebSocketHeaders(
+					websocketUrl,
+					responsesWebSocketHeaders(
+						mode,
 						model.headers,
 						effectiveOptions.headers,
 						accountId,
@@ -431,7 +439,8 @@ export function createCodexTransportStream<TApi extends Api>(
 					effectiveOptions.headers,
 				);
 			if (preconnect) {
-				const finalHeaders = buildWebSocketHeaders(
+				const finalHeaders = responsesWebSocketHeaders(
+					mode,
 					model.headers,
 					effectiveOptions.headers,
 					accountId,
@@ -440,7 +449,7 @@ export function createCodexTransportStream<TApi extends Api>(
 					originator,
 				);
 				const failure = await preconnect.handoff(
-					resolveCodexWebSocketUrl(model.baseUrl),
+					websocketUrl,
 					finalHeaders,
 					accountId,
 					effectiveOptions.env,
@@ -453,6 +462,7 @@ export function createCodexTransportStream<TApi extends Api>(
 				);
 				if (
 					failure &&
+					allowFallback &&
 					!(failure.error instanceof CodexProtocolError) &&
 					(isWebSocketUpgradeRequiredError(failure.error) ||
 						isWebSocketMessageTooBigError(failure.error))
@@ -485,22 +495,26 @@ export function createCodexTransportStream<TApi extends Api>(
 					: validateCanonicalSessionRequest(
 							deps.transportState,
 							effectiveOptions?.sessionId,
-							resolveCodexWebSocketUrl(model.baseUrl),
+							websocketUrl,
 							accountId,
 							body,
 						);
 			lane = diagnosticsLane(body);
 			deps.onPreparedPayload?.(body);
-			const baseSseHeaders = buildSSEHeaders(
-				model.headers,
-				effectiveOptions?.headers,
-				accountId,
-				apiKey,
-				effectiveOptions?.sessionId,
-				responsesLite,
-				originator,
-			);
-			const websocketHeaders = buildWebSocketHeaders(
+			const baseSseHeaders =
+				mode === "direct"
+					? new Headers()
+					: buildSSEHeaders(
+							model.headers,
+							effectiveOptions?.headers,
+							accountId,
+							apiKey,
+							effectiveOptions?.sessionId,
+							responsesLite,
+							originator,
+						);
+			const websocketHeaders = responsesWebSocketHeaders(
+				mode,
 				model.headers,
 				effectiveOptions?.headers,
 				accountId,
@@ -512,7 +526,10 @@ export function createCodexTransportStream<TApi extends Api>(
 			const websocketBody = responsesLite
 				? applyResponsesLiteWebSocketMetadata(body)
 				: body;
-			const compressedBody = compressRequestBodyZstd(bodyJson);
+			const compressedBody =
+				allowFallback || effectiveTransport === "sse"
+					? compressRequestBodyZstd(bodyJson)
+					: null;
 			if (compressedBody) baseSseHeaders.set("content-encoding", "zstd");
 			const sseBody = compressedBody ?? bodyJson;
 			// Final-body preparation may prewarm the main lane and discover a sticky
@@ -590,7 +607,7 @@ export function createCodexTransportStream<TApi extends Api>(
 					try {
 						await processWebSocketStream(
 							deps.transportState,
-							resolveCodexWebSocketUrl(model.baseUrl),
+							websocketUrl,
 							withCodexTurnState(websocketBody, deps.turnState),
 							websocketHeaders,
 							output,
@@ -641,6 +658,8 @@ export function createCodexTransportStream<TApi extends Api>(
 						const unauthorized = isWebSocketUnauthorizedError(error);
 						const retryableWebSocketError =
 							!(error instanceof NonRetryableProviderError) &&
+							(allowFallback ||
+								!(upgradeRequired || messageTooBig || unauthorized)) &&
 							(isCodexApiError(error) || !isPermanentWebSocketError(error)) &&
 							isRetryableCodexStreamError(error);
 						const retryPlan = planRetry(error, attempt + 1);
@@ -648,12 +667,14 @@ export function createCodexTransportStream<TApi extends Api>(
 							retryPlan.overload && retryPlan.delayMs === undefined;
 						const adviceBudgetExhausted = retryPlan.adviceBudgetExhausted;
 						const immediateFallback =
+							allowFallback &&
 							!(error instanceof CodexProtocolError) &&
 							(upgradeRequired || messageTooBig || unauthorized);
 						const fallbackArmed =
-							immediateFallback ||
-							(retryableWebSocketError &&
-								(attempt >= streamMaxRetries || overloadBudgetExhausted));
+							allowFallback &&
+							(immediateFallback ||
+								(retryableWebSocketError &&
+									(attempt >= streamMaxRetries || overloadBudgetExhausted)));
 						appendAssistantMessageDiagnostic(
 							output,
 							createAssistantMessageDiagnostic(
@@ -813,7 +834,7 @@ export function createCodexTransportStream<TApi extends Api>(
 					if (!effectiveOptions?.canonicalCompaction)
 						recordCanonicalSessionResponse(deps.transportState, {
 							sessionId: effectiveOptions?.sessionId,
-							url: resolveCodexWebSocketUrl(model.baseUrl),
+							url: websocketUrl,
 							accountId,
 							requestBody: body,
 							reconstructedRequestBody: reconstructedBody,

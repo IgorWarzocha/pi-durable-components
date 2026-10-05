@@ -4,6 +4,7 @@ import type {
 	AssistantMessageEventStream,
 	Model,
 } from "@earendil-works/pi-ai";
+import { responsesWebSocketEvent } from "../protocol.ts";
 import {
 	DEFAULT_STREAM_IDLE_TIMEOUT_MS,
 	DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS,
@@ -163,7 +164,7 @@ export async function processWebSocketStream<TApi extends Api>(
 				previousResponseId: Boolean(requestBody.previous_response_id),
 			});
 		}
-		socket.send(JSON.stringify({ type: "response.create", ...requestBody }));
+		socket.send(responsesWebSocketEvent(transportState.mode, requestBody));
 		await processMappedCodexResponsesStream(
 			startWebSocketOutputOnFirstEvent(
 				mapCodexEvents(
@@ -332,11 +333,7 @@ export async function prewarmWebSocket<TApi extends Api>(
 			previousResponseId: Boolean(requestBody.previous_response_id),
 		});
 		socket.send(
-			JSON.stringify({
-				type: "response.create",
-				...requestBody,
-				...(generate ? {} : { generate: false }),
-			}),
+			responsesWebSocketEvent(transportState.mode, requestBody, generate),
 		);
 		for await (const event of mapCodexEvents(
 			parseWebSocket(socket, options.signal, idleTimeoutMs, (value) => {

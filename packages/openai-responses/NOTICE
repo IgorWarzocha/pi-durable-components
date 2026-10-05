@@ -8,6 +8,11 @@ The Pi extension, TUI and session-manager adapters are not included.
 Portions of the Responses conversion and streaming implementation derive
 from Pi, Copyright (c) 2025 Mario Zechner, MIT licensed.
 
+Direct Responses request preparation and OAuth refresh behavior are adapted
+from @earendil-works/pi-ai 1.0.2, published dist/api/openai-responses.js and
+dist/auth/oauth/openai-chatgpt.js. Source: https://github.com/earendil-works/pi
+Copyright (c) 2025 Mario Zechner, MIT licensed.
+
 MIT License
 
 Copyright (c) 2026 Igor Warzocha

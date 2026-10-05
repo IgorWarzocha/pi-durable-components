@@ -21,7 +21,7 @@ function events(body) {
   const hasResult = body.input.some(item => /tool_call_output|function_call_output/.test(item.type ?? ""));
   let item;
   if (input.includes("call-tool") && !hasResult) {
-    const grammar = input.includes('"type":"custom"');
+    const grammar = input.includes('"type":"custom"') || JSON.stringify(body.tools ?? []).includes('"type":"custom"');
     item = grammar
       ? { type: "custom_tool_call", id: "ctc_1", call_id: "call_1", name: "calculate", namespace: "functions", input: "21" }
       : { type: "function_call", id: "fc_1", call_id: "call_1", name: "calculate", arguments: '{"n":21}' };
@@ -64,7 +64,7 @@ const server = Bun.serve({
         records.push({ transport: "upgrade", headers: Object.fromEntries(request.headers), body: { input: [] } });
         return new Response("Upgrade required", { status: 426 });
       }
-      if (server.upgrade(request, { data: { socket: ++socketSequence, headers: Object.fromEntries(request.headers) } })) return;
+      if (server.upgrade(request, { data: { socket: ++socketSequence, path, headers: Object.fromEntries(request.headers) } })) return;
       return new Response("Cannot upgrade", { status: 400 });
     }
     const bytes = Buffer.from(await request.arrayBuffer());
@@ -78,7 +78,7 @@ const server = Bun.serve({
   websocket: {
     message(socket, data) {
       const body = JSON.parse(String(data));
-      const record = { transport: "websocket", socket: socket.data.socket, headers: socket.data.headers, body };
+      const record = { transport: "websocket", socket: socket.data.socket, path: socket.data.path, headers: socket.data.headers, body };
       records.push(record);
       if (mode === "hold") { socket.send(JSON.stringify({ type: "response.created", response: { id: "resp_held" } })); return; }
       if (mode === "fatal") {

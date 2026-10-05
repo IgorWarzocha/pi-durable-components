@@ -9,13 +9,11 @@ import {
 	type TranscriptContext,
 	type Transport,
 } from "@earendil-works/pi-ai";
+import { buildBaseOptions } from "@earendil-works/pi-ai/api/simple-options";
+import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
 import { createRequestLifecycle } from "./lifecycle.ts";
 import { DEFAULT_CODEX_BASE_URL } from "./openai-codex/constants.ts";
 import { createErrorMessage } from "./openai-codex/errors.ts";
-import {
-	extractAccountId,
-	resolveCodexWebSocketUrl,
-} from "./openai-codex/headers.ts";
 import { openAICodexProviderModels } from "./openai-codex/model-catalog.ts";
 import { openaiCodexNativeOAuthProvider } from "./openai-codex/oauth.ts";
 import {
@@ -35,8 +33,16 @@ import {
 import { closeOpenAICodexWebSocketSessions } from "./openai-codex/websocket.ts";
 import { waitForCodexTransportClose } from "./openai-codex/websocket-session-cache.ts";
 import { codexCacheKeepaliveSocketSessionId } from "./openai-codex/websocket-stream.ts";
+import { directOpenAIOAuth } from "./openai-responses/oauth.ts";
 import { prepareRequestBody, useResponsesLite } from "./preparation.ts";
 import { type PrewarmOptions, prewarmPrepared } from "./prewarm.ts";
+import {
+	DIRECT_BASE_URL,
+	responsesIdentity,
+	responsesWebSocketUrl,
+	type WebSocketFallback,
+	type WebSocketRuntime,
+} from "./protocol.ts";
 
 export type {
 	CodexDiagnosticsEvent,
@@ -47,10 +53,19 @@ export type {
 } from "./openai-codex/types.ts";
 export type { PrewarmOptions } from "./prewarm.ts";
 
-export interface OpenAIResponsesProviderOptions {
+type ResponsesApi = "openai-codex-responses" | "openai-responses";
+export interface OpenAIResponsesProviderOptions<
+	TApi extends ResponsesApi = "openai-codex-responses",
+> {
+	/** Codex remains the default. Direct uses ordinary OpenAI Responses auth and catalog. */
+	mode?: TApi extends "openai-responses" ? "direct" : "codex";
+	/** workerd uses native authenticated fetch Upgrade, with no Node proxy routing. */
+	runtime?: WebSocketRuntime;
+	/** Direct is WebSocket-only. Codex keeps its existing SSE recovery unless explicitly disabled. */
+	websocketFallback?: WebSocketFallback;
 	id?: string;
 	baseUrl?: string;
-	models?: readonly Model<"openai-codex-responses">[];
+	models?: readonly Model<TApi>[];
 	/** Auto enables Lite for supported models with grammar-constrained tools. */
 	responsesLite?: boolean | "auto";
 	transport?: Transport;
@@ -59,8 +74,9 @@ export interface OpenAIResponsesProviderOptions {
 	diagnostics?: CodexDiagnosticsSink;
 }
 
-export interface OpenAIResponsesProvider
-	extends Provider<"openai-codex-responses"> {
+export interface OpenAIResponsesProvider<
+	TApi extends ResponsesApi = "openai-codex-responses",
+> extends Provider<TApi> {
 	prewarm(
 		model: Model<Api>,
 		context: Context,
@@ -85,24 +101,78 @@ export interface OpenAIResponsesProvider
 
 /** Register with the host's Models collection, not the Durable tool registry. */
 export function createOpenAIResponsesProvider(
-	options: OpenAIResponsesProviderOptions = {},
-): OpenAIResponsesProvider {
-	const transportState = createCodexTransportState();
+	options: OpenAIResponsesProviderOptions<"openai-responses"> & {
+		mode: "direct";
+	},
+): OpenAIResponsesProvider<"openai-responses">;
+export function createOpenAIResponsesProvider(
+	options?: OpenAIResponsesProviderOptions<"openai-codex-responses"> & {
+		mode?: "codex";
+	},
+): OpenAIResponsesProvider<"openai-codex-responses">;
+export function createOpenAIResponsesProvider(
+	options: OpenAIResponsesProviderOptions<ResponsesApi> = {},
+): OpenAIResponsesProvider<ResponsesApi> {
+	const mode = options.mode ?? "codex";
+	const websocketFallback =
+		options.websocketFallback ?? (mode === "direct" ? "error" : "sse");
+	if (
+		mode === "direct" &&
+		(options.transport === "sse" || websocketFallback !== "error")
+	)
+		throw new Error(
+			"Direct Responses requires WebSockets without SSE fallback",
+		);
+	if (mode === "direct" && options.responsesLite === true)
+		throw new Error(
+			"Responses Lite is not supported by the direct OpenAI endpoint",
+		);
+	const transportState = createCodexTransportState(mode, options.runtime);
 	const lifecycle = createRequestLifecycle();
 	const config = {
+		websocketFallback,
 		forceCachedWebSockets: options.forceCachedWebSockets ?? true,
 		originator: options.originator ?? "pi-durable-openai-responses",
 	};
-	const id = options.id ?? "openai-codex";
-	const baseUrl = options.baseUrl ?? DEFAULT_CODEX_BASE_URL;
-	const models = (options.models ?? openAICodexProviderModels()).map(
-		(model) => ({
-			...model,
-			provider: id,
-			baseUrl: options.baseUrl ?? model.baseUrl,
-		}),
-	);
+	const id = options.id ?? (mode === "direct" ? "openai" : "openai-codex");
+	const baseUrl =
+		options.baseUrl ??
+		(mode === "direct" ? DIRECT_BASE_URL : DEFAULT_CODEX_BASE_URL);
+	const models = (
+		options.models ??
+		(mode === "direct"
+			? openaiProvider().getModels()
+			: openAICodexProviderModels())
+	).map((model) => ({
+		...model,
+		provider: id,
+		baseUrl: options.baseUrl ?? model.baseUrl,
+	}));
 	const transport = options.transport ?? "websocket-cached";
+	const lite = (
+		model: Model<Api>,
+		context: TranscriptContext,
+		request?: OpenAICodexStreamOptions,
+	) => {
+		if (mode === "direct") {
+			if (request?.responsesLite || request?.canonicalCompaction)
+				throw new Error(
+					"Direct Responses does not support Responses Lite or Codex compaction",
+				);
+			if (request?.transport === "sse")
+				throw new Error(
+					"Direct Responses requires WebSockets without SSE fallback",
+				);
+			return false;
+		}
+		return useResponsesLite(options.responsesLite ?? "auto", model, context);
+	};
+	const prepare = (
+		model: Model<Api>,
+		context: TranscriptContext,
+		request: OpenAICodexStreamOptions | undefined,
+		responsesLite: boolean,
+	) => prepareRequestBody(model, context, request, responsesLite, mode);
 	const clearSession = (sessionId: string) => {
 		closeOpenAICodexWebSocketSessions(transportState, sessionId);
 		closeOpenAICodexWebSocketSessions(
@@ -124,6 +194,7 @@ export function createOpenAIResponsesProvider(
 			);
 			const { toolChoice, ...rest } = streamOptions ?? {};
 			if (
+				mode === "codex" &&
 				toolChoice !== undefined &&
 				toolChoice !== "auto" &&
 				toolChoice !== "none" &&
@@ -133,7 +204,9 @@ export function createOpenAIResponsesProvider(
 					"Codex Responses does not support named tool selection",
 				);
 			if (streamOptions?.deferred)
-				throw new Error("Codex Responses does not support deferred generation");
+				throw new Error(
+					`${mode === "codex" ? "Codex" : "Direct"} Responses does not support deferred generation`,
+				);
 			const effectiveOptions: OpenAICodexStreamOptions = {
 				...rest,
 				...(toolChoice ? { toolChoice } : {}),
@@ -149,14 +222,10 @@ export function createOpenAIResponsesProvider(
 					transportState,
 					getConfig: () => config,
 					useResponsesLite: (selected) =>
-						useResponsesLite(
-							options.responsesLite ?? "auto",
-							selected,
-							context,
-						),
-					turnState: current.turnState,
+						lite(selected, context, effectiveOptions),
+					turnState: mode === "codex" ? current.turnState : undefined,
 					getDiagnostics: () => options.diagnostics,
-					prepareRequestBody,
+					prepareRequestBody: prepare,
 					onStreamSettled: (message) => current.finish(message),
 				},
 			);
@@ -195,15 +264,13 @@ export function createOpenAIResponsesProvider(
 				transport: prewarmOptions.transport ?? transport,
 			};
 			let body: ResponsesBody;
+			const context = normalizeContext(
+				"context" in source ? source.context : { messages: [] },
+			);
+			const responsesLite = lite(model, context, effective);
 			if ("body" in source) body = source.body;
 			else {
-				const context = normalizeContext(source.context);
-				body = await prepareRequestBody(
-					model,
-					context,
-					effective,
-					useResponsesLite(options.responsesLite ?? "auto", model, context),
-				);
+				body = await prepare(model, context, effective, responsesLite);
 			}
 			return await prewarmPrepared(
 				transportState,
@@ -221,22 +288,35 @@ export function createOpenAIResponsesProvider(
 
 	return {
 		id,
-		name: "Optimised OpenAI Codex Responses",
+		name:
+			mode === "direct"
+				? "Optimised OpenAI Responses"
+				: "Optimised OpenAI Codex Responses",
 		baseUrl,
-		auth: { oauth: openaiCodexNativeOAuthProvider },
+		auth:
+			mode === "direct"
+				? { ...openaiProvider().auth, oauth: directOpenAIOAuth }
+				: { oauth: openaiCodexNativeOAuthProvider },
 		getModels: () => models,
 		filterModels: (available) =>
 			available.filter((model) => model.id !== "gpt-reserve"),
 		stream,
-		streamSimple: stream,
+		streamSimple: (model, context, request) =>
+			stream(
+				model,
+				context,
+				mode === "direct"
+					? { ...request, ...buildBaseOptions(model, context, request) }
+					: request,
+			),
 		prewarm: (model, context, warmOptions) =>
 			warm(model, { context }, warmOptions),
 		prewarmPrepared: (model, body, warmOptions) =>
 			warm(model, { body }, warmOptions),
 		getCanonicalRequest(model, sessionId, apiKey, reconstructedInput) {
 			const identity = {
-				url: resolveCodexWebSocketUrl(model.baseUrl),
-				accountId: extractAccountId(apiKey),
+				url: responsesWebSocketUrl(mode, model.baseUrl),
+				accountId: responsesIdentity(mode, apiKey),
 			};
 			const replay = resolveCanonicalCompactionPromptInput(
 				transportState,

@@ -120,7 +120,7 @@
     },
     "packages/openai-responses": {
       "name": "@howaboua/pi-durable-openai-responses",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "dependencies": {
         "openai": "7.19.0",
         "proxy-from-env": "2.1.0",

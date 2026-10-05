@@ -213,7 +213,7 @@ export type CodexProviderStreamOptions = Omit<
 	serviceTier?: ServiceTier | undefined;
 	textVerbosity?: string | undefined;
 	reasoningSummary?: string | null | undefined;
-	toolChoice?: "auto" | "none" | "required" | undefined;
+	toolChoice?: ResponseCreateParamsStreaming["tool_choice"] | undefined;
 };
 type CodexReasoningEffort =
 	| "none"
@@ -241,11 +241,11 @@ export interface ResponsesBody {
 	instructions?: string | undefined;
 	previous_response_id?: string | undefined;
 	input: unknown[];
-	text: { verbosity: string };
-	include: string[];
+	text?: { verbosity?: string | undefined; [key: string]: unknown } | undefined;
+	include?: string[] | undefined;
 	prompt_cache_key?: string | undefined;
-	tool_choice: "auto" | "none" | "required";
-	parallel_tool_calls: boolean;
+	tool_choice?: ResponseCreateParamsStreaming["tool_choice"] | undefined;
+	parallel_tool_calls?: boolean | undefined;
 	temperature?: number | undefined;
 	service_tier?: string | undefined;
 	tools?: unknown[] | undefined;
@@ -336,11 +336,12 @@ export interface StreamEventShape {
 export function createInitialAssistantMessage(model: {
 	provider: string;
 	id: string;
+	api?: Api;
 }): AssistantMessage {
 	return {
 		role: "assistant",
 		content: [],
-		api: "openai-codex-responses",
+		api: model.api ?? "openai-codex-responses",
 		provider: model.provider,
 		model: model.id,
 		usage: {

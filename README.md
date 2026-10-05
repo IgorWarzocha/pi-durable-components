@@ -40,7 +40,7 @@ Each component's guide includes its install command and host configuration.
 | [Browser](packages/browser) | Control Chrome through CDP using its existing login session |
 | [Agents](packages/agents) | Delegate work and share findings on a persistent discussion board |
 | [Context](packages/context) | Save notes, retrieve history and resume through clean context windows |
-| [OpenAI Responses](packages/openai-responses) | Use our optimised Codex provider with cached WebSockets and Responses Lite |
+| [OpenAI Responses](packages/openai-responses) | Use cached OpenAI or Codex WebSockets on Node and Workers, with Responses Lite in Codex mode |
 | [Code Mode](packages/code) | Run JavaScript that calls tools, with a fresh context for each cell |
 | [Notebook Mode](packages/notebook) | Run persistent TypeScript with imports, checkpoints and profiles |
 

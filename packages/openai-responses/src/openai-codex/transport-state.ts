@@ -1,3 +1,4 @@
+import type { ResponsesMode, WebSocketRuntime } from "../protocol.ts";
 import type {
 	ResponsesBody,
 	SessionWebSocketCacheEntry,
@@ -19,6 +20,8 @@ export interface CanonicalSessionState {
 
 /** One provider instance owns its physical sockets and logical continuation lanes. */
 export interface CodexTransportState {
+	mode: ResponsesMode;
+	runtime: WebSocketRuntime;
 	websocketSessionCache: Map<string, Map<string, SessionWebSocketCacheEntry>>;
 	websocketPreparations: Map<string, Set<AbortController>>;
 	websocketSseFallbackSessions: Set<string>;
@@ -29,8 +32,13 @@ export interface CodexTransportState {
 	connections: Map<AbortController, string | undefined>;
 }
 
-export function createCodexTransportState(): CodexTransportState {
+export function createCodexTransportState(
+	mode: ResponsesMode = "codex",
+	runtime: WebSocketRuntime = "node",
+): CodexTransportState {
 	return {
+		mode,
+		runtime,
 		websocketSessionCache: new Map(),
 		websocketPreparations: new Map(),
 		websocketSseFallbackSessions: new Set(),

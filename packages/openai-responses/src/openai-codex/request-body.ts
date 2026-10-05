@@ -9,12 +9,14 @@ import {
 	resolveTranscriptTools,
 	type TranscriptContext,
 } from "@earendil-works/pi-ai";
+import { resolveSamplingParams } from "@earendil-works/pi-ai/api/simple-options";
 import { createGrammarToolInputProperties } from "../constrained-sampling.ts";
 import {
 	CODEX_TOOL_CALL_PROVIDERS,
 	convertResponsesMessages,
 	convertResponsesTools,
 } from "../openai-responses/shared.ts";
+import type { ResponsesMode } from "../protocol.ts";
 import { OPENAI_PROMPT_CACHE_KEY_MAX_LENGTH } from "./constants.ts";
 import type { OpenAICodexStreamOptions, ResponsesBody } from "./types.ts";
 
@@ -58,6 +60,7 @@ export function buildRequestBody<TApi extends Api>(
 	model: Model<TApi>,
 	context: TranscriptContext,
 	options?: OpenAICodexStreamOptions,
+	mode: ResponsesMode = "codex",
 ): ResponsesBody {
 	const compat = model.compat as
 		| {
@@ -66,9 +69,12 @@ export function buildRequestBody<TApi extends Api>(
 				supportsMidConvoSystemMessages?: boolean | undefined;
 				supportsAdditionalTools?: boolean | undefined;
 				supportsToolSearch?: boolean | undefined;
+				supportsMaxOutputTokens?: boolean;
+				supportsLongCacheRetention?: boolean;
+				supportsExplicitPromptCacheMode?: boolean;
 		  }
 		| undefined;
-	const supportsStrictMode = compat?.supportsStrictMode ?? true;
+	const supportsStrictMode = compat?.supportsStrictMode ?? mode === "codex";
 	const supportsOpenAIGrammarTools =
 		compat?.supportsOpenAIGrammarTools ?? false;
 	const supportsMidConvoSystemMessages =
@@ -101,7 +107,7 @@ export function buildRequestBody<TApi extends Api>(
 		normalizedContext,
 		allowedToolCallProviders,
 		{
-			includeSystemPrompt: false,
+			includeSystemPrompt: mode === "direct",
 			grammarToolInputProperties,
 			supportsMidConvoSystemMessages,
 			supportsAdditionalTools,
@@ -116,30 +122,45 @@ export function buildRequestBody<TApi extends Api>(
 		? getSystemMessageText(initialSystemMessage)
 		: "";
 
-	const body: ResponsesBody = {
-		model: model.id,
-		store: false,
-		stream: true,
-		instructions: instructions || "You are a helpful assistant.",
-		input: messages,
-		text: {
-			verbosity: ((
-				options as { textVerbosity?: string | undefined } | undefined
-			)?.textVerbosity ?? "low") as string,
-		},
-		include: ["reasoning.encrypted_content"],
-		prompt_cache_key: clampOpenAIPromptCacheKey(options?.sessionId),
-		tool_choice: options?.toolChoice ?? "auto",
-		parallel_tool_calls: true,
-		...(options?.sessionId
+	const cacheRetention =
+		options?.cacheRetention ??
+		(options?.env?.["PI_CACHE_RETENTION"] === "long" ? "long" : "short");
+	const body: ResponsesBody =
+		mode === "direct"
 			? {
-					client_metadata: {
-						session_id: options.sessionId,
-						thread_id: options.sessionId,
-					},
+					model: model.id,
+					store: false,
+					stream: true,
+					input: messages,
+					prompt_cache_key:
+						cacheRetention === "none"
+							? undefined
+							: clampOpenAIPromptCacheKey(options?.sessionId),
 				}
-			: {}),
-	};
+			: {
+					model: model.id,
+					store: false,
+					stream: true,
+					instructions: instructions || "You are a helpful assistant.",
+					input: messages,
+					text: {
+						verbosity: ((
+							options as { textVerbosity?: string | undefined } | undefined
+						)?.textVerbosity ?? "low") as string,
+					},
+					include: ["reasoning.encrypted_content"],
+					prompt_cache_key: clampOpenAIPromptCacheKey(options?.sessionId),
+					tool_choice: options?.toolChoice ?? "auto",
+					parallel_tool_calls: true,
+					...(options?.sessionId
+						? {
+								client_metadata: {
+									session_id: options.sessionId,
+									thread_id: options.sessionId,
+								},
+							}
+						: {}),
+				};
 
 	// The Codex ChatGPT-backed endpoint rejects output-token cap fields with
 	// `Unsupported parameter: max_output_tokens`. Pi's branch summarizer passes
@@ -148,7 +169,8 @@ export function buildRequestBody<TApi extends Api>(
 
 	if (
 		(options as { temperature?: number | undefined } | undefined)
-			?.temperature !== undefined
+			?.temperature !== undefined &&
+		mode === "codex"
 	) {
 		body.temperature = (
 			options as { temperature?: number | undefined }
@@ -164,7 +186,7 @@ export function buildRequestBody<TApi extends Api>(
 
 	if (transcriptTools.requestTools.length > 0) {
 		body.tools = convertResponsesTools(transcriptTools.requestTools, {
-			strict: false,
+			...(mode === "codex" ? { strict: false } : {}),
 			...toolOptions,
 		});
 	}
@@ -175,6 +197,56 @@ export function buildRequestBody<TApi extends Api>(
 	const reasoningEffort =
 		options?.reasoningEffort ??
 		(clampedReasoning === "off" ? undefined : clampedReasoning);
+	if (mode === "direct") {
+		// pi-ai 1.0.2's direct ChatGPT grant rejects token caps, temperature and cache controls.
+		const subscription = !options?.apiKey?.startsWith("sk-");
+		if (!subscription) {
+			if (options?.maxTokens && compat?.supportsMaxOutputTokens !== false)
+				body["max_output_tokens"] = Math.max(16, options.maxTokens);
+			if (options?.temperature !== undefined)
+				body.temperature = options.temperature;
+			if (compat?.supportsExplicitPromptCacheMode) {
+				if (cacheRetention === "none")
+					body["prompt_cache_options"] = { mode: "explicit" };
+				else if (
+					cacheRetention === "long" &&
+					compat.supportsLongCacheRetention !== false
+				)
+					body["prompt_cache_options"] = { ttl: "30m" };
+			} else if (
+				cacheRetention === "long" &&
+				compat?.supportsLongCacheRetention !== false
+			)
+				body["prompt_cache_retention"] = "24h";
+		}
+		if (options?.toolChoice !== undefined)
+			body.tool_choice = options.toolChoice;
+		const effort =
+			reasoningEffort ?? (options?.reasoningSummary ? "medium" : undefined);
+		if (model.reasoning) {
+			if (effort) {
+				body.reasoning = {
+					effort:
+						model.thinkingLevelMap?.[effort === "none" ? "off" : effort] ??
+						effort,
+					summary: options?.reasoningSummary || "auto",
+				};
+				body.include = ["reasoning.encrypted_content"];
+			} else if (model.thinkingLevelMap?.off !== null)
+				body.reasoning = { effort: model.thinkingLevelMap?.off ?? "none" };
+		}
+		if (options?.textVerbosity !== undefined)
+			body.text = { verbosity: options.textVerbosity };
+		Object.assign(
+			body,
+			resolveSamplingParams(
+				model,
+				effort === "none" ? "off" : (effort ?? "off"),
+				options?.samplingParams,
+			),
+		);
+		return body;
+	}
 	if (reasoningEffort !== undefined) {
 		const thinkingLevelMap = model.thinkingLevelMap as
 			| Record<string, string | null | undefined>

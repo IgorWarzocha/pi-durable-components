@@ -19,6 +19,7 @@ import type {
 	ResponsesBody,
 } from "./openai-codex/types.ts";
 import { normalizeResponsesToolHistory } from "./openai-responses/tool-history.ts";
+import type { ResponsesMode } from "./protocol.ts";
 
 export function useResponsesLite(
 	setting: boolean | "auto",
@@ -42,6 +43,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** Payload hooks may replace the body, but must preserve its transport contract. */
 export function assertResponsesBody(
 	value: unknown,
+	mode: ResponsesMode = "codex",
 ): asserts value is ResponsesBody {
 	if (
 		!isRecord(value) ||
@@ -50,19 +52,29 @@ export function assertResponsesBody(
 		typeof value["store"] !== "boolean" ||
 		value["stream"] !== true ||
 		!Array.isArray(value["input"]) ||
-		!isRecord(value["text"]) ||
-		typeof value["text"]["verbosity"] !== "string" ||
-		!Array.isArray(value["include"]) ||
-		!value["include"].every((item) => typeof item === "string") ||
-		!["auto", "none", "required"].includes(String(value["tool_choice"])) ||
-		typeof value["parallel_tool_calls"] !== "boolean" ||
+		((mode === "codex" || value["text"] !== undefined) &&
+			(!isRecord(value["text"]) ||
+				((mode === "codex" || value["text"]["verbosity"] !== undefined) &&
+					typeof value["text"]["verbosity"] !== "string"))) ||
+		((mode === "codex" || value["include"] !== undefined) &&
+			(!Array.isArray(value["include"]) ||
+				!value["include"].every((item) => typeof item === "string"))) ||
+		((mode === "codex" || value["tool_choice"] !== undefined) &&
+			!["auto", "none", "required"].includes(String(value["tool_choice"])) &&
+			!(
+				mode === "direct" &&
+				isRecord(value["tool_choice"]) &&
+				typeof value["tool_choice"]["type"] === "string"
+			)) ||
+		((mode === "codex" || value["parallel_tool_calls"] !== undefined) &&
+			typeof value["parallel_tool_calls"] !== "boolean") ||
 		(value["previous_response_id"] !== undefined &&
 			typeof value["previous_response_id"] !== "string") ||
 		(value["instructions"] !== undefined &&
 			typeof value["instructions"] !== "string") ||
 		(value["tools"] !== undefined && !Array.isArray(value["tools"]))
 	) {
-		throw new Error("Invalid Codex Responses request body");
+		throw new Error(`Invalid ${mode} Responses request body`);
 	}
 }
 
@@ -71,6 +83,7 @@ export async function prepareRequestBody<TApi extends Api>(
 	context: TranscriptContext,
 	options: OpenAICodexStreamOptions | undefined,
 	responsesLite: boolean,
+	mode: ResponsesMode = "codex",
 ): Promise<ResponsesBody> {
 	options?.signal?.throwIfAborted();
 	const compat = model.compat;
@@ -82,16 +95,21 @@ export async function prepareRequestBody<TApi extends Api>(
 				compat.supportsOpenAIGrammarTools === true) ||
 			false,
 	);
-	let body = buildRequestBody(model, context, {
-		...options,
-		grammarToolInputProperties,
-	});
+	let body = buildRequestBody(
+		model,
+		context,
+		{
+			...options,
+			grammarToolInputProperties,
+		},
+		mode,
+	);
 	const replacement = await options?.onPayload?.(body, model);
 	if (replacement !== undefined) {
-		assertResponsesBody(replacement);
+		assertResponsesBody(replacement, mode);
 		body = replacement;
 	}
-	assertResponsesBody(body);
+	assertResponsesBody(body, mode);
 	if (responsesLite) {
 		body = isResponsesLiteRequest(body)
 			? namespaceExistingResponsesLiteRequest({

@@ -1,11 +1,6 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { noThrowCodexDiagnosticsSink } from "./openai-codex/diagnostic-failure.ts";
 import {
-	buildWebSocketHeaders,
-	extractAccountId,
-	resolveCodexWebSocketUrl,
-} from "./openai-codex/headers.ts";
-import {
 	applyResponsesLiteWebSocketMetadata,
 	isResponsesLiteRequest,
 } from "./openai-codex/responses-lite.ts";
@@ -38,6 +33,11 @@ import {
 	withRemoteCompactionV2Feature,
 } from "./openai-responses/compaction-v2-feature.ts";
 import { assertResponsesBody } from "./preparation.ts";
+import {
+	responsesIdentity,
+	responsesWebSocketHeaders,
+	responsesWebSocketUrl,
+} from "./protocol.ts";
 
 export type PrewarmOptions = OpenAICodexStreamOptions & {
 	apiKey: string;
@@ -67,13 +67,14 @@ export async function prewarmPrepared(
 		return;
 	if (!options.apiKey || !options.sessionId)
 		throw new Error("Prewarm requires apiKey and sessionId");
-	assertResponsesBody(body);
+	assertResponsesBody(body, state.mode);
 	validateWebSocketTimeoutOptions(options);
-	const accountId = extractAccountId(options.apiKey);
+	const accountId = responsesIdentity(state.mode, options.apiKey);
 	const requestHeaders = hasRemoteCompactionV2Input(body.input)
 		? withRemoteCompactionV2Feature(options.headers)
 		: options.headers;
-	const headers = buildWebSocketHeaders(
+	const headers = responsesWebSocketHeaders(
+		state.mode,
 		model.headers,
 		requestHeaders,
 		accountId,
@@ -82,9 +83,9 @@ export async function prewarmPrepared(
 		config.originator,
 	);
 	const keepalive = options.mode === "keepalive";
-	const affinity = keepalive ? undefined : turnState;
+	const affinity = keepalive || state.mode === "direct" ? undefined : turnState;
 	const websocketBody = withCodexTurnState(
-		isResponsesLiteRequest(body)
+		state.mode === "codex" && isResponsesLiteRequest(body)
 			? applyResponsesLiteWebSocketMetadata(body)
 			: body,
 		affinity,
@@ -93,7 +94,7 @@ export async function prewarmPrepared(
 		return await prewarmWebSocket(
 			state,
 			model,
-			resolveCodexWebSocketUrl(model.baseUrl),
+			responsesWebSocketUrl(state.mode, model.baseUrl),
 			websocketBody,
 			headers,
 			accountId,
@@ -107,6 +108,7 @@ export async function prewarmPrepared(
 		);
 	} catch (error) {
 		if (
+			config.websocketFallback !== "error" &&
 			!options.signal?.aborted &&
 			!(error instanceof CodexProtocolError) &&
 			(isWebSocketUpgradeRequiredError(error) ||
