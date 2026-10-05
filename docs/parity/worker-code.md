@@ -19,3 +19,11 @@ QuickJS comes from exact `quickjs-emscripten` and `@jitl/quickjs-wasmfile-releas
 Guest invocations use fresh runtimes. Shared isolate admission and WASM memory ceilings also apply across component instances. Interrupted source and uncertain effects are not permission to replay execution.
 
 Persistent workspace storage, test receipts, capability policy and activation belong to the consuming application. Component tests do not establish those application contracts or remote Sites deployment compatibility.
+
+## Live Site evidence
+
+On 2026-10-05, Durable Chat app commit `e82eea3` deployed Worker Code 0.1.0 from component commit `2626b6c` through the normal private Sites source build. The compiled WASM loaded and executed on the deployed Site. All 26 existing messages retained their exact serialized hash, with Luna and high reasoning unchanged.
+
+Clawa used ordinary tools to edit its summary helper and tests, pass the fixed baseline, and activate workspace generation 2 without redeployment. Independent D1 reads confirmed the active version `22b50278645a5d542e8cf20561dae79890424ec8176282c34ed07b01ed49a7b8` and its passing receipt. The updated tool returned `Workspace contains 3 files. Active generation 2 (22b50278).` A relative module import from `exec` also executed successfully.
+
+A read-only follow-up during browser-owner handover was interrupted and visibly paused, not automatically replayed. After explicit Resume, the new owner called the retained tools successfully, reported the same generation and version, and recalled the pre-deployment validation word. This establishes live owner reopening, not survival of a guest heap or socket. The application's real workerd process-loss test separately proved that an admitted unsafe effect runs once and leaves an uncertainty diagnostic after restart.
