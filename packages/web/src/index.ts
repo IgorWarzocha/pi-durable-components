@@ -11,6 +11,10 @@ import {
 } from "./contract.ts";
 import { executeCodexWebSearch, type WebSearchToolOptions } from "./execute.ts";
 
+export {
+	ChatGptCloudflareCookieStore,
+	type CodexCookieStore,
+} from "../../../internal/codex/cloudflare-cookies.ts";
 export { normalizeCodexToolRouteConfig } from "../../../internal/codex/config.ts";
 export type {
 	CodexRuntimeOptions,

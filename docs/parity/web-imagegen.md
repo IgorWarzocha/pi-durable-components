@@ -35,9 +35,17 @@ The coordinating agent ran `scripts/smoke-live.mjs` successfully against a real 
 
 The smoke requires an explicit `--credentials` path. `--images` opts into two real image requests. The successful run did not mutate authentication files and removed its temporary artifacts. It establishes ordinary Codex routing, generation and recent-image editing for that account, not every custom backend or image format.
 
-Local HTTP echo fixtures and their tool-call helper were removed in favor of this live workflow and the repository's toolkit integration check. The default gate does not exercise compaction-aware image replacement. The implementation reads Durable's derived active context, but the successful live smoke only verifies recent-image selection without compaction.
+The initial delivery used this live workflow and the repository's toolkit integration check rather than permanent HTTP echo fixtures. The later Worker transport checks below add owned HTTP fixtures for request, cookie and lifecycle policy. The default gate does not exercise compaction-aware image replacement. The implementation reads Durable's derived active context, but the successful live smoke only verifies recent-image selection without compaction.
 
-A one-time public Harness check after review returned a controlled web response containing 224055 UTF-8 bytes across 4001 lines. The ordinary registered tool preserved the full text and tail reference in model-visible content and structured details. This checks that Durable's default output truncation no longer cuts accepted long responses. No permanent HTTP fixture suite was added.
+A one-time public Harness check after review returned a controlled web response containing 224055 UTF-8 bytes across 4001 lines. The ordinary registered tool preserved the full text and tail reference in model-visible content and structured details. This checks that Durable's default output truncation no longer cuts accepted long responses.
+
+## Worker transport
+
+Web's Worker transport retains the native web protocol, account/token precedence, command envelope, model routing and `ProviderDoc` session affinity. The original service-issued Cloudflare cookie policy now runs above both HTTP adapters, rather than being dropped by the Worker path. It preserves separate `Set-Cookie` headers, allowed names, HTTPS/domain/path matching, expiry, deletion and matching-cookie selection on every redirect. `Max-Age` takes precedence over `Expires`; bounded snapshots reject invalid state atomically. Cookie values are redacted before response bodies can enter Durable state.
+
+The host can persist an account/grant-scoped jar through `cookieStore(provider, context)`. Native callers retain the process-lifetime default. Workers have no Node `ProxyAgent` or ambient proxy/model environment: explicit host `fetch` supplies configured egress without direct-network fallback, and the `model` option replaces `PI_CODEX_MODEL`. The Worker user agent keeps the Codex format while honestly identifying workerd. These are runtime adaptations, not claims that a proxy is configured or that Cloudflare will grant clearance.
+
+The real workerd transport workflow exercises ordinary registered Web calls against an owned HTTP fixture, including separate service cookies, later calls, same-origin and cross-origin redirects, credential removal, secret-echo redaction and configured-egress failure. This proves the owned request/state policy, not ChatGPT backend acceptance. The consuming chat app persists cookies privately in fenced D1 state and tests concurrent updates, account/grant isolation, refresh continuity, cancellation and isolate restart. Live Worker search and returned-reference navigation remain required evidence before claiming operational compatibility.
 
 ## Explicit integration differences and limits
 

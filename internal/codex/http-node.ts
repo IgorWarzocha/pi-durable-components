@@ -1,10 +1,3 @@
-import {
-	ChatGptCloudflareCookieStore,
-	isChatGptCookieUrl,
-} from "./cloudflare-cookies.ts";
-
-const cloudflareCookies = new ChatGptCloudflareCookieStore();
-
 // External native dependencies must remain lazy even in the bundled public entry.
 // Workerd uses native fetch and never initialises this adapter.
 export async function createNodeCodexTransport() {
@@ -30,16 +23,11 @@ export async function createNodeCodexTransport() {
 				dispatcher = new ProxyAgent(proxy);
 				dispatchers.set(proxy, dispatcher);
 			}
-			const headers = new Headers(init.headers);
-			const cookieHeader = cloudflareCookies.requestHeader(url);
-			if (cookieHeader) headers.set("cookie", cookieHeader);
 			const response = await fetch(url, {
 				...init,
-				headers: Object.fromEntries(headers.entries()),
+				headers: Object.fromEntries(init.headers.entries()),
 				...(dispatcher ? { dispatcher } : {}),
 			});
-			if (isChatGptCookieUrl(url))
-				cloudflareCookies.storeResponse(url, response.headers.getSetCookie());
 			return response;
 		},
 		async close() {

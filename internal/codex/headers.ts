@@ -9,7 +9,7 @@ export function codexToolProviderHeaders(
 	headers.set(
 		"User-Agent",
 		runtime === "workerd"
-			? CODEX_TOOL_ORIGINATOR + "/0.0.0 (workerd)"
+			? CODEX_TOOL_ORIGINATOR + "/0.0.0 (workerd unknown; unknown) unknown"
 			: codexWebRunUserAgent(CODEX_TOOL_ORIGINATOR),
 	);
 	headers.set("version", "0.0.0");

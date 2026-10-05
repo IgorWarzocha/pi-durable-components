@@ -1,5 +1,6 @@
 import type { Context } from "@earendil-works/chord";
 import type { ToolExecutionApi } from "@earendil-works/pi-durable";
+import type { CodexCookieStore } from "../../../internal/codex/cloudflare-cookies.ts";
 import { resolveCodexToolModel } from "../../../internal/codex/config.ts";
 import {
 	callingModel,
@@ -11,7 +12,10 @@ import {
 	resolveCodexToolProvider,
 	supportsExecutableCodexTool,
 } from "../../../internal/codex/resolve.ts";
-import type { CodexRuntimeOptions } from "../../../internal/codex/types.ts";
+import type {
+	CodexRuntimeOptions,
+	CodexToolProvider,
+} from "../../../internal/codex/types.ts";
 import {
 	DEFAULT_WEB_SEARCH_MODEL,
 	WEB_SEARCH_MAX_RESPONSE_BYTES,
@@ -23,6 +27,13 @@ export interface WebSearchToolOptions extends CodexRuntimeOptions {
 	model?: string | (() => string | undefined);
 	/** Native Worker fetch. Defaults to Node's proxy and permitted-cookie transport. */
 	runtime?: "node" | "workerd";
+	/** Host-owned, account-scoped cookie persistence. Only service response cookies are retained. */
+	cookieStore?: (
+		provider: CodexToolProvider,
+		context: Context,
+	) => CodexCookieStore | Promise<CodexCookieStore>;
+	/** Explicit host egress, including Worker service bindings. Otherwise use the selected runtime. */
+	fetch?: typeof globalThis.fetch;
 }
 
 export async function executeCodexWebSearch(
@@ -58,11 +69,17 @@ export async function executeCodexWebSearch(
 		...(context.abortSignal ? { signal: context.abortSignal } : {}),
 		maxResponseBytes: WEB_SEARCH_MAX_RESPONSE_BYTES,
 		...(options.runtime ? { runtime: options.runtime } : {}),
+		...(options.cookieStore
+			? { cookieStore: await options.cookieStore(provider, context) }
+			: {}),
+		...(options.fetch ? { fetch: options.fetch } : {}),
 	});
 	// The backend body becomes Durable state and model-visible diagnostics.
-	const responseText = provider.token
-		? response.text.replaceAll(provider.token, "[redacted]")
-		: response.text;
+	const redact = (text: string) =>
+		response.redact(
+			provider.token ? text.replaceAll(provider.token, "[redacted]") : text,
+		);
+	const responseText = response.text;
 	const challenge =
 		response.headers.get("cf-mitigated")?.toLowerCase() === "challenge" ||
 		(response.headers.get("server")?.toLowerCase() === "cloudflare" &&
@@ -89,7 +106,7 @@ export async function executeCodexWebSearch(
 				": HTTP " +
 				response.status +
 				" " +
-				responseText,
+				redact(responseText),
 		);
 	}
 	let parsed: unknown;
@@ -98,10 +115,27 @@ export async function executeCodexWebSearch(
 	} catch {
 		throw new Error("failed to decode web_run search response");
 	}
-	const details = normalizeSearchResponse(parsed);
+	const details = normalizeSearchResponse(redactStrings(parsed, redact));
 	const text =
 		typeof details.output_text === "string" && details.output_text.trim()
 			? details.output_text
 			: JSON.stringify(details, null, 2);
 	return { text, details };
+}
+
+function redactStrings(
+	value: unknown,
+	redact: (text: string) => string,
+): unknown {
+	if (typeof value === "string") return redact(value);
+	if (Array.isArray(value))
+		return value.map((item) => redactStrings(item, redact));
+	if (value && typeof value === "object")
+		return Object.fromEntries(
+			Object.entries(value).map(([key, item]) => [
+				redact(key),
+				redactStrings(item, redact),
+			]),
+		);
+	return value;
 }

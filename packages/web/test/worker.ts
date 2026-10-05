@@ -12,7 +12,10 @@ import {
 	MemoryStorage,
 	ProviderDoc,
 } from "@earendil-works/pi-durable";
-import { createWebSearchExtension } from "../src/index.ts";
+import {
+	ChatGptCloudflareCookieStore,
+	createWebSearchExtension,
+} from "../src/index.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -25,18 +28,43 @@ export default {
 		const models = createModels();
 		const provider = fauxProvider();
 		models.setProvider(provider.provider);
+		const cookieMode = url.pathname === "/cookies";
+		const cookieJar = new ChatGptCloudflareCookieStore();
+		const endpoint = cookieMode ? "https://chatgpt.com/cookie-search" : target;
 		const extension = createWebSearchExtension({
 			models,
 			runtime: "workerd",
 			resolveProvider: async () => ({
 				route: "openai-codex",
-				baseUrl: target,
-				responsesUrl: target,
-				searchUrl: target,
+				baseUrl: endpoint,
+				responsesUrl: endpoint,
+				searchUrl: endpoint,
 				model: undefined,
 				token: "owned-fixture-not-a-credential",
 				accountId: "owned-fixture-account",
 			}),
+			cookieStore: () => cookieJar,
+			...(cookieMode
+				? {
+						// Host-selected egress into our owned fixture. This tests cookie and
+						// redirect policy, not real ChatGPT or Cloudflare compatibility.
+						fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+							const original = new URL(
+								input instanceof Request ? input.url : String(input),
+							);
+							const destination = new URL(target);
+							destination.pathname = original.pathname;
+							return fetch(destination, init);
+						},
+					}
+				: {}),
+			...(url.pathname === "/egress-failure"
+				? {
+						fetch: async () => {
+							throw new Error("Configured Worker egress unavailable");
+						},
+					}
+				: {}),
 		});
 		const registry = createRegistry();
 		registry.install(extension);
@@ -57,7 +85,7 @@ export default {
 					(message) => message.role === "toolResult",
 				);
 				if (result?.role === "toolResult") observations.push(result);
-				return url.pathname === "/affinity" && !result?.isError
+				return (url.pathname === "/affinity" || cookieMode) && !result?.isError
 					? fauxAssistantMessage(
 							fauxToolCall("web_run", { open: [{ ref_id: "owned-turn-ref" }] }),
 							{ stopReason: "toolUse" },

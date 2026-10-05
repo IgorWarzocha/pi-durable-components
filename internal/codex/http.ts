@@ -1,14 +1,23 @@
-import { isChatGptCookieUrl } from "./cloudflare-cookies.ts";
+import {
+	ChatGptCloudflareCookieStore,
+	type CodexCookieStore,
+	isChatGptCookieUrl,
+} from "./cloudflare-cookies.ts";
 import { createNodeCodexTransport } from "./http-node.ts";
 
 const DEFAULT_MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
 const MAX_REDIRECTS = 10;
+// Native callers retain the reference's process-lifetime jar. Persistent hosts
+// inject their own account-scoped store; both runtimes use the same policy.
+const defaultCookies = new ChatGptCloudflareCookieStore();
 
 export interface CodexToolHttpResponse {
 	status: number;
 	statusText: string;
 	headers: Headers;
 	text: string;
+	/** Host-only sanitiser: apply to decoded strings, never blindly to JSON or image bytes. */
+	redact(text: string): string;
 }
 
 export async function fetchCodexTool(
@@ -20,20 +29,51 @@ export async function fetchCodexTool(
 		signal?: AbortSignal | null;
 		maxResponseBytes?: number;
 		runtime?: "node" | "workerd";
+		cookieStore?: CodexCookieStore;
+		/** Explicit host egress, e.g. a Worker service binding. No implicit network fallback. */
+		fetch?: typeof globalThis.fetch;
 	},
 ): Promise<CodexToolHttpResponse> {
 	const transport =
-		options.runtime === "workerd"
+		options.runtime === "workerd" || options.fetch
 			? undefined
 			: await createNodeCodexTransport();
 	let currentUrl = new URL(url);
 	let method = options.method;
 	let body = options.body;
 	const baseHeaders = new Headers(options.headers);
+	const cookies = options.cookieStore ?? defaultCookies;
+	const sensitiveCookies = new Map<string, { name: string; value: string }>();
+	const rememberCookie = (pair: string) => {
+		const separator = pair.indexOf("=");
+		const value = pair.slice(separator + 1).trim();
+		const name = pair.slice(0, separator).trim();
+		if (separator > 0 && value)
+			sensitiveCookies.set(`${name}=${value}`, { name, value });
+	};
+	const redact = (text: string) => {
+		for (const { name, value } of sensitiveCookies.values()) {
+			// Short control-cookie values (e.g. "0") must not corrupt references,
+			// numeric JSON fields or unrelated prose. Exact/header echoes are still private.
+			text =
+				text === value
+					? "[redacted]"
+					: text.replaceAll(`${name}=${value}`, `${name}=[redacted]`);
+			if (value.length >= 8) text = text.replaceAll(value, "[redacted]");
+		}
+		return text;
+	};
 	try {
 		for (let redirects = 0; ; redirects += 1) {
 			const chatGptRequest = isChatGptCookieUrl(currentUrl);
 			const headers = new Headers(baseHeaders);
+			if (chatGptRequest) {
+				const cookie = await cookies.requestHeader(currentUrl);
+				if (cookie) headers.set("cookie", cookie);
+			}
+			for (const pair of (headers.get("cookie") ?? "").split(";")) {
+				rememberCookie(pair);
+			}
 			const init = {
 				...(method ? { method } : {}),
 				headers,
@@ -43,20 +83,35 @@ export async function fetchCodexTool(
 			};
 			const response = transport
 				? await transport.fetch(currentUrl, init)
-				: await globalThis.fetch(currentUrl, init);
+				: await (options.fetch ?? globalThis.fetch)(currentUrl, init);
+			try {
+				if (chatGptRequest) {
+					const received = response.headers.getSetCookie();
+					await cookies.storeResponse(currentUrl, received);
+					for (const header of received) {
+						const pair = header.split(";", 1)[0] ?? "";
+						rememberCookie(pair);
+					}
+				}
+			} catch (error) {
+				await response.body?.cancel();
+				throw error;
+			}
 			const location = redirectLocation(
 				response.status,
 				response.headers.get("location"),
 			);
 			if (!location) {
+				const text = await readBoundedText(
+					response,
+					options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES,
+				);
 				return {
 					status: response.status,
 					statusText: response.statusText,
 					headers: new Headers([...response.headers.entries()]),
-					text: await readBoundedText(
-						response,
-						options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES,
-					),
+					text,
+					redact,
 				};
 			}
 			if (redirects >= MAX_REDIRECTS) {
