@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-agents",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "Durable agent delegation and coordination",
 	"type": "module",
 	"license": "MIT",

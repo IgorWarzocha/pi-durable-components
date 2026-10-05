@@ -31,6 +31,7 @@ import { createRollover, scheduleRollover } from "./rollover.ts";
 import { WindowState } from "./window-state.ts";
 
 export type { InputResult } from "./lifecycle.ts";
+export { readSavedNotes, type SavedNote } from "./note-store.ts";
 export type { TransitionResult, WindowIdentity } from "./window-state.ts";
 
 const ToolReceipt = defineDoc<{ transition?: TaskId }>({

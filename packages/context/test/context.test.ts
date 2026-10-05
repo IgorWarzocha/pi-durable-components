@@ -17,14 +17,20 @@ import {
 import type { JsonObject, TaskId } from "@earendil-works/pi-durable";
 import {
 	createRegistry,
+	createSession,
 	defineExtension,
 	Harness,
 	hook,
 	ToolTask,
 } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import { createContextManagement, type InputResult } from "../src/index.ts";
+import {
+	createContextManagement,
+	type InputResult,
+	readSavedNotes,
+} from "../src/index.ts";
 import { Admission, IDLE_MS, ROLLOVER_TASK } from "../src/lifecycle.ts";
+import { NotesState } from "../src/note-store.ts";
 
 const context = BACKGROUND_CONTEXT;
 const checkpoint =
@@ -202,7 +208,7 @@ async function fixture(path: string, state: ReturnType<typeof driver>) {
 		},
 	});
 	harness.resume();
-	return { harness, root, component, failures };
+	return { harness, root, component, failures, storage };
 }
 
 async function result<T>(
@@ -261,6 +267,118 @@ async function blocked(f: Awaited<ReturnType<typeof fixture>>) {
 		await watch.stop();
 	}
 }
+
+test("saved notes read full bodies and fork-time notes without Harness startup or document writes", async () => {
+	const directory = await mkdtemp(join(tmpdir(), "durable-saved-notes-"));
+	const path = join(directory, "session.sqlite");
+	const state = driver();
+	const f = await fixture(path, state);
+	try {
+		assert.deepEqual(await readSavedNotes(f.storage, f.root.id, context), []);
+		assert.equal(
+			await f.harness.snapshot(NotesState, f.root.id, context),
+			undefined,
+		);
+		const text = `Full saved note 😀\n${"line\n".repeat(3000)}`;
+		await invoke(f, state, "notes", {
+			action: "write_file",
+			path: "nested/full.md",
+			text,
+		});
+		const entry = (await f.root.entries({}, 1, undefined, context)).items[0];
+		assert.ok(entry);
+		const fork = await f.root.fork(
+			entry.id,
+			{ ownership: { kind: "ownerless" } },
+			context,
+		);
+		state.now = 2_000;
+		await invoke(f, state, "notes", {
+			action: "append_to_file",
+			path: "nested/full.md",
+			text: "later",
+		});
+		await invoke(f, state, "notes", {
+			action: "write_file",
+			path: "empty.md",
+			text: "",
+		});
+		await f.harness.close(context);
+		const storage = await openNodeSqliteStorage(path);
+		try {
+			const before = await storage.scanDocuments(
+				{
+					scope: { kind: "conversation", conversationId: f.root.id },
+					at: "current",
+				},
+				100,
+				undefined,
+				context,
+			);
+			assert.deepEqual(await readSavedNotes(storage, f.root.id, context), [
+				{
+					path: "/notes/empty.md",
+					text: "",
+					createdAt: 2_000,
+					updatedAt: 2_000,
+				},
+				{
+					path: "/notes/nested/full.md",
+					text: `${text}later`,
+					createdAt: 1_000,
+					updatedAt: 2_000,
+				},
+			]);
+			assert.deepEqual(await readSavedNotes(storage, fork.id, context), [
+				{
+					path: "/notes/nested/full.md",
+					text,
+					createdAt: 1_000,
+					updatedAt: 1_000,
+				},
+			]);
+			assert.deepEqual(
+				await storage.scanDocuments(
+					{
+						scope: { kind: "conversation", conversationId: f.root.id },
+						at: "current",
+					},
+					100,
+					undefined,
+					context,
+				),
+				before,
+			);
+			const session = createSession(storage);
+			await session.commit(async (tx) => {
+				const catalog = await tx.doc(NotesState, f.root.id);
+				const file = catalog.files[0];
+				assert.ok(file);
+				file.bytes++;
+			}, context);
+			await assert.rejects(
+				readSavedNotes(storage, f.root.id, context),
+				/Saved note catalog\/body mismatch/,
+			);
+			await session.commit(async (tx) => {
+				const catalog = await tx.doc(NotesState, f.root.id);
+				const file = catalog.files[0];
+				assert.ok(file);
+				file.bytes--;
+				file.path = "/notes/missing.md";
+			}, context);
+			await assert.rejects(
+				readSavedNotes(storage, f.root.id, context),
+				/Saved note catalog\/body mismatch: \/notes\/missing.md/,
+			);
+		} finally {
+			await storage.close(context);
+		}
+	} finally {
+		await f.harness.close(context);
+		await rm(directory, { recursive: true, force: true });
+	}
+});
 
 test("SQLite context workflow replays notes once, retains history, checkpoints idle held attachments and follows tool rollover answers", {
 	timeout: 20_000,

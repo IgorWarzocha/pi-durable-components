@@ -20,6 +20,7 @@ import type {
 } from "@earendil-works/pi-durable";
 import {
 	createRegistry,
+	createSession,
 	defineExtension,
 	Harness,
 	hook,
@@ -28,8 +29,14 @@ import {
 } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { BoardNotices } from "../src/board/notices.ts";
-import { BoardIndex, MutationReceipt } from "../src/board/store-model.ts";
-import { createAgents } from "../src/index.ts";
+import {
+	BoardCatalog,
+	BoardIndex,
+	MutationReceipt,
+	PostText,
+	textKey,
+} from "../src/board/store-model.ts";
+import { createAgents, readSavedThreads } from "../src/index.ts";
 import { Fleet, textOf } from "../src/state.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -151,7 +158,7 @@ async function fixture(path: string, controls: Controls = {}) {
 		extensions: [component.extension, interruption],
 	};
 	const root = await harness.root(context, { agent });
-	return { harness, root, failures, agent };
+	return { harness, root, failures, agent, storage };
 }
 
 function object(value: unknown): JsonObject {
@@ -244,6 +251,128 @@ async function spawn(
 	assert.ok(child);
 	return { child, path: string(value["boardAgent"]) };
 }
+
+test("saved threads preserve full ordered posts, authors and root-owned archives without Harness startup", async () => {
+	const directory = await mkdtemp(join(tmpdir(), "durable-saved-threads-"));
+	const path = join(directory, "session.sqlite");
+	const f = await fixture(path);
+	try {
+		assert.deepEqual(await readSavedThreads(f.storage, f.root.id, context), []);
+		assert.equal(await f.harness.snapshot(BoardCatalog, context), undefined);
+		const worker = await spawn(f, f.root, "Saved board worker");
+		const body = `Opening 😀\n${"complete body\n".repeat(2000)}`;
+		const first = await board(f.root, {
+			action: "post",
+			new_channel_name: "Saved work",
+			text: body,
+		});
+		const threadId = string(first["thread_id"]);
+		const reply = await board(worker.child, {
+			action: "post",
+			thread_id: threadId,
+			text: "Worker reply 😀",
+		});
+		const followup = await board(f.root, {
+			action: "post",
+			thread_id: threadId,
+			text: "Root follow-up",
+		});
+		const outsider = await f.harness.createConversation(
+			{ ownership: { kind: "ownerless" }, agent: f.agent },
+			context,
+		);
+		const archive = await board(outsider, {
+			action: "post",
+			new_channel_name: "Own archive",
+			text: "Not the root's board",
+		});
+		assert.equal(
+			(
+				await invoke(f.root, "agents", {
+					action: "attach",
+					target: String(outsider.id),
+				})
+			).isError,
+			false,
+		);
+		const boardId = string(
+			(await board(f.root, { action: "help" }))["board_id"],
+		);
+		await f.harness.close(context);
+		const storage = await openNodeSqliteStorage(path);
+		try {
+			const before = await storage.scanDocuments(
+				{ scope: { kind: "session" }, at: "current" },
+				100,
+				undefined,
+				context,
+			);
+			const saved = await readSavedThreads(storage, f.root.id, context);
+			assert.deepEqual(saved, [
+				{
+					boardId,
+					threadId,
+					channel: "Saved work",
+					posts: [
+						{
+							messageId: threadId,
+							author: "/root",
+							createdAt: string(first["created_at"]),
+							text: body,
+						},
+						{
+							messageId: string(reply["message_id"]),
+							author: worker.path,
+							createdAt: string(reply["created_at"]),
+							text: "Worker reply 😀",
+						},
+						{
+							messageId: string(followup["message_id"]),
+							author: "/root",
+							createdAt: string(followup["created_at"]),
+							text: "Root follow-up",
+						},
+					],
+				},
+			]);
+			assert.deepEqual(
+				(await readSavedThreads(storage, outsider.id, context)).flatMap(
+					(thread) => thread.posts.map((post) => post.messageId),
+				),
+				[string(archive["message_id"])],
+			);
+			assert.deepEqual(
+				await storage.scanDocuments(
+					{ scope: { kind: "session" }, at: "current" },
+					100,
+					undefined,
+					context,
+				),
+				before,
+			);
+			const session = createSession(storage);
+			await session.commit(async (tx) => {
+				await tx.retireDoc(PostText, textKey(boardId, threadId));
+			}, context);
+			await assert.rejects(
+				readSavedThreads(storage, f.root.id, context),
+				/Missing saved board post body/,
+			);
+			await session.commit(async (tx) => {
+				await tx.retireDoc(BoardIndex, boardId);
+			}, context);
+			await assert.rejects(
+				readSavedThreads(storage, f.root.id, context),
+				/Saved board catalog\/index mismatch/,
+			);
+		} finally {
+			await storage.close(context);
+		}
+	} finally {
+		await f.harness.close(context);
+		await rm(directory, { recursive: true, force: true });
+	}
+});
 
 test("board trees retain read-only archives, Unicode text and bounded continuations across membership changes", {
 	timeout: 25_000,

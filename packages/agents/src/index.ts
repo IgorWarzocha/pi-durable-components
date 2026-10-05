@@ -12,6 +12,11 @@ import type { AgentsBinding } from "./watch.ts";
 import { createWatch } from "./watch.ts";
 import { updateSubscription } from "./watch-subscription.ts";
 
+export {
+	readSavedThreads,
+	type SavedPost,
+	type SavedThread,
+} from "./board/saved-threads.ts";
 export type { AgentProfile, AgentsOptions } from "./contract.ts";
 export { AgentsParameters } from "./contract.ts";
 

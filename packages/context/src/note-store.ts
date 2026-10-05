@@ -3,10 +3,15 @@ import type {
 	ConversationId,
 	DocumentReader,
 	EntryId,
+	Storage,
 	TaskId,
 	Tx,
 } from "@earendil-works/pi-durable";
-import { defineDoc, defineDocFamily } from "@earendil-works/pi-durable";
+import {
+	createSession,
+	defineDoc,
+	defineDocFamily,
+} from "@earendil-works/pi-durable";
 import { latestUserEntry, WindowState } from "./window-state.ts";
 
 export type NoteMetadata = {
@@ -54,6 +59,54 @@ const WriteReceipt = defineDoc<{
 	scope: "task",
 	initial: () => ({}),
 });
+
+export type SavedNote = {
+	path: string;
+	text: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+/** Supply an immutable storage view for coherent catalog/body reads. Storage stays caller-owned. */
+export async function readSavedNotes(
+	storage: Storage,
+	conversationId: ConversationId,
+	context: Context,
+): Promise<SavedNote[]> {
+	const reader = createSession(storage);
+	const catalog = await reader.snapshot(NotesState, conversationId, context);
+	if (catalog === undefined) return [];
+	const notes: SavedNote[] = [];
+	const paths = new Set<string>();
+	let totalBytes = 0;
+	for (const file of catalog.files) {
+		context.abortSignal?.throwIfAborted();
+		const body = await reader.snapshot(
+			NoteFile,
+			conversationId,
+			file.path,
+			context,
+		);
+		if (
+			paths.has(file.path) ||
+			body === undefined ||
+			Buffer.byteLength(body.text, "utf8") !== file.bytes ||
+			(body.text === "" ? 0 : body.text.split("\n").length) !== file.lines
+		)
+			throw new Error(`Saved note catalog/body mismatch: ${file.path}`);
+		paths.add(file.path);
+		totalBytes += file.bytes;
+		notes.push({
+			path: file.path,
+			text: body.text,
+			createdAt: file.createdAt,
+			updatedAt: file.updatedAt,
+		});
+	}
+	if (totalBytes !== catalog.totalBytes)
+		throw new Error("Saved note catalog total bytes mismatch");
+	return notes.sort((left, right) => left.path.localeCompare(right.path));
+}
 
 export async function requireNotesWindow(
 	tx: Tx,

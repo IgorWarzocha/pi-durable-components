@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-context",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "Local notes, retained history and durable context rollover",
 	"type": "module",
 	"license": "MIT",
