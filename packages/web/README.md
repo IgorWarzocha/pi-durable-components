@@ -1,9 +1,9 @@
 # Durable Web
 
-Search the web and follow returned page references with the `web_run` tool. Requires Node.js and Pi Durable, pi-ai and Chord 1.0.2, plus an authenticated Codex-compatible backend.
+Search the web and follow returned page references with the `web_run` tool. Requires Pi Durable, pi-ai and Chord 1.0.2, plus an authenticated Codex-compatible backend. Node is the default runtime; Cloudflare Workers can use native fetch.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-web-0.3.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/web-v0.3.1/howaboua-pi-durable-web-0.3.1.tgz
 ```
 
 Install the bundle in your Durable registry, passing the same authenticated pi-ai Models collection used by your application:
@@ -13,6 +13,10 @@ import { createWebSearchExtension } from '@howaboua/pi-durable-web';
 
 registry.install(createWebSearchExtension({ models }));
 ```
+
+On Workers, pass `runtime: 'workerd'`. This uses native fetch without Node proxy routing, environment-based model selection or a Cloudflare cookie store. HTTPS requests reject insecure redirects; response bounds, cancellation and credential stripping still apply. A Cloudflare challenge is reported, not bypassed.
+
+Web needs Codex-compatible authentication. A direct ChatGPT subscription grant for `https://api.openai.com/v1` is not a Codex grant. The host must supply the appropriate subscription OAuth credential; it must not substitute a paid API key or expose authentication to guest code.
 
 The bundle can use Codex authentication even when the conversation uses another provider. To register only the tool, use `createWebSearchTool({ models, allowCodexProviderFallback: true })` in your own extension. Ordinary registrations are discoverable by Code and Notebook without adapters.
 

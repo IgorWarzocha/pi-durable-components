@@ -100,7 +100,12 @@ function extractAccountId(token: string): string {
 		const payload = token.split(".")[1];
 		if (!payload) throw new Error("Invalid token");
 		const claims: unknown = JSON.parse(
-			Buffer.from(payload, "base64").toString("utf8"),
+			new TextDecoder().decode(
+				Uint8Array.from(
+					atob(payload.replace(/-/g, "+").replace(/_/g, "/")),
+					(character) => character.charCodeAt(0),
+				),
+			),
 		);
 		const auth =
 			claims &&

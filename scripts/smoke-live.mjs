@@ -32,7 +32,7 @@ if (!values.credentials)
 		"Pass --credentials /path/to/auth.json. Add --images to make two real image requests.",
 	);
 const stored = JSON.parse(await readFile(values.credentials, "utf8"));
-const credential = stored["openai-codex"];
+const credential = stored.type === "oauth" ? stored : stored["openai-codex"];
 if (
 	credential?.type !== "oauth" ||
 	typeof credential.access !== "string" ||

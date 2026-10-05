@@ -1,13 +1,8 @@
-import { getProxyForUrl } from "proxy-from-env";
-import { fetch, ProxyAgent } from "undici";
-import {
-	ChatGptCloudflareCookieStore,
-	isChatGptCookieUrl,
-} from "./cloudflare-cookies.ts";
+import { isChatGptCookieUrl } from "./cloudflare-cookies.ts";
+import { createNodeCodexTransport } from "./http-node.ts";
 
 const DEFAULT_MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
 const MAX_REDIRECTS = 10;
-const cloudflareCookies = new ChatGptCloudflareCookieStore();
 
 export interface CodexToolHttpResponse {
 	status: number;
@@ -24,9 +19,13 @@ export async function fetchCodexTool(
 		body?: string;
 		signal?: AbortSignal | null;
 		maxResponseBytes?: number;
+		runtime?: "node" | "workerd";
 	},
 ): Promise<CodexToolHttpResponse> {
-	const dispatchers = new Map<string, ProxyAgent>();
+	const transport =
+		options.runtime === "workerd"
+			? undefined
+			: await createNodeCodexTransport();
 	let currentUrl = new URL(url);
 	let method = options.method;
 	let body = options.body;
@@ -34,28 +33,17 @@ export async function fetchCodexTool(
 	try {
 		for (let redirects = 0; ; redirects += 1) {
 			const chatGptRequest = isChatGptCookieUrl(currentUrl);
-			const proxy = getProxyForUrl(currentUrl.href);
-			let dispatcher = proxy ? dispatchers.get(proxy) : undefined;
-			if (proxy && !dispatcher) {
-				dispatcher = new ProxyAgent(proxy);
-				dispatchers.set(proxy, dispatcher);
-			}
 			const headers = new Headers(baseHeaders);
-			const cookieHeader = cloudflareCookies.requestHeader(currentUrl);
-			if (cookieHeader) headers.set("cookie", cookieHeader);
-			const response = await fetch(currentUrl, {
+			const init = {
 				...(method ? { method } : {}),
-				headers: Object.fromEntries(headers.entries()),
+				headers,
 				...(body === undefined ? {} : { body }),
 				...(options.signal ? { signal: options.signal } : {}),
-				...(dispatcher ? { dispatcher } : {}),
-				redirect: "manual",
-			});
-			if (chatGptRequest)
-				cloudflareCookies.storeResponse(
-					currentUrl,
-					response.headers.getSetCookie(),
-				);
+				redirect: "manual" as const,
+			};
+			const response = transport
+				? await transport.fetch(currentUrl, init)
+				: await globalThis.fetch(currentUrl, init);
 			const location = redirectLocation(
 				response.status,
 				response.headers.get("location"),
@@ -77,7 +65,21 @@ export async function fetchCodexTool(
 					"Codex tool request exceeded " + MAX_REDIRECTS + " redirects",
 				);
 			}
-			const nextUrl = new URL(location, currentUrl);
+			let nextUrl: URL;
+			try {
+				nextUrl = new URL(location, currentUrl);
+			} catch (error) {
+				await response.body?.cancel();
+				throw error;
+			}
+			if (
+				options.runtime === "workerd" &&
+				currentUrl.protocol === "https:" &&
+				nextUrl.protocol !== "https:"
+			) {
+				await response.body?.cancel();
+				throw new Error("Codex tool request refused redirect outside HTTPS");
+			}
 			if (chatGptRequest && !isChatGptCookieUrl(nextUrl)) {
 				await response.body?.cancel();
 				throw new Error(
@@ -111,7 +113,7 @@ export async function fetchCodexTool(
 			currentUrl = nextUrl;
 		}
 	} finally {
-		await Promise.all([...dispatchers.values()].map((agent) => agent.close()));
+		await transport?.close();
 	}
 }
 
@@ -125,7 +127,7 @@ function redirectLocation(
 }
 
 async function readBoundedText(
-	response: Awaited<ReturnType<typeof fetch>>,
+	response: Response | import("undici").Response,
 	maxBytes: number,
 ): Promise<string> {
 	const contentLength = Number(response.headers.get("content-length"));

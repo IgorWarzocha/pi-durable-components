@@ -1,9 +1,17 @@
 import { CODEX_TOOL_ORIGINATOR, type CodexToolProvider } from "./types.ts";
 
-export function codexToolProviderHeaders(provider: CodexToolProvider): Headers {
+export function codexToolProviderHeaders(
+	provider: CodexToolProvider,
+	runtime: "node" | "workerd" = "node",
+): Headers {
 	const headers = new Headers();
 	headers.set("originator", CODEX_TOOL_ORIGINATOR);
-	headers.set("User-Agent", codexWebRunUserAgent(CODEX_TOOL_ORIGINATOR));
+	headers.set(
+		"User-Agent",
+		runtime === "workerd"
+			? CODEX_TOOL_ORIGINATOR + "/0.0.0 (workerd)"
+			: codexWebRunUserAgent(CODEX_TOOL_ORIGINATOR),
+	);
 	headers.set("version", "0.0.0");
 	headers.set("content-type", "application/json");
 	for (const [name, value] of Object.entries(provider.headers ?? {})) {

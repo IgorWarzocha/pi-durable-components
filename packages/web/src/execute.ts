@@ -21,6 +21,8 @@ import { buildWebSearchRequest, normalizeSearchResponse } from "./request.ts";
 
 export interface WebSearchToolOptions extends CodexRuntimeOptions {
 	model?: string | (() => string | undefined);
+	/** Native Worker fetch. Defaults to Node's proxy and permitted-cookie transport. */
+	runtime?: "node" | "workerd";
 }
 
 export async function executeCodexWebSearch(
@@ -35,7 +37,9 @@ export async function executeCodexWebSearch(
 	const provider = await resolveCodexToolProvider(current, options, context);
 	const configured =
 		(typeof options.model === "function" ? options.model() : options.model) ??
-		(process.env["PI_CODEX_MODEL"]?.trim() || undefined);
+		(options.runtime === "workerd"
+			? undefined
+			: process.env["PI_CODEX_MODEL"]?.trim() || undefined);
 	const body = buildWebSearchRequest(params, {
 		id: await providerSessionId(api, context),
 		model:
@@ -49,26 +53,31 @@ export async function executeCodexWebSearch(
 	});
 	const response = await fetchCodexTool(provider.searchUrl, {
 		method: "POST",
-		headers: codexToolProviderHeaders(provider),
+		headers: codexToolProviderHeaders(provider, options.runtime),
 		body: JSON.stringify(body),
 		...(context.abortSignal ? { signal: context.abortSignal } : {}),
 		maxResponseBytes: WEB_SEARCH_MAX_RESPONSE_BYTES,
+		...(options.runtime ? { runtime: options.runtime } : {}),
 	});
+	// The backend body becomes Durable state and model-visible diagnostics.
+	const responseText = provider.token
+		? response.text.replaceAll(provider.token, "[redacted]")
+		: response.text;
 	const challenge =
 		response.headers.get("cf-mitigated")?.toLowerCase() === "challenge" ||
 		(response.headers.get("server")?.toLowerCase() === "cloudflare" &&
-			response.text.trimStart().startsWith("<html"));
+			responseText.trimStart().startsWith("<html"));
 	if (response.status < 200 || response.status >= 300) {
 		if (
 			response.status === 403 &&
-			(challenge || response.text.toLowerCase().includes("cloudflare"))
+			(challenge || responseText.toLowerCase().includes("cloudflare"))
 		)
 			throw new Error(
 				"web_run search failed for " +
 					provider.searchUrl +
 					": HTTP 403 Cloudflare challenge",
 			);
-		if (response.status === 404 && response.text.includes('"Not Found"'))
+		if (response.status === 404 && responseText.includes('"Not Found"'))
 			throw new Error(
 				"web_run search failed for " +
 					provider.searchUrl +
@@ -80,12 +89,12 @@ export async function executeCodexWebSearch(
 				": HTTP " +
 				response.status +
 				" " +
-				response.text,
+				responseText,
 		);
 	}
 	let parsed: unknown;
 	try {
-		parsed = JSON.parse(response.text);
+		parsed = JSON.parse(responseText);
 	} catch {
 		throw new Error("failed to decode web_run search response");
 	}

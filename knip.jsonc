@@ -44,8 +44,8 @@
 			"ignoreDependencies": ["node-pty", "smol-toml", "proxy-from-env"]
 		},
 		"packages/web": {
-			"entry": [],
-			"project": ["src/**/*.ts"],
+			"entry": ["test/**/*.test.mjs", "test/worker.ts"],
+			"project": ["src/**/*.ts", "test/**/*.ts", "test/**/*.mjs"],
 			// internal/codex is private source bundled into this public package.
 			"ignoreDependencies": ["proxy-from-env", "undici"]
 		},
