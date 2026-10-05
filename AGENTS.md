@@ -1,4 +1,5 @@
 - Ship Durable-native TypeScript components. Do not emulate Pi's `ExtensionAPI`, import its TUI, or wrap the old extensions as a compatibility layer.
+- Treat Pi Durable itself as unchanged upstream. Implement integration and lifecycle fixes in these components or the consuming app through public APIs; do not patch, fork, or vendor changes to Durable here.
 - Preserve the accepted tools' functionality, arguments, results, failure semantics, and lifecycle. Record parity evidence against the pinned source in `docs/parity.md`; do not silently replace missing behaviour with a smaller implementation.
 - Ordinary Durable tool registrations are the integration boundary. Code and Notebook discover and invoke those registrations automatically; component-specific Code/Notebook bridges are forbidden.
 - Code and Notebook are separate public packages, each including the shell tools. Keep their shared implementation internal rather than publishing a standalone shell product.
