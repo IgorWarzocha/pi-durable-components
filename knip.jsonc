@@ -27,6 +27,10 @@
 			"entry": ["src/remote-worker.ts", "test/**/*.test.ts"],
 			"project": ["src/**/*.ts", "test/**/*.ts"]
 		},
+		"packages/worker-code": {
+			"entry": ["test/**/*.test.mjs", "test/worker.ts"],
+			"project": ["src/**/*.ts", "test/**/*.ts", "test/**/*.mjs"]
+		},
 		"packages/code": {
 			"entry": ["test/**/*.test.ts"],
 			"project": ["src/**/*.ts", "test/**/*.ts"],

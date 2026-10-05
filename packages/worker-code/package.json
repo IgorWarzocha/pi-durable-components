@@ -1,0 +1,38 @@
+{
+	"name": "@howaboua/pi-durable-worker-code",
+	"version": "0.1.0",
+	"description": "Bounded Worker-native JavaScript execution for Pi Durable",
+	"type": "module",
+	"license": "MIT",
+	"author": "Igor Warzocha",
+	"main": "./dist/index.js",
+	"types": "./dist/worker-code/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/worker-code/src/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./quickjs.wasm": "./dist/quickjs.wasm"
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"NOTICE",
+		"LICENSE"
+	],
+	"sideEffects": false,
+	"dependencies": {
+		"@jitl/quickjs-wasmfile-release-sync": "0.32.0",
+		"quickjs-emscripten": "0.32.0",
+		"typebox": "1.3.27"
+	},
+	"peerDependencies": {
+		"@earendil-works/chord": "1.0.2",
+		"@earendil-works/pi-ai": "1.0.2",
+		"@earendil-works/pi-durable": "1.0.2",
+		"@modelcontextprotocol/sdk": "1.25.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

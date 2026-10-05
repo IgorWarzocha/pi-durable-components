@@ -17,6 +17,7 @@ Tool arguments, outputs, errors, cancellation, state, and recovery are part of p
 | Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
 | Context | Local notes, retained history, checkpoint rollover and managed idle admission | [SQLite recovery and real execution-mode rollover](parity/context.md) |
 | OpenAI Responses | OpenAI and Codex subscription provider, cached transport, explicit Worker runtime, Lite and replay | [Protocol extraction and runtime evidence](parity/openai-responses.md) |
+| Worker Code | Separate bounded Worker execution, not native Code or Notebook parity | [QuickJS WASM and ordinary Durable tool dispatch](parity/worker-code.md) |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 
@@ -41,6 +42,6 @@ Linux runtime validation and live service checks do not establish Windows or mac
 
 ## Delivery validation
 
-The delivery gate is `bun run check`: formatting, strict TypeScript 7, Knip, actual tool workflows, all eleven package builds and dry-pack checks. The ten tool-component tarballs previously passed isolated consumer installation, strict public-declaration checking and the Code-to-Notebook toolkit workflow, including native context rollover, using only package exports. Provider delivery additionally checks the new bundled public entry and its consumer declarations.
+The delivery gate is `bun run check`: formatting, strict TypeScript 7, Knip, actual tool workflows, all public package builds and dry-pack checks. The ten native tool-component tarballs previously passed isolated consumer installation, strict public-declaration checking and the Code-to-Notebook toolkit workflow, including native context rollover, using only package exports. Provider delivery additionally checks the bundled public entry and its consumer declarations. Worker Code adds real workerd execution and exact pinned WASM asset checks.
 
 Live checks exercised authenticated web search and reference navigation, image generation and recent-image editing, unchanged image bytes, and Chrome CDP evaluation and screenshot capture. Live SSH deployment and non-Linux runtimes remain unverified.

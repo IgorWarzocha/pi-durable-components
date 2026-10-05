@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,12 +65,12 @@ for (const { manifest } of workspaces.values()) {
 
 if (command === "test") {
 	const tests = await filesBelow(join(root, "packages"), (name) =>
-		name.endsWith(".test.ts"),
+		/\.test\.(ts|mjs)$/.test(name),
 	);
 	try {
 		tests.push(
 			...(await filesBelow(join(root, "test"), (name) =>
-				name.endsWith(".test.ts"),
+				/\.test\.(ts|mjs)$/.test(name),
 			)),
 		);
 	} catch (error) {
@@ -93,13 +94,33 @@ if (command === "test") {
 			[
 				"build",
 				join(directory, "src/index.ts"),
-				"--target=node",
+				manifest.name === "@howaboua/pi-durable-worker-code"
+					? "--target=browser"
+					: "--target=node",
 				"--format=esm",
 				"--packages=external",
 				`--outfile=${join(directory, manifest.main)}`,
 			],
 			"bun",
 		);
+		if (manifest.name === "@howaboua/pi-durable-worker-code") {
+			const dependency = createRequire(join(directory, "package.json"));
+			await copyFile(
+				dependency.resolve("@jitl/quickjs-wasmfile-release-sync/wasm"),
+				join(directory, "dist/quickjs.wasm"),
+			);
+			await copyFile(
+				join(
+					dirname(
+						dependency.resolve(
+							"@jitl/quickjs-wasmfile-release-sync/package.json",
+						),
+					),
+					"LICENSE",
+				),
+				join(directory, "dist/QUICKJS-LICENSE"),
+			);
+		}
 		if (manifest.name === "@howaboua/pi-durable-browser") {
 			await run(
 				[
@@ -155,6 +176,9 @@ if (command === "test") {
 			"NOTICE",
 			manifest.main,
 			manifest.types,
+			...(manifest.name === "@howaboua/pi-durable-worker-code"
+				? ["dist/quickjs.wasm", "dist/QUICKJS-LICENSE"]
+				: []),
 		]) {
 			if (!paths.has(required.replace(/^\.\//, "")))
 				throw new Error(`${manifest.name} tarball is missing ${required}`);
@@ -169,6 +193,15 @@ if (command === "test") {
 			);
 		}
 		const expectedJavaScript = new Set([manifest.main.replace(/^\.\//, "")]);
+		if (manifest.name === "@howaboua/pi-durable-worker-code") {
+			const dependency = createRequire(join(directory, "package.json"));
+			const shipped = await readFile(join(directory, "dist/quickjs.wasm"));
+			const upstream = await readFile(
+				dependency.resolve("@jitl/quickjs-wasmfile-release-sync/wasm"),
+			);
+			if (!shipped.equals(upstream))
+				throw new Error("Worker Code must ship the exact pinned QuickJS WASM");
+		}
 		if (manifest.name === "@howaboua/pi-durable-browser") {
 			expectedJavaScript.add("dist/remote-worker.js");
 			const worker = await readFile(

@@ -1,4 +1,4 @@
-- This directory is internal source compiled into both Code and Notebook. Do not add a manifest, publish a shell package or depend on either product.
+- This directory is internal source compiled into Code, Notebook and Worker Code. Do not add a manifest, publish a shell package or depend on a public execution product. Worker Code imports only the runtime-neutral cell and nested-dispatch sources, never native shell modules.
 - Keep cells conversation-owned after exec returns, nested invocations cell-owned, and controls ordered by invocation rather than completion. Dispatch selected wrapped registrations through the nested task path so preparation, hooks, output and usage survive.
 - Keep durable recovery separate from live drivers. Interrupted cells never replay. Nested calls may replay only when both the recorded intent and current registration explicitly declare them safe.
 - Durable's provider declarations drop registration metadata. Resolve native-only projection from the bound Harness's selected wrapped tools; enforce the same policy at nested dispatch, not only discovery.

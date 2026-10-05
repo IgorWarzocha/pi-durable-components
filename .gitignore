@@ -2,5 +2,6 @@ node_modules/
 .pi/
 dist/
 coverage/
+.wrangler/
 *.tgz
 .DS_Store

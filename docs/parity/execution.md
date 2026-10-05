@@ -1,6 +1,6 @@
 # Shared execution
 
-The shared implementation is internal to Code and Notebook. Ordinary Durable tool registrations are its dispatch boundary. Neither product requires per-tool adapters or a Pi extension API shim.
+The shared implementation is internal to Code, Notebook and Worker Code. Ordinary Durable tool registrations are its dispatch boundary. No execution mode requires per-tool adapters or a Pi extension API shim. Worker Code imports only the runtime-neutral cell and nested-dispatch sources, not native shell modules.
 
 ## Sources
 
@@ -19,6 +19,8 @@ Output, details and diagnostics commit while tools run. Final results preserve i
 Nested recovery reruns only when both the committed and current registration policies are `safe`. Unsafe or unavailable interrupted calls report uncertainty and retained output. Execution throws fail the task and cancel its owned work. A returned `isError` result completes normally, as Durable does. Before-hook failures block the call. After-hook failures are reported without discarding the preceding result.
 
 `tools[name](value, signal)` supports per-call cancellation. Cancellation marks the nested task and awaits its settlement. Its owned tasks and conversations follow Durable's cancellation scope.
+
+Mandatory child cancellation uses a cleanup context without the cancelled caller signal and is joined even when the observer wait rejects. An aborted nested task whose execution intent already committed reports that it may have partially run.
 
 ## Cells
 
@@ -56,6 +58,6 @@ The shared JavaScript projection uses meaningful details as structured fields an
 
 `test/toolkit.test.ts` installs both modes with the actual filesystem, shell, patch, image, skill, agent, browser, web, image-generation and context registrations. It switches the selected mode in one conversation and checks schema projection, automatic discovery, real tool results and retained per-mode state. Context rollover also proves native-only projection, nested-call rejection and live state retention after the head cut. Credential-free web and image-generation calls check their visible unavailable results rather than fabricate successful remote responses.
 
-The maintained actual-driver checks do not separately exercise shared nested replay-policy, usage-ledger and post-tool-control branches.
+Worker Code's [real workerd workflow](worker-code.md) additionally exercises nested usage and ordered controls through an impure guest handler, plus conversation abort and explicit cell termination. Application-level D1 process-loss checks belong to the consuming Site.
 
 Run the actual shared routes with `node --test packages/code/test/integration.test.ts packages/code/test/output.test.ts packages/notebook/test/runtime.test.ts`.

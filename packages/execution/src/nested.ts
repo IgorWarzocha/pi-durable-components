@@ -170,7 +170,7 @@ export function createNestedToolTask(name: string) {
 				runtime,
 				call,
 				"aborted",
-				`Tool ${call.name} was aborted`,
+				`Tool ${call.name} was aborted${task.state.checkpoint.phase === "execute" ? " and may have partially run" : ""}`,
 				context,
 			);
 		},

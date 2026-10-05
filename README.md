@@ -6,7 +6,7 @@ Install only the components you need. Use their tools directly, or call them tog
 
 ## Install
 
-Requires a Node.js host running Pi Durable 1.0.2. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
+Requires Pi Durable 1.0.2. Most components require a Node.js host. Worker Code and the OpenAI Responses provider also support Cloudflare Workers. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
 
 [Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. For example, install Apply Patch:
 
@@ -43,12 +43,15 @@ Each component's guide includes its install command and host configuration.
 | [OpenAI Responses](packages/openai-responses) | Use cached OpenAI or Codex WebSockets on Node and Workers, with Responses Lite in Codex mode |
 | [Code Mode](packages/code) | Run JavaScript that calls tools, with a fresh context for each cell |
 | [Notebook Mode](packages/notebook) | Run persistent TypeScript with imports, checkpoints and profiles |
+| [Worker Code](packages/worker-code) | Run bounded JavaScript and ordinary tools inside Cloudflare Workers |
 
 Code and Notebook both include shell tools. Select one execution mode per conversation. Both discover the conversation's ordinary tools, including tools from other Durable extensions.
 
+Worker Code is a separate, bounded execution mode. It uses QuickJS WASM without shell, native imports or ambient network access. It is not a replacement for native Code or Notebook.
+
 ## Before you run
 
-- Node.js 22.19 or newer is required. Linux is the tested platform.
+- Native components require Node.js 22.19 or newer. Linux is the tested native platform.
 - File tools use the conversation's execution environment. Shell and Notebook need native access to that environment. Shell requires Node, not Bun.
 - Code and Notebook install a native PTY addon. Linux installation requires Python, Make and a C++ compiler. If install scripts are disabled, run `npm rebuild node-pty` before using interactive shells.
 - Code downloads a checksum-verified V8 host on first use. `store` and `load` retain values between cells.

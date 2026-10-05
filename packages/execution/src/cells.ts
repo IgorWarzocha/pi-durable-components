@@ -46,6 +46,8 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 
 	return {
 		extension,
+		/** Shared nested dispatch for guest handlers owned by an ordinary tool task. */
+		nestedTask,
 		bind: projection.bind,
 		async start(
 			input: JsonObject,

@@ -1,4 +1,5 @@
 import { type Context, copyJson, type JsonValue } from "@earendil-works/chord";
+import { withoutAbortSignal } from "@earendil-works/chord/context";
 import type {
 	TaskRuntime,
 	ToolControl,
@@ -12,7 +13,10 @@ import { createNestedToolTask } from "./nested.ts";
 
 /** Preserve invocation order for controls even when nested tools settle out of order. */
 export function cellTools(
-	runtime: TaskRuntime<unknown, unknown, unknown, Record<string, never>>,
+	runtime: Pick<
+		TaskRuntime<unknown, unknown, unknown, Record<string, never>>,
+		"taskId" | "signal" | "waitForTask" | "report"
+	>,
 	toolApi: ToolExecutionApi,
 	registrations: readonly ToolRegistration[],
 	nestedTask: ReturnType<typeof createNestedToolTask>,
@@ -39,7 +43,8 @@ export function cellTools(
 				| ReturnType<CellCoordinatorOptions["cancelTask"]>
 				| undefined;
 			const cancel = () => {
-				cancelling ??= cancelTask(id, cellContext);
+				// Cancellation is mandatory cleanup. The execution context is already aborted here.
+				cancelling ??= cancelTask(id, withoutAbortSignal(cellContext));
 				cancelling.catch((error) => {
 					if (!runtime.signal.aborted) runtime.report(error);
 				});
@@ -48,7 +53,6 @@ export function cellTools(
 			if (signal?.aborted) cancel();
 			try {
 				const settled = await runtime.waitForTask(id, cellContext);
-				if (cancelling !== undefined) await cancelling;
 				const result =
 					settled.state.outcome.result ??
 					executionError(
@@ -59,6 +63,7 @@ export function cellTools(
 				return result;
 			} finally {
 				signal?.removeEventListener("abort", cancel);
+				if (cancelling !== undefined) await cancelling;
 			}
 		};
 
