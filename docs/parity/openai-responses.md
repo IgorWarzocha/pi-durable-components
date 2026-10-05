@@ -22,6 +22,8 @@ Focused validation used the actual provider through pi-ai Models against the rea
 
 On 2026-10-05 the provider's source and actual dependencies bundled and ran in local workerd with Wrangler 4.147.0 and `nodejs_compat`. A native authenticated Upgrade reached `/v1/responses`, non-generating prewarm and two generated turns reused one socket, the follow-up sent one input item with `previous_response_id`, usage reached Models, and close reached the backend. Reset aborted a held generation and joined socket close. HTTP 426 remained a visible error with no SSE request. This is runtime and owned-protocol evidence. Direct live-account WebSocket authorization and live OAuth refresh were not exercised by this check.
 
+The published 0.4.0 package then completed a live GPT-6 Luna response on the owner-private ChatGPT Site, deployed from `pi-durable-chat` commit `522c6af` on 2026-10-05. The Site selected direct mode, native Worker WebSockets and `websocket-cached`, with SSE forbidden. Its existing subscription grant authorized generation, the reply streamed into the interface, and both new messages persisted across reload with the prior nine messages intact. This establishes live subscription WebSocket authorization in the deployed Worker. Token refresh was not independently observed. The Site closes its provider with each request, so this check does not establish continuation reuse between separate Site requests.
+
 ## Carried behavior
 
 | Boundary | Preserved behavior |
