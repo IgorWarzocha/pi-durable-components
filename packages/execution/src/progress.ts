@@ -17,9 +17,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/** Minimum pause between progress commits; each commit also buys a pause proportional to what it wrote. */
-const MIN_PROGRESS_INTERVAL_MS = 100;
-const PROGRESS_BYTES_PER_SECOND = 100 * 1024;
+/** Each progress commit buys a pause proportional to what it wrote. */
+export const PROGRESS_BYTES_PER_SECOND = 100 * 1024;
 
 type ProgressWaiter = {
 	promise: Promise<void>;
@@ -29,12 +28,13 @@ type ProgressWaiter = {
 
 /**
  * Adaptive progress commits, like the environment's shell output capture: the first change after an idle period
- * commits at once; each commit then delays the next by at least 100 ms and by its written size at 100 KiB/s. At most
+ * commits at once; each commit then delays the next by the configured interval and its written size at 100 KiB/s. At most
  * one commit is in flight; changes made meanwhile coalesce into the next one.
  */
 export class Progress {
 	readonly #write: () => Promise<number>;
 	readonly #onError: (error: unknown) => void;
+	readonly #minIntervalMs: number;
 	#waiters: ProgressWaiter[] = [];
 	#timer: ReturnType<typeof setTimeout> | undefined;
 	#inFlight: Promise<void> | undefined;
@@ -42,9 +42,14 @@ export class Progress {
 	#dirty = false;
 	#stopped = false;
 
-	constructor(write: () => Promise<number>, onError: (error: unknown) => void) {
+	constructor(
+		write: () => Promise<number>,
+		onError: (error: unknown) => void,
+		minIntervalMs: number,
+	) {
 		this.#write = write;
 		this.#onError = onError;
+		this.#minIntervalMs = minIntervalMs;
 	}
 
 	/** Schedule a commit. */
@@ -103,13 +108,13 @@ export class Progress {
 					this.#nextAt =
 						started +
 						Math.max(
-							MIN_PROGRESS_INTERVAL_MS,
+							this.#minIntervalMs,
 							(bytes * 1000) / PROGRESS_BYTES_PER_SECOND,
 						);
 					for (const waiter of waiters) waiter.resolve();
 				},
 				(error: unknown) => {
-					this.#nextAt = started + MIN_PROGRESS_INTERVAL_MS;
+					this.#nextAt = started + this.#minIntervalMs;
 					for (const waiter of waiters) waiter.reject(error);
 					this.#onError(error);
 				},

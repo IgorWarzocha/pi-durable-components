@@ -6,9 +6,9 @@ Install only the components you need. Use their tools directly, or call them tog
 
 ## Install
 
-Requires Pi Durable 1.0.2. Most components require a Node.js host. Worker Code and the OpenAI Responses provider also support Cloudflare Workers. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
+Requires Pi Durable 1.0.4. Most components require a Node.js host. Worker Code and the OpenAI Responses provider also support Cloudflare Workers. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
 
-[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. For example, install Apply Patch:
+[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Existing releases retain their original peer requirements; the source tree targets 1.0.4. For example, install the earlier Apply Patch release:
 
 ```sh
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-apply-patch-0.3.0.tgz

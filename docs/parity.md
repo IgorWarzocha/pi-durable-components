@@ -1,6 +1,6 @@
 # Functionality parity
 
-The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The Durable reference is `earendil-works/pi` at `f5d20047b`; published package compatibility starts at `@earendil-works/pi-durable` 1.0.2. Reference checkout paths are development evidence, not runtime requirements.
+The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.0.4. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
 
 Tool arguments, outputs, errors, cancellation, state, and recovery are part of parity. Pi-specific TUI rendering and slash commands are not being shipped as a compatibility layer. Missing functionality must stay visible here until implemented and validated.
 
@@ -41,6 +41,10 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+The 1.0.4 upgrade tracks the published Durable, pi-ai and Chord packages, not upstream's unreleased branch. Nested tool calls now expose the tail output window, account for environment-omitted output, and honor `settings.progress.outputIntervalMs`. The carried output buffer includes 1.0.4's tail-snapshot and byte-order-mark fixes. Components continue to consume the host's execution environment; they do not implement a parallel filesystem adapter. Original source and license notices remain pinned to their extraction versions unless code was refreshed.
+
+On 2026-10-07, the full delivery gate passed against 1.0.4, including native V8, Deno and workerd workflows and all twelve package builds and dry-pack checks. The nested-output workflow checks configured windows, skipped-byte accounting and preserved U+FEFF text. Its tail-snapshot regression fails with the old snapshot compaction and passes with the refreshed buffer. Frozen installation with lifecycle scripts disabled also passed.
 
 The delivery gate is `bun run check`: formatting, strict TypeScript 7, Knip, actual tool workflows, all public package builds and dry-pack checks. The ten native tool-component tarballs previously passed isolated consumer installation, strict public-declaration checking and the Code-to-Notebook toolkit workflow, including native context rollover, using only package exports. Provider delivery additionally checks the bundled public entry and its consumer declarations. Worker Code adds real workerd execution and exact pinned WASM asset checks.
 

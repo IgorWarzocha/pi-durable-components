@@ -15,7 +15,7 @@ import {
 	type ToolRegistration,
 } from "@earendil-works/pi-durable";
 import { boundOutput, OutputBuffer, type OutputLimits } from "./output.ts";
-import { Progress } from "./progress.ts";
+import { PROGRESS_BYTES_PER_SECOND, Progress } from "./progress.ts";
 
 type StoredResult = JsonRepresentation<ToolExecutionResult>;
 export type InvocationState = {
@@ -94,6 +94,7 @@ export function createInvocation<I, S, R, H extends object>(
 		(error) => {
 			if (!runtime.signal.aborted) runtime.report(error);
 		},
+		runtime.settings.progress.outputIntervalMs,
 	);
 	const api: ToolExecutionApi = {
 		taskId: runtime.taskId,
@@ -102,9 +103,18 @@ export function createInvocation<I, S, R, H extends object>(
 		registry: runtime.registry,
 		agent: runtime.agent,
 		env: undefined,
-		output: (chunk) => {
+		outputWindow:
+			limits.retain === "tail"
+				? {
+						maxBytes: limits.maxBytes,
+						maxLines: limits.maxLines,
+						minIntervalMs: runtime.settings.progress.outputIntervalMs,
+						bytesPerSecond: PROGRESS_BYTES_PER_SECOND,
+					}
+				: undefined,
+		output: (chunk, skipped) => {
 			assertLive();
-			if (output.push(chunk)) progress.mark();
+			if (output.push(chunk, skipped)) progress.mark();
 		},
 		diagnostic: (value) => {
 			assertLive();

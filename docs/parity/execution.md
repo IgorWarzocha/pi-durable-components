@@ -5,6 +5,7 @@ The shared implementation is internal to Code, Notebook and Worker Code. Ordinar
 ## Sources
 
 - Durable 1.0.2, source revision `f5d20047b3ad43d068a8eb61bd4e1f193bedbce6`, `packages/durable/src/harness/tool.ts`, `output.ts`, `agent.ts`, `generation.ts` and `usage.ts`.
+- The output buffer was refreshed from the published Durable 1.0.4 source map. Nested invocation now supports its `outputWindow` and skipped-output contract, with progress intervals taken from the Harness settings.
 - Code and Notebook source revision `b2006db9def12c373ae48e70044d30f7d6b7e34f`, `packages/pi-codex-conversion/src/tools/code-mode/exec-contract.ts`, `host-protocol.ts`, `public-tools.ts`, `tool-source.ts`, `custom-tools.ts` and `custom-tool-runner.ts`.
 - `packages/execution/NOTICE` retains the MIT notices. The bounded output buffer and progress committer derive from Durable's implementation. The leading exec pragma parser and provider grammar derive from the pinned Code source.
 
