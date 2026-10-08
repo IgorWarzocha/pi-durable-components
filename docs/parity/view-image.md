@@ -14,6 +14,8 @@ The source checkouts were not changed. The probe invokes the existing `src/tools
 
 ## Preserved behavior
 
+Harness evidence below records port-time validation. The registration, description and error-branch tours were later pruned from the default suite. Codec differential and opt-in live image validation remain available.
+
 | Contract | Evidence |
 | --- | --- |
 | `path`, `file_path`, `image_path` precedence and leading `@` repair | Real Durable Harness registration calls |
@@ -58,6 +60,6 @@ The napi build omits GIF support. Sharp remains the explicit GIF first-frame dec
 
 ## Checks
 
-The focused package tests use `node:test`, the real Durable Harness with MemoryStorage, and pi-ai's faux provider. The optional `packages/view-image/test/differential.ts` probe is outside the default `*.test.ts` gate. It requires `VIEW_IMAGE_REFERENCE_BINARY` and visibly skips if the helper is unavailable. No live billed provider request is needed for the retained tests.
+Earlier registration validation used `node:test`, the real Durable Harness with MemoryStorage, and pi-ai's faux provider. The optional `packages/view-image/test/differential.ts` probe is outside the default `*.test.ts` gate. It requires `VIEW_IMAGE_REFERENCE_BINARY` and visibly skips if the helper is unavailable. The codec probe needs no billed provider request.
 
-The coordinating agent also completed the live image workflow in `scripts/smoke-live.mjs`: generate an image, view it through Durable, assert byte equality with the saved file, then edit the recent image. The toolkit workflow in `test/toolkit.test.ts` passed with both Code and Notebook. Each mode invokes the ordinary `view_image` registration and verifies delivery of the unchanged PNG to the model.
+The coordinating agent also completed the live image workflow in `scripts/smoke-live.mjs`: generate an image, view it through Durable, assert byte equality with the saved file, then edit the recent image. The earlier all-tool toolkit workflow passed with both Code and Notebook, invoking ordinary `view_image` and verifying delivery of the unchanged PNG to the model. That image-delivery tour is not retained.

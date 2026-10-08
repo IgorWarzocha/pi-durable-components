@@ -55,12 +55,12 @@ The shared JavaScript projection uses meaningful details as structured fields an
 
 ## Evidence
 
-`packages/code/test/integration.test.ts` drives the actual V8 host through the real Durable Harness and faux provider. It checks automatic ordinary-tool dispatch, scalar argument repair, hidden provider schemas, runtime contract discovery, custom-command string results and conversation-owned yielding.
+`packages/code/test/integration.test.ts` drives the actual V8 host through the real Durable Harness and faux provider. It checks that an ordinary side effect executes once across conversation-owned yielding and reaches the model through V8.
 
-`packages/code/test/output.test.ts` checks the actual V8 route with requested output budgets and fresh wait budgets. `packages/notebook/test/runtime.test.ts` drives real Deno and the Harness. It checks persistence without source replay, ordinary-tool hooks, original tool names, images, early yield, incremental observation and cancellation of unawaited nested calls.
+`packages/code/test/output.test.ts` checks fresh wait budgets and nonduplicated delivery through V8. `packages/notebook/test/runtime.test.ts` drives real Deno and the Harness. It checks persistence without source replay, cross-conversation checkpoint isolation, incremental observation and cancellation of unawaited nested calls.
 
-`test/toolkit.test.ts` installs both modes with the actual filesystem, shell, patch, image, skill, agent, browser, web, image-generation and context registrations. It switches the selected mode in one conversation and checks schema projection, automatic discovery, real tool results and retained per-mode state. Context rollover also proves native-only projection, nested-call rejection and live state retention after the head cut. Credential-free web and image-generation calls check their visible unavailable results rather than fabricate successful remote responses.
+`test/toolkit.test.ts` installs both modes with context management. It checks native-only projection, nested-call rejection and live state retention after rollover and mode switching. The earlier all-tool feature tour is not retained.
 
-Worker Code's [real workerd workflow](worker-code.md) additionally exercises nested usage and ordered controls through an impure guest handler, plus conversation abort and explicit cell termination. Application-level D1 process-loss checks belong to the consuming Site.
+Worker Code's [real workerd workflow](worker-code.md) additionally exercises concurrent nested effects and incremental delivery through an impure guest handler, plus conversation abort and explicit cell termination. Application-level D1 process-loss checks belong to the consuming Site.
 
 Run the actual shared routes with `node --test packages/code/test/integration.test.ts packages/code/test/output.test.ts packages/notebook/test/runtime.test.ts`.

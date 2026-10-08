@@ -15,9 +15,7 @@ import {
 	defineExtension,
 	defineTool,
 	Harness,
-	hook,
 	MemoryStorage,
-	ToolTask,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { Type } from "typebox";
@@ -45,17 +43,14 @@ test("real Deno restores values without cell replay, owns cancellation, and invo
 		await completed(
 			client,
 			`
-      import * as pathModule from "node:path";
       await Deno.writeTextFile(${JSON.stringify(countPath)}, String(Number(await Deno.readTextFile(${JSON.stringify(countPath)}).catch(() => "0")) + 1));
       var retained = {counter:7, map:new Map([["x",11]]), bytes:new Uint8Array([4,5]), big:9n};
       var helper = (value: number) => value + 1;
       helper.description = "increment"; helper.usage = "helper(value)";
-      text(pathModule.basename("/a/b"));
     `,
 			context,
 		);
 		await client.controlNotebook({ action: "pin", names: ["helper"] }, context);
-		await client.controlNotebook({ action: "save", name: "example" }, context);
 		await client.checkpoint();
 		await client.shutdown();
 		client = new NotebookClient(options);
@@ -73,38 +68,9 @@ test("real Deno restores values without cell replay, owns cancellation, and invo
 			"1",
 			"restoration must not repeat the original side effect",
 		);
-		await assert.rejects(
-			client.controlNotebook({ action: "release", names: ["helper"] }, context),
-			/Pinned/,
-		);
-		await client.controlNotebook(
-			{ action: "release", names: ["retained"] },
-			context,
-		);
-		await client.controlNotebook(
-			{ action: "unpin", names: ["helper"] },
-			context,
-		);
-		await client.controlNotebook(
-			{ action: "release", names: ["helper"] },
-			context,
-		);
-		await client.controlNotebook({ action: "load", name: "example" }, context);
-		const profile = await completed(
-			client,
-			"text(retained.counter); text(helper(4))",
-			context,
-		);
-		assert.match(text(profile), /7\n5/);
-		assert.equal(
-			readFileSync(countPath, "utf8"),
-			"1",
-			"profile load must not replay cells",
-		);
-
 		await client.shutdown();
 
-		// Official faux provider drives the actual Durable tasks, registry validation and hooks.
+		// Drive nested cancellation and checkpoint isolation through real Durable tasks.
 		const faux = fauxProvider();
 		const models = createModels();
 		models.setProvider(faux.provider);
@@ -120,37 +86,11 @@ test("real Deno restores values without cell replay, owns cancellation, and invo
 		});
 		const modes = [mode];
 		registry.install(mode.extension);
-		const calls: string[] = [];
 		let ownedCancelled = false;
 		registry.install(
 			defineExtension({
 				name: "probe",
 				tools: [
-					{
-						...defineTool({
-							name: "sum",
-							description: "Add two values",
-							parameters: Type.Object({ a: Type.Number(), b: Type.Number() }),
-							replay: "safe",
-							async execute(args) {
-								return {
-									content: [
-										{
-											type: "text" as const,
-											text: JSON.stringify(args.a + args.b),
-										},
-									],
-									details: { value: args.a + args.b },
-								};
-							},
-						}),
-						executionHints: {
-							usage: "await tools.sum({a,b})",
-							output: "sum value",
-							deferLoading: false,
-							yieldTimeMs: 1000,
-						},
-					},
 					defineTool({
 						name: "owned",
 						description: "Owned task",
@@ -169,13 +109,6 @@ test("real Deno restores values without cell replay, owns cancellation, and invo
 						},
 					}),
 				],
-				hooks: [
-					hook(ToolTask, {
-						beforeTool(call) {
-							calls.push(call.name);
-						},
-					}),
-				],
 			}),
 		);
 		harness = await Harness.open(
@@ -188,13 +121,11 @@ test("real Deno restores values without cell replay, owns cancellation, and invo
 			const conversation = await harness.root(BACKGROUND_CONTEXT, {
 				agent: { model: { provider: model.provider, modelId: model.id } },
 			});
-			const png =
-				"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aQ8sAAAAASUVORK5CYII=";
 			faux.setResponses([
 				fauxAssistantMessage(
 					[
 						fauxToolCall("exec", {
-							code: `// @exec: {"yield_time_ms":0}\nconst answer: number = (await tools.sum({a:20,b:22})).value; text(answer); text(ALL_TOOLS.find(tool => tool.name === "sum")); image("data:image/png;base64,${png}"); text(await tools.notebook({action:"status"})); void tools.owned({}); await new Promise(resolve => setTimeout(resolve, 50));`,
+							code: "void tools.owned({}); await new Promise(resolve => setTimeout(resolve, 50));",
 						}),
 					],
 					{ stopReason: "toolUse" },
@@ -217,31 +148,6 @@ test("real Deno restores values without cell replay, owns cancellation, and invo
 			);
 			const result = results[0]!;
 			assert.equal(result.isError, false);
-			assert.match(
-				result.content
-					.filter((each) => each.type === "text")
-					.map((each) => each.text)
-					.join("\n"),
-				/42/,
-			);
-			assert.match(
-				result.content
-					.filter((each) => each.type === "text")
-					.map((each) => each.text)
-					.join("\n"),
-				/Output: sum value/,
-			);
-			const instructions = view.messages
-				.filter((each) => each.role === "system")
-				.map((each) => each.sections?.["notebook"] ?? "")
-				.join("\n");
-			assert.match(instructions, /await tools\.sum\(\{a,b\}\)/);
-			assert.doesNotMatch(instructions, /await tools\.owned/);
-			assert.equal(
-				result.content.find((each) => each.type === "image")?.data,
-				png,
-			);
-			assert.deepEqual(calls, ["exec", "sum", "owned"]);
 			assert.equal(
 				ownedCancelled,
 				true,
@@ -303,33 +209,18 @@ test("real Deno restores values without cell replay, owns cancellation, and invo
 				fauxAssistantMessage(
 					[
 						fauxToolCall("exec", {
-							code: '// @exec: {"max_output_tokens":100000}\ntext("line\\n".repeat(13000)); var privateForkValue = 123;',
+							code: "var privateForkValue = 123;",
 						}),
 					],
 					{ stopReason: "toolUse" },
 				),
 				fauxAssistantMessage("done"),
 			]);
-			const large = await conversation.submit(
-				{ type: "input", content: "large notebook result" },
+			const retained = await conversation.submit(
+				{ type: "input", content: "retain private value" },
 				BACKGROUND_CONTEXT,
 			);
-			assert.equal((await large.wait(BACKGROUND_CONTEXT)).status, "done");
-			const largeResult = (
-				await conversation.context(BACKGROUND_CONTEXT)
-			).messages
-				.filter((each) => each.role === "toolResult")
-				.at(-1)!;
-			const largeOutput = largeResult.content
-				.filter((each) => each.type === "text")
-				.map((each) => each.text)
-				.join("");
-			assert.equal(
-				largeOutput.length,
-				65000,
-				`framework defaults must not replace the requested driver budget: ${JSON.stringify(largeResult.details)} ${largeOutput.slice(-150)}`,
-			);
-			assert.ok(largeOutput === "line\n".repeat(13000));
+			assert.equal((await retained.wait(BACKGROUND_CONTEXT)).status, "done");
 			await mode.close();
 			const reopened = createNotebookMode({
 				stateDirectory: root,

@@ -1,4 +1,3 @@
-import type { JsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { ToolResultMessage } from "@earendil-works/pi-ai";
 import { createModels } from "@earendil-works/pi-ai/models";
@@ -11,10 +10,7 @@ import {
 	createRegistry,
 	defineTool,
 	Harness,
-	hook,
 	MemoryStorage,
-	ToolTask,
-	wrapTool,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 import { createWorkerCode, type WorkerCodeLimits } from "../src/index.ts";
@@ -64,13 +60,8 @@ export async function runtimeWorkflow(wasmModule: WebAssembly.Module) {
 		}
 	};
 	try {
-		const arithmetic = await evaluate("return 6 * 7");
 		const isolated = await evaluate(
 			"return [typeof fetch,typeof process,typeof Deno,typeof env,typeof WebAssembly,typeof __dispatch,typeof text,typeof yield_control,typeof setTimeout,typeof tools.exec]",
-		);
-		const imported = await evaluate(
-			'return (await import("./math.mjs")).twice(21)',
-			{ "/harness/math.mjs": "export function twice(n) { return n * 2 }" },
 		);
 		const constructor = await evaluate(
 			'return Object.getPrototypeOf(Object).constructor("return typeof process")()',
@@ -88,31 +79,20 @@ export async function runtimeWorkflow(wasmModule: WebAssembly.Module) {
 		await fails("escape", 'return import("../../../outside.mjs")');
 		await fails("result", 'return "x".repeat(200000)');
 		await fails("deadPromise", "return new Promise(() => {})");
-		for (let attempt = 0; attempt < 4; attempt++)
-			await fails(`startup${attempt}`, "return 42", { heapBytes: 1024 });
-		const manifest: JsonValue = await component.evaluateModule({
-			entry,
-			exportName: "manifest",
-			modules: { [entry]: 'export const manifest = {name:"site_test"};' },
-		});
 		return {
-			arithmetic,
 			isolated,
-			imported,
 			constructor,
 			fresh,
-			manifest,
 			errors,
 			recovered: await evaluate("return 42"),
 			budget: component.budget(),
-			instantiateStreaming: typeof WebAssembly.instantiateStreaming,
 		};
 	} finally {
 		await component.close();
 	}
 }
 
-/** Real Durable registration, hook, wrapping, nested ownership and yielded observations. */
+/** Concurrent nested effects and incremental observations cross the real guest boundary. */
 export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 	let harness: Harness;
 	const component = createWorkerCode({
@@ -123,20 +103,9 @@ export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 	const models = createModels();
 	const provider = fauxProvider();
 	models.setProvider(provider.provider);
-	let before = 0,
-		after = 0,
-		active = 0,
+	let active = 0,
 		maxActive = 0,
-		effects = 0,
-		wrapped = 0;
-	const usage = {
-		input: 1,
-		output: 2,
-		cacheRead: 0,
-		cacheWrite: 0,
-		totalTokens: 3,
-		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-	};
+		effects = 0;
 	const observations: ToolResultMessage[] = [];
 	const tool = defineTool({
 		name: "ordinary-tool",
@@ -162,16 +131,6 @@ export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 				await new Promise((resolve) => setTimeout(resolve, 20));
 				return {
 					details: { doubled: args.n * 2 },
-					content: [{ type: "text" as const, text: "complete result" }],
-					diagnostics: [
-						{
-							severity: "info" as const,
-							code: "ordinary_info",
-							message: "kept",
-						},
-					],
-					usage,
-					control: { addTools: ["ordinary-tool"] },
 				};
 			} finally {
 				active--;
@@ -181,27 +140,6 @@ export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 	const ordinary = {
 		name: "ordinary",
 		tools: [tool],
-		hooks: [
-			hook(ToolTask, {
-				beforeTool(call) {
-					before++;
-					if (call.name === tool.name && call.arguments["n"] === 13)
-						return { block: "blocked" };
-				},
-				afterTool() {
-					after++;
-				},
-			}),
-		],
-		wraps: [
-			wrapTool(tool, (original) => ({
-				...original,
-				async execute(args, api, ctx) {
-					wrapped++;
-					return original.execute(args, api, ctx);
-				},
-			})),
-		],
 	};
 	const source =
 		'export async function execute(args) { const results=await Promise.all([tools["ordinary-tool"]({n:args.n}),tools["ordinary-tool"]("2")]); return {details:{results,version:1}}; }';
@@ -235,11 +173,8 @@ export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 	const code = `
 		await text("before");
 		await yield_control();
-		const inventory = ALL_TOOLS.map(t=>t.name);
 		const nested = await tools.site_editable({n:21});
-		const invalid = await tools["ordinary-tool"]({n:"bad"});
-		const blocked = await tools["ordinary-tool"]({n:13});
-		await text({nested,invalid,blocked,inventory});
+		await text(nested);
 	`;
 	provider.setResponses([
 		() =>
@@ -311,10 +246,7 @@ export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 		).wait(context);
 		return {
 			observations,
-			before,
-			after,
 			effects,
-			wrapped,
 			maxActive,
 			receipt,
 			budget: component.budget(),

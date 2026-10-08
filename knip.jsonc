@@ -59,7 +59,7 @@
 			"project": ["src/**/*.ts", "test/**/*.ts"]
 		},
 		"packages/view-image": {
-			"entry": ["test/**/*.test.ts", "test/differential.ts"],
+			"entry": ["test/differential.ts"],
 			"project": ["src/**/*.ts", "test/**/*.ts"]
 		}
 	}

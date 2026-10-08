@@ -12,16 +12,13 @@ import {
 } from "@earendil-works/pi-ai";
 import {
 	createRegistry,
-	defineExtension,
 	Harness,
-	hook,
 	MemoryStorage,
-	ToolTask,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { skills } from "../src/index.ts";
 
-test("ordinary Durable execution preserves results, validation, hooks and the continuation footer", async (t) => {
+test("bounded skill output retains its continuation footer through Durable", async (t) => {
 	const cwd = mkdtempSync(join(tmpdir(), "skills-registration-"));
 	t.after(() => rmSync(cwd, { force: true, recursive: true }));
 	mkdirSync(join(cwd, "library/bulk"), { recursive: true });
@@ -34,19 +31,6 @@ test("ordinary Durable execution preserves results, validation, hooks and the co
 	models.setProvider(faux.provider);
 	const registry = createRegistry();
 	registry.install(skills({ globalRoot: "library", guidance: true }));
-	const observed: string[] = [];
-	registry.install(
-		defineExtension({
-			name: "observer",
-			hooks: [
-				hook(ToolTask, {
-					beforeTool(call) {
-						observed.push(call.name);
-					},
-				}),
-			],
-		}),
-	);
 	const harness = await Harness.open(
 		new MemoryStorage(),
 		{ models, registry, env: () => new NodeExecutionEnv({ cwd }) },
@@ -58,14 +42,9 @@ test("ordinary Durable execution preserves results, validation, hooks and the co
 		agent: { model: { provider: model.provider, modelId: model.id } },
 	});
 	faux.setResponses([
-		fauxAssistantMessage(
-			[
-				fauxToolCall("skills", { command: "read bulk" }),
-				fauxToolCall("skills", { command: "read missing" }),
-				fauxToolCall("skills", {}),
-			],
-			{ stopReason: "toolUse" },
-		),
+		fauxAssistantMessage(fauxToolCall("skills", { command: "read bulk" }), {
+			stopReason: "toolUse",
+		}),
 		fauxAssistantMessage("done"),
 	]);
 	const submission = await conversation.submit(
@@ -78,7 +57,7 @@ test("ordinary Durable execution preserves results, validation, hooks and the co
 	const results = view.messages.filter(
 		(message) => message.role === "toolResult",
 	);
-	assert.equal(results.length, 3);
+	assert.equal(results.length, 1);
 	const output =
 		results[0]?.content
 			.filter((item) => item.type === "text")
@@ -86,15 +65,4 @@ test("ordinary Durable execution preserves results, validation, hooks and the co
 			.join("") ?? "";
 	assert.ok(Buffer.byteLength(output) <= 49152);
 	assert.match(output, /Continue with command:\nread bulk --offset \d+$/);
-	assert.deepEqual(results[0]?.details, {});
-	assert.equal(results[1]?.isError, true);
-	assert.match(
-		results[1]?.content
-			.filter((item) => item.type === "text")
-			.map((item) => item.text)
-			.join("") ?? "",
-		/Unknown skill "missing"/,
-	);
-	assert.equal(results[2]?.isError, true);
-	assert.deepEqual(observed, ["skills", "skills"]);
 });

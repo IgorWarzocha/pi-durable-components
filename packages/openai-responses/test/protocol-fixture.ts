@@ -17,34 +17,15 @@ const records = [];
 const closed = [];
 function events(body) {
   const id = "resp_" + (++sequence);
-  const input = JSON.stringify(body.input);
-  const hasResult = body.input.some(item => /tool_call_output|function_call_output/.test(item.type ?? ""));
-  let item;
-  if (input.includes("call-tool") && !hasResult) {
-    const grammar = input.includes('"type":"custom"') || JSON.stringify(body.tools ?? []).includes('"type":"custom"');
-    item = grammar
-      ? { type: "custom_tool_call", id: "ctc_1", call_id: "call_1", name: "calculate", namespace: "functions", input: "21" }
-      : { type: "function_call", id: "fc_1", call_id: "call_1", name: "calculate", arguments: '{"n":21}' };
-  } else {
-    item = { type: "message", id: "msg_" + sequence, role: "assistant", status: "completed", content: [{ type: "output_text", text: "completed", annotations: [] }] };
-  }
-  const startItem = item.type === "message" ? { ...item, content: [] }
-    : item.type === "function_call" ? { ...item, arguments: "" } : { ...item, input: "" };
+  const item = { type: "message", id: "msg_" + sequence, role: "assistant", status: "completed", content: [{ type: "output_text", text: "completed", annotations: [] }] };
+  const startItem = { ...item, content: [] };
   const output = [
     { type: "response.created", response: { id } },
     { type: "response.output_item.added", output_index: 0, item: startItem },
   ];
-  if (item.type === "function_call") {
-    output.push({ type: "response.function_call_arguments.delta", output_index: 0, delta: item.arguments });
-    output.push({ type: "response.function_call_arguments.done", output_index: 0, arguments: item.arguments });
-  } else if (item.type === "custom_tool_call") {
-    output.push({ type: "response.custom_tool_call_input.delta", output_index: 0, delta: item.input });
-    output.push({ type: "response.custom_tool_call_input.done", output_index: 0, input: item.input });
-  } else {
-    output.push({ type: "response.content_part.added", output_index: 0, content_index: 0, part: { type: "output_text", text: "", annotations: [] } });
-    output.push({ type: "response.output_text.delta", output_index: 0, content_index: 0, delta: "completed" });
-    output.push({ type: "response.output_text.done", output_index: 0, content_index: 0, text: "completed" });
-  }
+  output.push({ type: "response.content_part.added", output_index: 0, content_index: 0, part: { type: "output_text", text: "", annotations: [] } });
+  output.push({ type: "response.output_text.delta", output_index: 0, content_index: 0, delta: "completed" });
+  output.push({ type: "response.output_text.done", output_index: 0, content_index: 0, delta: "completed" });
   output.push({ type: "response.output_item.done", output_index: 0, item });
   output.push({ type: "response.completed", response: { id, status: "completed", output: [item], usage: {
     input_tokens: 20, output_tokens: 4, total_tokens: 24,
@@ -60,19 +41,13 @@ const server = Bun.serve({
     if (path === "/records") return Response.json({ records, closed });
     if (path === "/mode") { mode = await request.text(); return new Response("ok"); }
     if (request.headers.get("upgrade") === "websocket") {
-      if (mode === "reject-upgrade") {
-        records.push({ transport: "upgrade", headers: Object.fromEntries(request.headers), body: { input: [] } });
-        return new Response("Upgrade required", { status: 426 });
-      }
       if (server.upgrade(request, { data: { socket: ++socketSequence, path, headers: Object.fromEntries(request.headers) } })) return;
       return new Response("Cannot upgrade", { status: 400 });
     }
     const bytes = Buffer.from(await request.arrayBuffer());
     const body = JSON.parse((request.headers.get("content-encoding") === "zstd" ? zstdDecompressSync(bytes) : bytes).toString());
     records.push({ transport: "sse", path, headers: Object.fromEntries(request.headers), body });
-    const output = mode === "fatal"
-      ? [{ type: "response.failed", response: { error: { code: "context_length_exceeded", message: "context_length_exceeded", status_code: 400 } } }]
-      : events(body);
+    const output = events(body);
     return new Response(output.map(event => "data: " + JSON.stringify(event) + "\n\n").join(""), { headers: { "content-type": "text/event-stream" } });
   },
   websocket: {
@@ -81,15 +56,6 @@ const server = Bun.serve({
       const record = { transport: "websocket", socket: socket.data.socket, path: socket.data.path, headers: socket.data.headers, body };
       records.push(record);
       if (mode === "hold") { socket.send(JSON.stringify({ type: "response.created", response: { id: "resp_held" } })); return; }
-      if (mode === "fatal") {
-        socket.send(JSON.stringify({ type: "response.failed", response: { error: { code: "context_length_exceeded", message: "context_length_exceeded", status_code: 400 } } }));
-        return;
-      }
-      if (body.generate === false) {
-        socket.send(JSON.stringify({ type: "response.created", response: { id: "resp_prewarm" } }));
-        socket.send(JSON.stringify({ type: "response.completed", response: { id: "resp_prewarm", status: "completed", output: [] } }));
-        return;
-      }
       const output = events(body);
       record.output = output.at(-1).response.output;
       for (const event of output) socket.send(JSON.stringify(event));

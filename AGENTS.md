@@ -6,5 +6,6 @@
 - Filesystem operations follow the conversation's execution environment. Native process and codec capabilities must be explicit; never silently escape to the host filesystem or claim PTYs survive a process restart.
 - An interrupted side effect is not permission to replay it. Preserve owned-task cancellation and report uncertain outcomes.
 - Source checkouts used for parity are read-only. Preserve upstream license notices and record source revisions when carrying code across.
-- Validate the toolkit by using its tools through Durable and the real execution runtimes. Keep a compact set of end-to-end workflows, not helper-level unit suites or mock choreography.
+- Tests are a contract spine, not a feature museum. Add no tests by default. Keep only independent checks of consequential persistence, replay, concurrency, cancellation, resource, security or protocol boundaries that types, builds and existing checks do not cover.
+- Cull before adding. Do not increase the permanent test count without Igor's approval, merge unrelated scenarios to disguise growth, or retain bug-specific regression tours, API-shape checks and upstream behavior tests. Validate retained boundaries through Durable and the real runtimes; keep live-provider acceptance opt-in.
 - Parallel workers own assigned package subtrees. Root manifests, dependency installation, lockfiles, cross-package contracts, and Git operations belong to the coordinating agent.

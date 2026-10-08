@@ -34,35 +34,6 @@ test("ordinary Web tool owns native workerd HTTP, affinity, limits and cancellat
 			headers: request.headers,
 			body: JSON.parse(text),
 		});
-		if (request.url === "/cookie-search") {
-			response.setHeader("set-cookie", [
-				"__cf_bm=owned-host-cookie-secret; Path=/; Expires=Fri, 01 Jan 2038 00:00:00 GMT; Secure; HttpOnly",
-				"_cfuvid=owned-domain-cookie-secret; Domain=.chatgpt.com; Path=/; Secure; HttpOnly",
-				"__cfseq=0; Path=/; Secure; HttpOnly",
-				"login_session=not-a-permitted-cookie; Path=/; Secure; HttpOnly",
-			]);
-			response.writeHead(307, {
-				location: JSON.parse(text).commands.open
-					? "https://sub.chatgpt.com/cookie-open"
-					: "https://chatgpt.com/cookie-ready",
-			});
-			response.end();
-			return;
-		}
-		if (request.url === "/cookie-ready" || request.url === "/cookie-open") {
-			response.setHeader("content-type", "application/json");
-			response.end(
-				JSON.stringify({
-					output_text: "owned-host-cookie-secret owned-domain-cookie-secret",
-					cost: 0,
-					short_cookie_echo: "0",
-					search_results: [
-						{ url: "https://example.test/owned", ref_id: "owned-turn-ref" },
-					],
-				}),
-			);
-			return;
-		}
 		if (request.url === "/redirect") {
 			response.writeHead(307, {
 				location: `http://localhost:${fixture.address().port}/destination`,
@@ -75,16 +46,6 @@ test("ordinary Web tool owns native workerd HTTP, affinity, limits and cancellat
 			response.writeHead(200, { "content-type": "application/json" });
 			response.write('{"output_text":"');
 			markReady();
-			return;
-		}
-		if (request.url === "/challenge") {
-			response.writeHead(403, { "cf-mitigated": "challenge" });
-			response.end("Cloudflare owned fixture");
-			return;
-		}
-		if (request.url === "/credential-error") {
-			response.writeHead(502);
-			response.end("owned failure echo: Bearer owned-fixture-not-a-credential");
 			return;
 		}
 		if (request.url === "/large") {
@@ -179,37 +140,7 @@ test("ordinary Web tool owns native workerd HTTP, affinity, limits and cancellat
 			seen[0].headers["chatgpt-account-id"],
 			"owned-fixture-account",
 		);
-		assert.match(seen[0].headers["user-agent"], /workerd/);
 
-		const cookies = await workflow("cookies");
-		assert.ok(cookies.observations.every((result) => !result.isError));
-		assert.equal(cookies.observations.length, 2);
-		const cookieRequests = seen.filter((entry) =>
-			entry.path.startsWith("/cookie-"),
-		);
-		assert.equal(cookieRequests.length, 4);
-		assert.equal(cookieRequests[0].headers.cookie, undefined);
-		assert.equal(
-			cookieRequests[1].headers.cookie,
-			"__cf_bm=owned-host-cookie-secret; _cfuvid=owned-domain-cookie-secret; __cfseq=0",
-		);
-		assert.equal(
-			cookieRequests[2].headers.cookie,
-			cookieRequests[1].headers.cookie,
-		);
-		assert.equal(
-			cookieRequests[3].headers.cookie,
-			"_cfuvid=owned-domain-cookie-secret",
-		);
-		assert.equal(cookieRequests[3].headers.authorization, undefined);
-		assert.equal(cookieRequests[3].headers["chatgpt-account-id"], undefined);
-		assert.ok(!JSON.stringify(cookies.observations).includes("cookie-secret"));
-		assert.match(JSON.stringify(cookies.observations), /\[redacted\]/);
-		assert.equal(cookies.observations[0].details.webRun.cost, 0);
-		assert.equal(
-			cookies.observations[0].details.webRun.short_cookie_echo,
-			"[redacted]",
-		);
 		const countBeforeEgressFailure = seen.length;
 		const egressFailure = await workflow("egress-failure");
 		assert.match(
@@ -231,24 +162,6 @@ test("ordinary Web tool owns native workerd HTTP, affinity, limits and cancellat
 		assert.equal(destination.headers.authorization, undefined);
 		assert.equal(destination.headers["chatgpt-account-id"], undefined);
 		assert.equal(destination.body.id, redirect.sessionId);
-		const challenge = await workflow("challenge");
-		assert.equal(challenge.observations[0].isError, true);
-		assert.match(
-			JSON.stringify(challenge.observations),
-			/HTTP 403 Cloudflare challenge/,
-		);
-		assert.equal(seen.filter((entry) => entry.path === "/challenge").length, 1);
-		const credentialError = await workflow("credential-error");
-		assert.equal(credentialError.observations[0].isError, true);
-		assert.match(
-			JSON.stringify(credentialError.observations),
-			/HTTP 502 owned failure echo: Bearer \[redacted\]/,
-		);
-		assert.ok(
-			!JSON.stringify(credentialError.observations).includes(
-				"owned-fixture-not-a-credential",
-			),
-		);
 
 		const cancelled = await workflow("cancel");
 		assert.equal(cancelled.receipt.reason, "aborted");

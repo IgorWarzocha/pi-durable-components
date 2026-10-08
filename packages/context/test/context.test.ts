@@ -17,20 +17,14 @@ import {
 import type { JsonObject, TaskId } from "@earendil-works/pi-durable";
 import {
 	createRegistry,
-	createSession,
 	defineExtension,
 	Harness,
 	hook,
 	ToolTask,
 } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import {
-	createContextManagement,
-	type InputResult,
-	readSavedNotes,
-} from "../src/index.ts";
-import { Admission, IDLE_MS, ROLLOVER_TASK } from "../src/lifecycle.ts";
-import { NotesState } from "../src/note-store.ts";
+import { createContextManagement, type InputResult } from "../src/index.ts";
+import { Admission, IDLE_MS } from "../src/lifecycle.ts";
 
 const context = BACKGROUND_CONTEXT;
 const checkpoint =
@@ -90,9 +84,7 @@ function driver() {
 async function fixture(path: string, state: ReturnType<typeof driver>) {
 	const storage = await openNodeSqliteStorage(path);
 	const models = createModels();
-	const faux = fauxProvider({
-		models: [{ id: "context", input: ["text", "image"] }],
-	});
+	const faux = fauxProvider({ models: [{ id: "context" }] });
 	models.setProvider(faux.provider);
 	const call = (name: string, args: JsonObject) =>
 		fauxAssistantMessage(
@@ -109,16 +101,8 @@ async function fixture(path: string, state: ReturnType<typeof driver>) {
 		);
 		if (last?.role === "toolResult") {
 			state.observed.push(last);
-			if (input === "mixed rollover")
-				return fauxAssistantMessage("mixed round rejected");
 			assert.equal(last.isError, false, textOf(last));
-			if (input === "rollover via tool" && last.toolName === "notes")
-				return call("new_context", {});
-			return fauxAssistantMessage(
-				input === "Continue from your saved notes."
-					? "FINAL resumed answer"
-					: "FINAL answer",
-			);
+			return fauxAssistantMessage("FINAL answer");
 		}
 		if (input.startsWith(checkpoint)) {
 			await state.checkpointGate?.wait(options?.signal);
@@ -133,39 +117,6 @@ async function fixture(path: string, state: ReturnType<typeof driver>) {
 				text: "CHECKPOINT\n",
 			});
 		}
-		if (input === "Continue from your saved notes.") {
-			assert.ok(
-				request.messages.some(
-					(message) =>
-						message.role === "system" &&
-						JSON.stringify(message.sections).includes("/notes/active.md"),
-				),
-			);
-			return call("notes", { action: "read_file", path: "active.md" });
-		}
-		if (input === "rollover via tool")
-			return call("notes", {
-				action: "append_to_file",
-				path: "active.md",
-				text: "TOOL CHECKPOINT\n",
-			});
-		if (input === "stale rollover") return call("new_context", {});
-		if (input === "mixed rollover")
-			return fauxAssistantMessage(
-				[
-					fauxToolCall(
-						"notes",
-						{
-							action: "append_to_file",
-							path: "active.md",
-							text: "MIXED CHECKPOINT\n",
-						},
-						{ id: `call-${++state.call}` },
-					),
-					fauxToolCall("new_context", {}, { id: `call-${++state.call}` }),
-				],
-				{ stopReason: "toolUse" },
-			);
 		if (input.startsWith("{")) {
 			const command: { tool: string; args: JsonObject } = JSON.parse(input);
 			return call(command.tool, command.args);
@@ -208,7 +159,7 @@ async function fixture(path: string, state: ReturnType<typeof driver>) {
 		},
 	});
 	harness.resume();
-	return { harness, root, component, failures, storage };
+	return { harness, root, component, failures };
 }
 
 async function result<T>(
@@ -268,119 +219,7 @@ async function blocked(f: Awaited<ReturnType<typeof fixture>>) {
 	}
 }
 
-test("saved notes read full bodies and fork-time notes without Harness startup or document writes", async () => {
-	const directory = await mkdtemp(join(tmpdir(), "durable-saved-notes-"));
-	const path = join(directory, "session.sqlite");
-	const state = driver();
-	const f = await fixture(path, state);
-	try {
-		assert.deepEqual(await readSavedNotes(f.storage, f.root.id, context), []);
-		assert.equal(
-			await f.harness.snapshot(NotesState, f.root.id, context),
-			undefined,
-		);
-		const text = `Full saved note 😀\n${"line\n".repeat(3000)}`;
-		await invoke(f, state, "notes", {
-			action: "write_file",
-			path: "nested/full.md",
-			text,
-		});
-		const entry = (await f.root.entries({}, 1, undefined, context)).items[0];
-		assert.ok(entry);
-		const fork = await f.root.fork(
-			entry.id,
-			{ ownership: { kind: "ownerless" } },
-			context,
-		);
-		state.now = 2_000;
-		await invoke(f, state, "notes", {
-			action: "append_to_file",
-			path: "nested/full.md",
-			text: "later",
-		});
-		await invoke(f, state, "notes", {
-			action: "write_file",
-			path: "empty.md",
-			text: "",
-		});
-		await f.harness.close(context);
-		const storage = await openNodeSqliteStorage(path);
-		try {
-			const before = await storage.scanDocuments(
-				{
-					scope: { kind: "conversation", conversationId: f.root.id },
-					at: "current",
-				},
-				100,
-				undefined,
-				context,
-			);
-			assert.deepEqual(await readSavedNotes(storage, f.root.id, context), [
-				{
-					path: "/notes/empty.md",
-					text: "",
-					createdAt: 2_000,
-					updatedAt: 2_000,
-				},
-				{
-					path: "/notes/nested/full.md",
-					text: `${text}later`,
-					createdAt: 1_000,
-					updatedAt: 2_000,
-				},
-			]);
-			assert.deepEqual(await readSavedNotes(storage, fork.id, context), [
-				{
-					path: "/notes/nested/full.md",
-					text,
-					createdAt: 1_000,
-					updatedAt: 1_000,
-				},
-			]);
-			assert.deepEqual(
-				await storage.scanDocuments(
-					{
-						scope: { kind: "conversation", conversationId: f.root.id },
-						at: "current",
-					},
-					100,
-					undefined,
-					context,
-				),
-				before,
-			);
-			const session = createSession(storage);
-			await session.commit(async (tx) => {
-				const catalog = await tx.doc(NotesState, f.root.id);
-				const file = catalog.files[0];
-				assert.ok(file);
-				file.bytes++;
-			}, context);
-			await assert.rejects(
-				readSavedNotes(storage, f.root.id, context),
-				/Saved note catalog\/body mismatch/,
-			);
-			await session.commit(async (tx) => {
-				const catalog = await tx.doc(NotesState, f.root.id);
-				const file = catalog.files[0];
-				assert.ok(file);
-				file.bytes--;
-				file.path = "/notes/missing.md";
-			}, context);
-			await assert.rejects(
-				readSavedNotes(storage, f.root.id, context),
-				/Saved note catalog\/body mismatch: \/notes\/missing.md/,
-			);
-		} finally {
-			await storage.close(context);
-		}
-	} finally {
-		await f.harness.close(context);
-		await rm(directory, { recursive: true, force: true });
-	}
-});
-
-test("SQLite context workflow replays notes once, retains history, checkpoints idle held attachments and follows tool rollover answers", {
+test("replayed note appends commit once and remain readable through retained history after a context cut", {
 	timeout: 20_000,
 }, async () => {
 	const directory = await mkdtemp(join(tmpdir(), "durable-context-"));
@@ -448,15 +287,6 @@ test("SQLite context workflow replays notes once, retains history, checkpoints i
 			(await f.component.status(f.root.id, context)).window?.window?.previous,
 			firstWindow.id,
 		);
-		assert.ok(
-			!state.requests.some((messages) =>
-				messages.some(
-					(message) =>
-						message.role === "user" &&
-						textOf(message) === "Continue from your saved notes.",
-				),
-			),
-		);
 		const view = await f.root.context(context);
 		assert.ok(
 			!view.messages.some((message) => textOf(message).includes("APPEND")),
@@ -481,175 +311,6 @@ test("SQLite context workflow replays notes once, retains history, checkpoints i
 			limit_chars: 8_000,
 		});
 		assert.match(String(object(history["item"])["content"]), /APPEND/);
-		const budget = await invoke(f, state, "get_context_remaining", {});
-		assert.equal(budget["known"], true);
-		assert.equal(
-			budget["windowId"],
-			manual.status === "done" ? manual.window.id : undefined,
-		);
-		assert.equal(budget["contextWindow"], 128_000);
-		assert.equal(budget["estimated"], true);
-		assert.match(String(budget["uncertainty"]), /not an exact/);
-		const idleWindow = (await f.component.status(f.root.id, context)).window
-			?.window?.id;
-		state.now += IDLE_MS - 1;
-		await submit(f, "just before idle threshold");
-		assert.equal(
-			(await f.component.status(f.root.id, context)).window?.window?.id,
-			idleWindow,
-		);
-		state.now += IDLE_MS;
-		state.checkpointGate = gate();
-		const attachment = [
-			{ type: "text" as const, text: "held attachment" },
-			{ type: "image" as const, data: "aW1hZ2U=", mimeType: "image/png" },
-		];
-		const held = await f.component.submit(
-			f.root.id,
-			{
-				type: "input",
-				requestId: "held-once",
-				content: attachment,
-				whenBusy: "reject",
-			},
-			context,
-		);
-		await state.checkpointGate.begun;
-		assert.equal(
-			(await f.component.status(f.root.id, context)).window?.window?.id,
-			idleWindow,
-		);
-		assert.ok(
-			!(await f.root.entries({}, 100, undefined, context)).items.some((entry) =>
-				entry.model?.some((message) => textOf(message) === "held attachment"),
-			),
-		);
-		await f.harness.close(context);
-		f = await fixture(path, state);
-		assert.equal(
-			await f.component.submit(
-				f.root.id,
-				{ type: "input", requestId: "held-once", content: attachment },
-				context,
-			),
-			held,
-		);
-		state.checkpointGate.release();
-		const answer = await result(f, held);
-		assert.equal(answer.status, "done");
-		assert.ok(answer.status === "done");
-		assert.equal(
-			textOf(
-				(await f.root.commit((tx) => tx.entry(answer.answer), context))
-					?.model?.[0],
-			),
-			"FINAL answer: held attachment",
-		);
-		assert.equal(
-			(await f.component.status(f.root.id, context)).window?.window?.previous,
-			idleWindow,
-		);
-		const inputs = (await f.root.entries({}, 100, undefined, context)).items
-			.flatMap((entry) => entry.model ?? [])
-			.filter(
-				(message) =>
-					message.role === "user" && textOf(message) === "held attachment",
-			);
-		assert.equal(inputs.length, 1);
-		assert.deepEqual(inputs[0]?.content, attachment);
-		const heldRequest = state.requests.findLast((messages) =>
-			messages.some((message) => textOf(message) === "held attachment"),
-		);
-		assert.ok(heldRequest);
-		assert.ok(
-			!heldRequest.some((message) => textOf(message).startsWith(checkpoint)),
-		);
-		const beforeMixed = (await f.component.status(f.root.id, context)).window
-			?.window?.id;
-		const rolloversBeforeMixed = await f.root.commit(
-			(tx) =>
-				tx.scanTasks({ conversationId: f.root.id, kind: ROLLOVER_TASK }, 64),
-			context,
-		);
-		const requestsBeforeMixed = state.requests.length;
-		assert.equal((await submit(f, "mixed rollover")).status, "done");
-		const rejected = state.observed.at(-1);
-		assert.equal(rejected?.toolName, "new_context");
-		assert.equal(rejected?.isError, true);
-		assert.match(textOf(rejected), /Call new_context alone/);
-		const afterMixed = await f.component.status(f.root.id, context);
-		assert.equal(afterMixed.window?.window?.id, beforeMixed);
-		assert.equal(afterMixed.window?.transition, undefined);
-		const rolloversAfterMixed = await f.root.commit(
-			(tx) =>
-				tx.scanTasks({ conversationId: f.root.id, kind: ROLLOVER_TASK }, 64),
-			context,
-		);
-		assert.deepEqual(
-			rolloversAfterMixed.items.map((task) => task.id),
-			rolloversBeforeMixed.items.map((task) => task.id),
-		);
-		assert.ok(
-			!state.requests
-				.slice(requestsBeforeMixed)
-				.some((messages) =>
-					messages.some(
-						(message) =>
-							textOf(message).startsWith(checkpoint) ||
-							textOf(message) === "Continue from your saved notes.",
-					),
-				),
-		);
-		const continued = await submit(f, "rollover via tool");
-		assert.ok(continued.status === "done", JSON.stringify(continued));
-		assert.equal(
-			textOf(
-				(await f.root.commit((tx) => tx.entry(continued.answer), context))
-					?.model?.[0],
-			),
-			"FINAL resumed answer",
-		);
-		const persisted = await invoke(f, state, "notes", {
-			action: "read_file",
-			path: "active.md",
-		});
-		assert.equal(
-			object(persisted["file"])["content"],
-			"BASE\nAPPEND\nCHECKPOINT\nCHECKPOINT\nMIXED CHECKPOINT\nTOOL CHECKPOINT\n",
-		);
-		const retired = await invoke(f, state, "history", {
-			action: "read_item",
-			item_id: item["item_id"],
-			window_id: firstWindow.id,
-			offset_chars: 10,
-			limit_chars: 15,
-		});
-		assert.equal(
-			object(retired["item"])["content"],
-			String(object(history["item"])["content"]).slice(10, 25),
-		);
-		assert.equal(object(retired["item"])["next_offset_chars"], 25);
-		const fork = await f.root.fork(
-			appended.answer,
-			{ ownership: { kind: "ownerless" } },
-			context,
-		);
-		const forked = { ...f, root: fork };
-		const inherited = await invoke(forked, state, "history", {
-			action: "read_item",
-			item_id: item["item_id"],
-			window_id: firstWindow.id,
-		});
-		assert.equal(
-			object(inherited["item"])["content"],
-			object(history["item"])["content"],
-			"fork initialization must not invalidate inherited note references to history",
-		);
-		const forkNotes = await invoke(forked, state, "notes", {
-			action: "read_file",
-			path: "active.md",
-		});
-		assert.equal(object(forkNotes["file"])["content"], "BASE\nAPPEND\n");
 		assert.deepEqual(f.failures, []);
 	} finally {
 		await f.harness.close(context);
@@ -720,33 +381,6 @@ test("failed idle checkpoints hold queued input across reopen until explicit ret
 		assert.equal(
 			(await f.component.status(f.root.id, context)).admission?.blocked,
 			undefined,
-		);
-		// A tool rollover is linked through the input's durable continuation receipt, not its ownership tree.
-		state.checkpointGate = gate();
-		const beforeToolCancel = (await f.component.status(f.root.id, context))
-			.window?.window?.id;
-		const toolInput = await f.component.submit(
-			f.root.id,
-			{ type: "input", content: "stale rollover" },
-			context,
-		);
-		await state.checkpointGate.begun;
-		await f.harness.abortTask(toolInput, context);
-		state.checkpointGate.release();
-		assert.equal(
-			(await f.harness.waitForTask(toolInput, context)).state.outcome.status,
-			"aborted",
-		);
-		await f.root.waitForIdle(context);
-		const afterToolCancel = await f.component.status(f.root.id, context);
-		assert.equal(afterToolCancel.window?.window?.id, beforeToolCancel);
-		assert.equal(afterToolCancel.window?.transition, undefined);
-		assert.ok(
-			!state.requests.some((messages) =>
-				messages.some(
-					(message) => textOf(message) === "Continue from your saved notes.",
-				),
-			),
 		);
 		state.checkpointGate = undefined;
 		await submit(f, "idle cancellation anchor");

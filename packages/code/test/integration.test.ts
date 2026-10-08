@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -15,18 +15,11 @@ import {
 	createRegistry,
 	defineTool,
 	Harness,
-	hook,
 	MemoryStorage,
-	ToolTask,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { Type } from "typebox";
-import {
-	createCodeMode,
-	createNodeCommandBackend,
-	createNodeShellBackend,
-	loadCustomCommandTools,
-} from "../src/index.ts";
+import { createCodeMode, createNodeShellBackend } from "../src/index.ts";
 
 test("ordinary Durable registration executes inside V8 through a conversation-owned yielded cell", {
 	timeout: 180_000,
@@ -34,31 +27,10 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 	const context = BACKGROUND_CONTEXT;
 	const directory = await mkdtemp(join(tmpdir(), "durable-code-integration-"));
 	const files = new NodeExecutionEnv({ cwd: directory });
-	await writeFile(
-		join(directory, "custom.mjs"),
-		'process.stdout.write("fromCustom:"+process.argv[2])',
-	);
-	await writeFile(
-		join(directory, "replacement.mjs"),
-		'process.stdout.write("liveCustom:"+process.argv[2])',
-	);
-	await writeFile(
-		join(directory, "custom.toml"),
-		'usage="await tools.custom(input)"\ncommand="./custom.mjs"\ndefer_loading=false\noutput="string"\n',
-	);
-	const custom = await loadCustomCommandTools(
-		{
-			files,
-			backend: createNodeCommandBackend({ environmentId: files.id }),
-			roots: [{ path: directory, trusted: true }],
-		},
-		context,
-	);
 	const models = createModels();
 	const faux = fauxProvider();
 	models.setProvider(faux.provider);
 	let effects = 0;
-	const hookModels: boolean[] = [];
 	let harness: Harness;
 	const component = createCodeMode({
 		shell: { backend: createNodeShellBackend({ environmentId: files.id }) },
@@ -83,17 +55,8 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 			throw new Error("ordinary requires a number");
 		},
 		replay: "unsafe",
-		async execute(args, api) {
-			assert.equal(api.models, models);
-			assert.equal(
-				api.models.getModel("faux", "faux-1"),
-				models.getModel("faux", "faux-1"),
-			);
+		async execute(args) {
 			effects++;
-			await writeFile(
-				join(directory, "custom.toml"),
-				'usage="await tools.custom(input)"\ncommand="./replacement.mjs"\n',
-			);
 			await new Promise((resolve) => setTimeout(resolve, 50));
 			return { details: { doubled: args.n * 2 } };
 		},
@@ -102,20 +65,9 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 	const ordinary = {
 		name: "ordinary",
 		tools: [tool],
-		hooks: [
-			hook(ToolTask, {
-				beforeTool(call, api) {
-					if (call.name === tool.name) hookModels.push(api.models === models);
-				},
-				afterTool(call, _result, api) {
-					if (call.name === tool.name) hookModels.push(api.models === models);
-				},
-			}),
-		],
 	};
 	registry.install(component.extension);
 	registry.install(ordinary);
-	registry.install(custom.extension);
 	const results: ToolResultMessage[] = [];
 	faux.setResponses(
 		Array.from({ length: 10 }, () => (request) => {
@@ -124,15 +76,8 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 				.flatMap((message) => message.toolsAdded ?? []);
 			assert.ok(
 				!offered.some(
-					(tool) =>
-						tool.name === "ordinary" ||
-						tool.name === "exec_command" ||
-						tool.name === "custom",
+					(tool) => tool.name === "ordinary" || tool.name === "exec_command",
 				),
-			);
-			assert.match(
-				JSON.stringify(request.messages),
-				/await tools.custom\(input\)/,
 			);
 			const last = request.messages.findLast(
 				(message) => message.role !== "system",
@@ -140,7 +85,7 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 			if (last?.role !== "toolResult")
 				return fauxAssistantMessage(
 					fauxToolCall("exec", {
-						code: '// @exec: {"yield_time_ms":0}\ntext(await tools.ordinary("21")); text(ALL_TOOLS.find(t=>t.name==="custom")); const customValue=await tools.custom("input"); text(typeof customValue); text(customValue); store("persist", {ok:true}); notify("progress")',
+						code: '// @exec: {"yield_time_ms":0}\ntext(await tools.ordinary("21"));',
 					}),
 					{ stopReason: "toolUse" },
 				);
@@ -178,23 +123,15 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 		const root = await harness.root(context, {
 			agent: {
 				model: { provider: "faux", modelId: "faux-1" },
-				extensions: [component.extension, ordinary, custom.extension],
+				extensions: [component.extension, ordinary],
 			},
 		});
 		await (await root.submit({ type: "input", content: "run" }, context)).wait(
 			context,
 		);
 		assert.equal(effects, 1);
-		assert.deepEqual(hookModels, [true, true]);
 		assert.equal(results.length, 1);
 		assert.match(JSON.stringify(results[0]?.content), /42/);
-		assert.match(JSON.stringify(results[0]?.content), /liveCustom:input/);
-		assert.match(JSON.stringify(results[0]?.content), /Schema:.*string/);
-		assert.ok(
-			results[0]?.content.some(
-				(item) => item.type === "text" && item.text === "string",
-			),
-		);
 		assert.match(JSON.stringify(results[0]?.details), /ordinary/);
 	} finally {
 		await component.close();

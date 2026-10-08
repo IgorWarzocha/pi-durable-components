@@ -14,9 +14,9 @@ The component registers `skills` as an ordinary Durable `ToolRegistration` with 
 | `skill-document.ts` | `src/skill-document.ts` | Carried parser and validation algorithms, including BOM, newline normalization, quoted and folded scalars, name and description limits |
 | `skill-package.ts` | `src/skill-selection.ts`, `src/skill-package.ts` | Carried selection algorithm, local-first reference resolution, mixed skills, scoped selectors, deduplication, qualified ambiguity recovery, absolute paths, reference-only output and source attribution |
 | Package traversal | `src/files.ts`, `src/package-files.ts` | Environment-owned canonical containment, package symlinks, reference aliases, cycles, broken links, escaping links, dotfiles, dependency pruning and shallow assets |
-| Tool execution | `src/index.ts` | Real Durable Harness test reaches schema validation, before-tool hooks, results, thrown errors and uncut continuation footer despite thousands of lines |
+| Tool execution | `src/index.ts` | Real Durable Harness test preserves bounded output and its continuation footer despite thousands of lines |
 
-`packages/skills/test/registration.test.ts` runs the ordinary tool through a Durable Harness and a scripted pi-ai provider. It rejects incorrect results and loss of continuation information, not just registration existence. Discovery and parser unit fixtures were pruned in favor of actual tool workflows.
+`packages/skills/test/registration.test.ts` runs the ordinary tool through a Durable Harness and a scripted pi-ai provider. It rejects loss of continuation information at the output boundary. Discovery, parser, validation and hook tours are not retained.
 
 A read-only live differential probe compared 24 calls against the pinned source `runSkills`. Outputs and error messages matched for listing, category filtering, session precedence, hidden skills, full package reads, suffix aliases, scoped and mixed references, duplicate selectors, batched commands, malformed commands, unknown skills, byte offsets and escaping references. This probe used identical temporary fixtures for both implementations and left the source untouched.
 

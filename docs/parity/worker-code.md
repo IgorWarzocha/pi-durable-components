@@ -10,11 +10,12 @@ QuickJS comes from exact `quickjs-emscripten` and `@jitl/quickjs-wasmfile-releas
 
 `packages/worker-code/test/workflows.test.mjs` runs the maintained component through Wrangler's real workerd runtime with compiled WASM and a real Durable Harness. Its workflow exercises:
 
-- Relative snapshot module imports and guest isolation.
+- Guest isolation and rejection of imports outside the supplied snapshot.
 - Interpreter fuel, promise-job, heap and result limits, followed by successful execution.
-- Concurrent ordinary tools reached through an editable guest handler, including argument preparation, hooks, wrapped registrations, results, usage and controls.
+- Concurrent ordinary effects reached once through an editable guest handler, with their results preserved.
 - Incremental output, explicit yielding and observations of running cells.
 - Cancellation of a double-nested owned effect with no remaining live tasks or guest runtimes.
+- Shared runtime admission and reserved-heap limits across multiple Harness owners.
 
 Guest invocations use fresh runtimes. Shared isolate admission and WASM memory ceilings also apply across component instances. Interrupted source and uncertain effects are not permission to replay execution.
 

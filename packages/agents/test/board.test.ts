@@ -20,7 +20,6 @@ import type {
 } from "@earendil-works/pi-durable";
 import {
 	createRegistry,
-	createSession,
 	defineExtension,
 	Harness,
 	hook,
@@ -29,14 +28,7 @@ import {
 } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { BoardNotices } from "../src/board/notices.ts";
-import {
-	BoardCatalog,
-	BoardIndex,
-	MutationReceipt,
-	PostText,
-	textKey,
-} from "../src/board/store-model.ts";
-import { createAgents, readSavedThreads } from "../src/index.ts";
+import { createAgents } from "../src/index.ts";
 import { Fleet, textOf } from "../src/state.ts";
 
 const context = BACKGROUND_CONTEXT;
@@ -249,249 +241,22 @@ async function spawn(
 	await f.harness.waitForTask(delegation.reporter, context);
 	const child = await f.harness.conversation(delegation.target, context);
 	assert.ok(child);
-	return { child, path: string(value["boardAgent"]) };
+	return { child };
 }
 
-test("saved threads preserve full ordered posts, authors and root-owned archives without Harness startup", async () => {
-	const directory = await mkdtemp(join(tmpdir(), "durable-saved-threads-"));
-	const path = join(directory, "session.sqlite");
-	const f = await fixture(path);
-	try {
-		assert.deepEqual(await readSavedThreads(f.storage, f.root.id, context), []);
-		assert.equal(await f.harness.snapshot(BoardCatalog, context), undefined);
-		const worker = await spawn(f, f.root, "Saved board worker");
-		const body = `Opening 😀\n${"complete body\n".repeat(2000)}`;
-		const first = await board(f.root, {
-			action: "post",
-			new_channel_name: "Saved work",
-			text: body,
-		});
-		const threadId = string(first["thread_id"]);
-		const reply = await board(worker.child, {
-			action: "post",
-			thread_id: threadId,
-			text: "Worker reply 😀",
-		});
-		const followup = await board(f.root, {
-			action: "post",
-			thread_id: threadId,
-			text: "Root follow-up",
-		});
-		const outsider = await f.harness.createConversation(
-			{ ownership: { kind: "ownerless" }, agent: f.agent },
-			context,
-		);
-		const archive = await board(outsider, {
-			action: "post",
-			new_channel_name: "Own archive",
-			text: "Not the root's board",
-		});
-		assert.equal(
-			(
-				await invoke(f.root, "agents", {
-					action: "attach",
-					target: String(outsider.id),
-				})
-			).isError,
-			false,
-		);
-		const boardId = string(
-			(await board(f.root, { action: "help" }))["board_id"],
-		);
-		await f.harness.close(context);
-		const storage = await openNodeSqliteStorage(path);
-		try {
-			const before = await storage.scanDocuments(
-				{ scope: { kind: "session" }, at: "current" },
-				100,
-				undefined,
-				context,
-			);
-			const saved = await readSavedThreads(storage, f.root.id, context);
-			assert.deepEqual(saved, [
-				{
-					boardId,
-					threadId,
-					channel: "Saved work",
-					posts: [
-						{
-							messageId: threadId,
-							author: "/root",
-							createdAt: string(first["created_at"]),
-							text: body,
-						},
-						{
-							messageId: string(reply["message_id"]),
-							author: worker.path,
-							createdAt: string(reply["created_at"]),
-							text: "Worker reply 😀",
-						},
-						{
-							messageId: string(followup["message_id"]),
-							author: "/root",
-							createdAt: string(followup["created_at"]),
-							text: "Root follow-up",
-						},
-					],
-				},
-			]);
-			assert.deepEqual(
-				(await readSavedThreads(storage, outsider.id, context)).flatMap(
-					(thread) => thread.posts.map((post) => post.messageId),
-				),
-				[string(archive["message_id"])],
-			);
-			assert.deepEqual(
-				await storage.scanDocuments(
-					{ scope: { kind: "session" }, at: "current" },
-					100,
-					undefined,
-					context,
-				),
-				before,
-			);
-			const session = createSession(storage);
-			await session.commit(async (tx) => {
-				await tx.retireDoc(PostText, textKey(boardId, threadId));
-			}, context);
-			await assert.rejects(
-				readSavedThreads(storage, f.root.id, context),
-				/Missing saved board post body/,
-			);
-			await session.commit(async (tx) => {
-				await tx.retireDoc(BoardIndex, boardId);
-			}, context);
-			await assert.rejects(
-				readSavedThreads(storage, f.root.id, context),
-				/Saved board catalog\/index mismatch/,
-			);
-		} finally {
-			await storage.close(context);
-		}
-	} finally {
-		await f.harness.close(context);
-		await rm(directory, { recursive: true, force: true });
-	}
-});
-
-test("board trees retain read-only archives, Unicode text and bounded continuations across membership changes", {
+test("joining a board leaves its former archive immutable and separate storage sessions cannot read its posts", {
 	timeout: 25_000,
 }, async () => {
 	const directory = await mkdtemp(join(tmpdir(), "durable-board-reads-"));
 	const f = await fixture(join(directory, "session.sqlite"));
 	try {
-		const identity = await board(f.root, { action: "help" });
-		const id = string(identity["board_id"]);
-		assert.equal(identity["agent_name"], "/root");
-		assert.equal(
-			rows(await board(f.root, { action: "list_boards" })).length,
-			0,
-		);
-		const worker = await spawn(f, f.root, "Board reader");
-		const grandchild = await spawn(f, worker.child, "Nested reader");
-		await grandchild.child.configure({ cwd: "/virtual/grandchild" }, context);
-		assert.ok(grandchild.path.startsWith(`${worker.path}/`));
-		assert.equal(
-			(await board(grandchild.child, { action: "help" }))["board_id"],
-			id,
-		);
-		await board(grandchild.child, {
-			action: "create_channel",
-			channel_name: "Straße",
-			subscribe: false,
-		});
-		assert.equal(
-			rows(
-				await board(worker.child, { action: "get_channels", query: "STRASSE" }),
-			)[0]?.["channel_name"],
-			"Straße",
-		);
-		const body = `Straße 😀\n"\\${'😀\n"\\ß'.repeat(3000)}`;
-		const first = await board(f.root, {
+		const id = string((await board(f.root, { action: "help" }))["board_id"]);
+		const published = await board(f.root, {
 			action: "post",
-			channel_name: "Straße",
-			text: body,
+			new_channel_name: "Shared",
+			text: "shared content",
 		});
-		const postId = string(first["message_id"]);
-		assert.equal(first["thread_id"], postId);
-		const hits = rows(
-			await board(worker.child, {
-				action: "search_posts",
-				query: "STRASSE",
-				author: "/root",
-			}),
-		);
-		assert.deepEqual(
-			hits.map((item) => item["message_id"]),
-			[postId],
-		);
-		let offset = 0;
-		let restored = "";
-		do {
-			const page = await board(worker.child, {
-				action: "read_post",
-				message_id: postId,
-				offset_chars: offset,
-			});
-			const text = string(page["text"]);
-			assert.equal(
-				text,
-				Array.from(body)
-					.slice(offset, Number(page["next_offset_chars"]))
-					.join(""),
-			);
-			assert.ok(Number(page["next_offset_chars"]) > offset);
-			offset = Number(page["next_offset_chars"]);
-			restored += text;
-			assert.equal(page["n_chars"], Array.from(body).length);
-		} while (offset < Array.from(body).length);
-		assert.equal(restored, body);
-		const replyIds: string[] = [];
-		for (let i = 0; i < 3; i++)
-			replyIds.push(
-				string(
-					(
-						await board(i === 1 ? grandchild.child : worker.child, {
-							action: "post",
-							thread_id: postId,
-							text: `${i} ${body}`,
-						})
-					)["message_id"],
-				),
-			);
-		assert.deepEqual(
-			rows(
-				await board(worker.child, {
-					action: "search_posts",
-					author: grandchild.path.slice(worker.path.length + 1),
-				}),
-			).map((row) => row["message_id"]),
-			[replyIds[1]],
-		);
-		let cursor: string | undefined;
-		const seen: string[] = [];
-		do {
-			const page = await board(f.root, {
-				action: "read_thread",
-				thread_id: postId,
-				limit: 2,
-				max_chars_per_post: 20000,
-				...(cursor === undefined ? {} : { cursor }),
-			});
-			assert.equal(object(page["root_post"])["message_id"], postId);
-			seen.push(...rows(page).map((row) => string(row["message_id"])));
-			cursor =
-				page["has_more"] === true ? string(page["next_cursor"]) : undefined;
-		} while (cursor !== undefined);
-		assert.deepEqual(seen, replyIds.toReversed());
-		const threads = rows(
-			await board(f.root, {
-				action: "list_threads",
-				channel_name: "Straße",
-				sort: "activity",
-			}),
-		);
-		assert.equal(threads[0]?.["reply_count"], 3);
+		const postId = string(published["message_id"]);
 		const outsider = await f.harness.createConversation(
 			{ ownership: { kind: "ownerless" }, agent: f.agent },
 			context,
@@ -526,59 +291,6 @@ test("board trees retain read-only archives, Unicode text and bounded continuati
 			).isError,
 			true,
 		);
-		assert.equal(
-			(
-				await invoke(outsider, "board", {
-					action: "subscribe",
-					target_agent: "/root/missing",
-					channel_name: "Straße",
-				})
-			).isError,
-			true,
-		);
-		const detached = await invoke(f.root, "agents", {
-			action: "detach",
-			target: String(outsider.id),
-		});
-		assert.equal(detached.isError, false, textOf([detached]));
-		assert.equal((await board(outsider, { action: "help" }))["board_id"], old);
-		assert.equal(
-			rows(await board(outsider, { action: "get_channels" }))[0]?.[
-				"channel_name"
-			],
-			"Private",
-		);
-		assert.equal(
-			rows(
-				await board(outsider, { action: "get_channels", board_id: id }),
-			)[0]?.["channel_name"],
-			"Straße",
-		);
-		const catalog = await board(outsider, { action: "list_boards", limit: 1 });
-		assert.equal(catalog["has_more"], true);
-		const remaining = await board(outsider, {
-			action: "list_boards",
-			limit: 1,
-			cursor: string(catalog["next_cursor"]),
-		});
-		const archives = [...rows(catalog), ...rows(remaining)];
-		assert.equal(
-			archives.find((row) => row["board_id"] === id)?.["owner_folder"],
-			"/virtual/board",
-		);
-		assert.deepEqual(
-			archives.map((row) => row["board_id"]).sort(),
-			[id, old].sort(),
-		);
-		assert.equal(
-			archives.find((row) => row["board_id"] === old)?.["current"],
-			true,
-		);
-		assert.equal(
-			archives.find((row) => row["board_id"] === id)?.["current"],
-			false,
-		);
-		assert.equal(remaining["has_more"], false);
 		const isolated = await fixture(join(directory, "other-session.sqlite"));
 		try {
 			assert.equal(
@@ -612,7 +324,7 @@ test("board trees retain read-only archives, Unicode text and bounded continuati
 	}
 });
 
-test("board subscriptions steer only active inputs, never idle members, and notices cannot leak after abort or provider failure", {
+test("board notices stay in their active input and never leak into idle or later inputs after abort or failure", {
 	timeout: 20_000,
 }, async () => {
 	const directory = await mkdtemp(join(tmpdir(), "durable-board-notices-"));
@@ -645,45 +357,11 @@ test("board subscriptions steer only active inputs, never idle members, and noti
 		await controls.hold?.begun;
 		await board(f.root, {
 			action: "post",
-			channel_name: "Changes",
-			text: "channel first post",
-			agents_to_notify: [
-				busy.path,
-				busy.path.slice("/root/".length),
-				idle.path,
-				"/root",
-			],
-		});
-		await board(f.root, {
-			action: "post",
 			thread_id: threadId,
 			text: "subscribed reply",
 		});
-		const other = await board(f.root, {
-			action: "post",
-			new_channel_name: "Other",
-			text: "unsubscribed thread",
-		});
-		await board(f.root, {
-			action: "post",
-			thread_id: string(other["thread_id"]),
-			text: "not delivered",
-		});
-		const queue = await pending(f.harness, busy.child);
-		assert.equal(queue.length, 2);
-		const anchor = (await f.harness.snapshot(LiveDoc, busy.child.id, context))
-			?.run?.inputs[0];
-		assert.ok(
-			queue.every(
-				(item) =>
-					item.input === anchor && item.content.startsWith("Board post "),
-			),
-		);
+		assert.equal((await pending(f.harness, busy.child)).length, 1);
 		assert.equal((await pending(f.harness, idle.child)).length, 0);
-		assert.equal(
-			(await f.harness.snapshot(LiveDoc, idle.child.id, context))?.run,
-			undefined,
-		);
 		assert.equal(
 			(await idle.child.entries({}, 100, undefined, context)).items.length,
 			idleBefore,
@@ -695,31 +373,15 @@ test("board subscriptions steer only active inputs, never idle members, and noti
 			(message) =>
 				message.role === "user" && textOf([message]).startsWith("Board post "),
 		);
-		assert.equal(textOf(delivered).match(/Board post /g)?.length, 2);
-		assert.match(textOf(delivered), /channel first post/);
+		assert.equal(textOf(delivered).match(/Board post /g)?.length, 1);
 		assert.match(textOf(delivered), /subscribed reply/);
-		assert.equal(controls.seenNotices?.size, 2);
-		assert.match(
-			[...(controls.seenNotices ?? [])].join("\n"),
-			/channel first post/,
-		);
-		assert.match(
-			[...(controls.seenNotices ?? [])].join("\n"),
-			/subscribed reply/,
-		);
-		await board(busy.child, { action: "unsubscribe", channel_name: "Changes" });
+		assert.equal(controls.seenNotices?.size, 1);
 		controls.hold = gate();
 		await busy.child.submit(
 			{ type: "input", content: "hold board recipient" },
 			context,
 		);
 		await controls.hold.begun;
-		await board(f.root, {
-			action: "post",
-			channel_name: "Changes",
-			text: "unsubscribed channel",
-		});
-		assert.equal((await pending(f.harness, busy.child)).length, 0);
 		const aborted = await board(f.root, {
 			action: "post",
 			thread_id: threadId,
@@ -814,7 +476,7 @@ test("board subscriptions steer only active inputs, never idle members, and noti
 	}
 });
 
-test("every board mutation returns its original task receipt after interruption without duplicating posts or reversing newer subscriptions", {
+test("an interrupted board post replays its receipt without duplicating the post or its notice", {
 	timeout: 25_000,
 }, async () => {
 	const directory = await mkdtemp(join(tmpdir(), "durable-board-receipts-"));
@@ -822,112 +484,70 @@ test("every board mutation returns its original task receipt after interruption 
 	const controls: Controls = { seenNotices: new Set() };
 	let f = await fixture(path, controls);
 	try {
-		const identity = await board(f.root, { action: "help" });
-		const boardId = string(identity["board_id"]);
 		const worker = await spawn(f, f.root, "Receipt reader");
 		const workerId = worker.child.id;
-		for (const action of [
-			"create_channel",
-			"post",
-			"subscribe",
-			"unsubscribe",
-		]) {
-			const callId = randomUUID();
-			const stop: NonNullable<Controls["interrupt"]> = { callId, gate: gate() };
-			controls.interrupt = stop;
-			if (action === "post") {
-				const peer = await f.harness.conversation(workerId, context);
-				assert.ok(peer);
-				await board(peer, { action: "subscribe", channel_name: "Receipts" });
-				controls.hold = gate();
-				await peer.submit(
-					{ type: "input", content: "hold board recipient" },
-					context,
-				);
-				await controls.hold.begun;
-			}
-			const args: JsonObject = {
-				action,
-				channel_name: "Receipts",
-				...(action === "post" ? { text: "publish exactly once" } : {}),
-			};
-			const submission = await submit(f.root, "board", args, callId);
-			await stop.gate.begun;
-			assert.ok(stop.task);
-			assert.ok(stop.value);
-			const receipt = await f.harness.snapshot(
-				MutationReceipt,
-				stop.task,
-				context,
-			);
-			assert.deepEqual(receipt?.saved?.value, stop.value);
-			const before = await f.harness.snapshot(BoardIndex, boardId, context);
-			assert.ok(before);
-			if (action === "subscribe" || action === "unsubscribe") {
-				const peer = await f.harness.conversation(workerId, context);
-				assert.ok(peer);
-				await board(peer, {
-					action: action === "subscribe" ? "unsubscribe" : "subscribe",
-					channel_name: "Receipts",
-					target_agent: "/root",
-				});
-			}
-			const expected = await f.harness.snapshot(BoardIndex, boardId, context);
-			const peer = await f.harness.conversation(workerId, context);
-			assert.ok(peer);
-			if (action === "post")
-				assert.equal((await pending(f.harness, peer)).length, 1);
-			await f.harness.close(context);
-			const replay: NonNullable<Controls["interrupt"]> = {
-				callId,
-				gate: gate(),
-			};
-			controls.interrupt = replay;
-			f = await fixture(path, controls);
-			const resumed = await f.harness.submission(submission.id, context);
-			assert.ok(resumed);
-			const settled = resumed.wait(context);
-			// Teardown closes this wait if an assertion fails while the hook is held.
-			settled.catch(() => {});
-			await replay.gate.begun;
-			assert.equal(replay.task, stop.task);
-			assert.deepEqual(replay.value, stop.value);
-			assert.deepEqual(
-				await f.harness.snapshot(BoardIndex, boardId, context),
-				expected,
-			);
-			assert.deepEqual(
-				(await f.harness.snapshot(MutationReceipt, stop.task, context))?.saved,
-				receipt?.saved,
-			);
-			if (action === "post") {
-				controls.hold?.release();
-				const peer = await f.harness.conversation(workerId, context);
-				assert.ok(peer);
-				await peer.waitForIdle(context);
-				assert.equal(
-					(await peer.context(context)).messages.filter(
-						(message) =>
-							message.role === "user" &&
-							textOf([message]).startsWith("Board post "),
-					).length,
-					1,
-				);
-				assert.equal((await pending(f.harness, peer)).length, 0);
-				assert.equal(controls.seenNotices?.size, 1);
-				assert.match(
-					[...(controls.seenNotices ?? [])].join("\n"),
-					/publish exactly once/,
-				);
-			}
-			replay.gate.release();
-			assert.equal((await settled).status, "done");
-			const answer = await result(f.root, callId);
-			assert.equal(answer.isError, false, textOf([answer]));
-			assert.deepEqual(answer.details, stop.value);
-			delete controls.interrupt;
-			assert.deepEqual(f.failures, []);
-		}
+		await board(f.root, { action: "create_channel", channel_name: "Receipts" });
+		const callId = randomUUID();
+		const stop: NonNullable<Controls["interrupt"]> = { callId, gate: gate() };
+		controls.interrupt = stop;
+		const recipient = worker.child;
+		await board(recipient, { action: "subscribe", channel_name: "Receipts" });
+		controls.hold = gate();
+		await recipient.submit(
+			{ type: "input", content: "hold board recipient" },
+			context,
+		);
+		await controls.hold.begun;
+		const args: JsonObject = {
+			action: "post",
+			channel_name: "Receipts",
+			text: "publish exactly once",
+		};
+		const submission = await submit(f.root, "board", args, callId);
+		await stop.gate.begun;
+		assert.ok(stop.task);
+		assert.ok(stop.value);
+		assert.equal((await pending(f.harness, recipient)).length, 1);
+		await f.harness.close(context);
+		const replay: NonNullable<Controls["interrupt"]> = {
+			callId,
+			gate: gate(),
+		};
+		controls.interrupt = replay;
+		f = await fixture(path, controls);
+		const resumed = await f.harness.submission(submission.id, context);
+		assert.ok(resumed);
+		const settled = resumed.wait(context);
+		// Teardown closes this wait if an assertion fails while the hook is held.
+		settled.catch(() => {});
+		await replay.gate.begun;
+		assert.equal(replay.task, stop.task);
+		assert.deepEqual(replay.value, stop.value);
+		controls.hold?.release();
+		const reopenedPeer = await f.harness.conversation(workerId, context);
+		assert.ok(reopenedPeer);
+		await reopenedPeer.waitForIdle(context);
+		assert.equal(
+			(await reopenedPeer.context(context)).messages.filter(
+				(message) =>
+					message.role === "user" &&
+					textOf([message]).startsWith("Board post "),
+			).length,
+			1,
+		);
+		assert.equal((await pending(f.harness, reopenedPeer)).length, 0);
+		assert.equal(controls.seenNotices?.size, 1);
+		assert.match(
+			[...(controls.seenNotices ?? [])].join("\n"),
+			/publish exactly once/,
+		);
+		replay.gate.release();
+		assert.equal((await settled).status, "done");
+		const answer = await result(f.root, callId);
+		assert.equal(answer.isError, false, textOf([answer]));
+		assert.deepEqual(answer.details, stop.value);
+		delete controls.interrupt;
+		assert.deepEqual(f.failures, []);
 		const posts = rows(
 			await board(f.root, {
 				action: "search_posts",

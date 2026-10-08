@@ -6,13 +6,11 @@ import test from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { isJsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { Type } from "@earendil-works/pi-ai";
 import { createModels } from "@earendil-works/pi-ai/models";
 import type { FauxResponseStep } from "@earendil-works/pi-ai/providers/faux";
 import {
 	fauxAssistantMessage,
 	fauxProvider,
-	fauxText,
 	fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
 import type {
@@ -22,13 +20,8 @@ import type {
 	TaskId,
 } from "@earendil-works/pi-durable";
 import {
-	AgentDoc,
 	createRegistry,
-	defineExtension,
-	defineTool,
-	GenerationTask,
 	Harness,
-	hook,
 	MemoryStorage,
 } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
@@ -83,8 +76,6 @@ async function fixture(storage: Storage = new MemoryStorage(), hold = gate()) {
 					? "FINAL worker answer"
 					: "controller done",
 			);
-		if (text === "continue yield")
-			return fauxAssistantMessage("FINAL worker answer");
 		if (text.startsWith("[Agent result]"))
 			return fauxAssistantMessage("report received");
 		if (text.startsWith("[Task from") || text.startsWith("[Message from")) {
@@ -92,7 +83,7 @@ async function fixture(storage: Storage = new MemoryStorage(), hold = gate()) {
 			if (text.includes("tool round"))
 				return fauxAssistantMessage(
 					[
-						fauxText("I will check help first"),
+						{ type: "text", text: "INTERMEDIATE tool message" },
 						fauxToolCall(
 							"agents",
 							{ action: "help" },
@@ -101,28 +92,7 @@ async function fixture(storage: Storage = new MemoryStorage(), hold = gate()) {
 					],
 					{ stopReason: "toolUse" },
 				);
-			if (text.includes("yield continuation"))
-				return fauxAssistantMessage("INTERMEDIATE yield");
-			if (text.includes("terminate") || text.includes("handoff"))
-				return fauxAssistantMessage(
-					[
-						fauxText("FINAL worker answer"),
-						fauxToolCall(
-							"finish",
-							{ handoff: text.includes("handoff") },
-							{ id: `finish-${++call}` },
-						),
-					],
-					{ stopReason: "toolUse" },
-				);
-			if (text.includes("fail task"))
-				return fauxAssistantMessage("worker error detail", {
-					stopReason: "error",
-					errorMessage: "Worker rejected task",
-				});
-			return fauxAssistantMessage(
-				text.includes("large") ? "x".repeat(70_010) : `worker answer: ${text}`,
-			);
+			return fauxAssistantMessage(`worker answer: ${text}`);
 		}
 		const args: unknown = JSON.parse(text);
 		return fauxAssistantMessage(
@@ -135,7 +105,7 @@ async function fixture(storage: Storage = new MemoryStorage(), hold = gate()) {
 		profiles: {
 			general: {
 				description: "General worker",
-				agent: { instructions: "worker instructions", cwd: "/virtual/profile" },
+				agent: { instructions: "worker instructions" },
 			},
 			async: {
 				description: "Always asynchronous",
@@ -144,33 +114,8 @@ async function fixture(storage: Storage = new MemoryStorage(), hold = gate()) {
 			},
 		},
 	});
-	const continuations = defineExtension({
-		name: "test.continuations",
-		hooks: [
-			hook(GenerationTask, {
-				onYield: (answer) =>
-					textOf([answer]) === "INTERMEDIATE yield"
-						? { continue: "continue yield" }
-						: undefined,
-			}),
-		],
-		tools: [
-			defineTool({
-				name: "finish",
-				description: "End this run",
-				parameters: Type.Object({ handoff: Type.Boolean() }),
-				execute: async (args) => ({
-					content: [{ type: "text", text: "finished" }],
-					control: args.handoff
-						? { handoff: "Next context" }
-						: { terminate: true },
-				}),
-			}),
-		],
-	});
 	const registry = createRegistry();
 	registry.install(component.extension);
-	registry.install(continuations);
 	const reports: string[] = [];
 	const failures: unknown[] = [];
 	const harness = await Harness.open(
@@ -198,10 +143,10 @@ async function fixture(storage: Storage = new MemoryStorage(), hold = gate()) {
 	const root = await harness.root(context, {
 		agent: {
 			model: { provider: "faux", modelId: "faux-1" },
-			extensions: [component.extension, continuations],
+			extensions: [component.extension],
 		},
 	});
-	return { harness, root, reports, failures, hold, component };
+	return { harness, root, reports, failures, hold };
 }
 
 async function invoke(root: Conversation, args: JsonObject) {
@@ -222,10 +167,6 @@ function jsonObject(value: unknown): JsonObject {
 		typeof value === "object" && value !== null && !Array.isArray(value),
 	);
 	return value;
-}
-
-function details(value: Awaited<ReturnType<typeof invoke>>): JsonObject {
-	return jsonObject(value.details);
 }
 
 async function latestDelegation(harness: Harness) {
@@ -269,271 +210,59 @@ function watchDelivery(harness: Harness, id: TaskId) {
 	});
 }
 
-test("an idle persistent watch reconciles document wakeups without faulting or dropping send results", {
-	timeout: 10_000,
-}, async () => {
-	for (const source of ["component", "host"])
-		for (const unrelatedWake of [false, true]) {
-			const f = await fixture();
-			try {
-				const target = await (async () => {
-					if (source === "component") {
-						await invoke(f.root, {
-							action: "spawn",
-							agent_type: "general",
-							label: "Idle watcher",
-							message: "first",
-						});
-						const receipt = await latestDelegation(f.harness);
-						await f.harness.waitForTask(receipt.reporter, context);
-						return receipt.target;
-					}
-					const peer = await f.harness.createConversation(
-						{
-							ownership: { kind: "ownerless" },
-							agent: {
-								model: { provider: "faux", modelId: "faux-1" },
-								extensions: [f.component.extension],
-							},
-						},
-						context,
-					);
-					// No request ID and no component registry entry. Watches must still follow native inputs.
-					await (
-						await peer.submit(
-							{ type: "input", content: "[Message from host]\nfirst" },
-							context,
-						)
-					).wait(context);
-					return peer.id;
-				})();
-				await invoke(f.root, { action: "watch", target: String(target) });
-				const id = (await f.harness.snapshot(Fleet, context))?.watches[
-					`${f.root.id}:${target}`
-				];
-				assert.ok(id);
-				const delivered = watchDelivery(f.harness, id);
-				// Flush pending microtasks so this exercises the idle document wait, not startup reconciliation.
-				await setImmediate();
-				if (unrelatedWake) {
-					await f.harness.commit(async (tx) => {
-						(await tx.doc(Fleet)).changes["unrelated"] = {
-							target,
-							watched: false,
-						};
-					}, context);
-					await setImmediate();
-				}
-				await invoke(f.root, {
-					action: "send",
-					target: String(target),
-					message: "next",
-				});
-				assert.equal(await delivered, "reported");
-				await f.root.waitForIdle(context);
-				assert.equal((await reportEntries(f.root)).length, 1);
-				assert.notEqual(
-					(await f.harness.getTask(id, context))?.state.status,
-					"terminal",
-				);
-				await invoke(f.root, { action: "unwatch", target: String(target) });
-				assert.equal(
-					(await f.harness.waitForTask(id, context)).state.outcome.status,
-					"completed",
-				);
-				assert.deepEqual(f.failures, []);
-			} finally {
-				await f.harness.close(context);
-			}
-		}
-});
-
-test("watch completion follows input settlement across tools and onYield but preserves terminate and handoff answers", {
+test("a reopened watch reports only the settled input answer, not an intermediate tool-use message", {
 	timeout: 15_000,
 }, async () => {
-	for (const task of [
-		"tool round",
-		"yield continuation",
-		"terminate",
-		"handoff",
-		"fail task",
-	]) {
-		const directory =
-			task === "tool round"
-				? await mkdtemp(join(tmpdir(), "durable-agents-continuation-"))
-				: undefined;
-		const path =
-			directory === undefined ? undefined : join(directory, "session.sqlite");
-		const hold = gate();
-		let f = await fixture(
-			path === undefined
-				? new MemoryStorage()
-				: await openNodeSqliteStorage(path),
-			hold,
-		);
-		try {
-			await invoke(f.root, {
-				action: "spawn",
-				agent_type: "general",
-				label: "Continuing worker",
-				message: "first",
-			});
-			const receipt = await latestDelegation(f.harness);
-			await f.harness.waitForTask(receipt.reporter, context);
-			// Only the explicit watch reports this message. No delegation reporter can mask a broken watcher.
-			await invoke(f.root, {
-				action: "send",
-				target: receipt.name,
-				message: `hold ${task}`,
-			});
-			await f.hold.begun;
-			await invoke(f.root, { action: "watch", target: receipt.name });
-			const id = (await f.harness.snapshot(Fleet, context))?.watches[
-				`${f.root.id}:${receipt.target}`
-			];
-			assert.ok(id);
-			await setImmediate();
-			if (path !== undefined) {
-				await f.harness.close(context);
-				f = await fixture(await openNodeSqliteStorage(path), hold);
-			}
-			const delivered = watchDelivery(f.harness, id);
-			f.hold.release();
-			const child = await f.harness.conversation(receipt.target, context);
-			assert.ok(child);
-			await child.waitForIdle(context);
-			assert.equal(await delivered, "reported");
-			await f.root.waitForIdle(context);
-			// Stop and join the watcher, including any already-durable report phase, before counting reports.
-			await invoke(f.root, { action: "unwatch", target: receipt.name });
-			const watch = await f.harness.waitForTask(id, context);
-			await f.root.waitForIdle(context);
-			const reports = await reportEntries(f.root);
-			assert.equal(reports.length, 1, task);
-			assert.match(
-				textOf(reports[0]?.model),
-				task === "fail task" ? /Worker rejected task/ : /FINAL worker answer/,
-				task,
-			);
-			assert.doesNotMatch(
-				textOf(reports[0]?.model),
-				/I will check help first|INTERMEDIATE yield/,
-				task,
-			);
-			assert.equal(watch.state.outcome.status, "completed");
-			assert.deepEqual(f.failures, []);
-		} finally {
-			await f.harness.close(context);
-			if (directory !== undefined)
-				await rm(directory, { recursive: true, force: true });
-		}
-	}
-});
-
-test("blocking delegation returns the actual answer and profile config without asynchronous echoes", {
-	timeout: 10_000,
-}, async () => {
-	const f = await fixture();
+	const directory = await mkdtemp(
+		join(tmpdir(), "durable-agents-watch-settlement-"),
+	);
+	const path = join(directory, "session.sqlite");
+	const hold = gate();
+	let f = await fixture(await openNodeSqliteStorage(path), hold);
 	try {
-		const answer = details(
-			await invoke(f.root, {
-				action: "spawn",
-				agent_type: "general",
-				label: "Prime reader",
-				message: "primes",
-				cwd: "/virtual/call",
-			}),
-		);
-		assert.equal(answer["status"], "done");
-		assert.equal(
-			answer["reply"],
-			`worker answer: [Task from conversation ${f.root.id}]\nprimes`,
-		);
+		await invoke(f.root, {
+			action: "spawn",
+			agent_type: "general",
+			label: "Continuing worker",
+			message: "first",
+		});
 		const receipt = await latestDelegation(f.harness);
 		await f.harness.waitForTask(receipt.reporter, context);
-		assert.equal(
-			(await f.harness.snapshot(AgentDoc, receipt.target, context))?.cwd,
-			"/virtual/call",
-		);
-		assert.equal(
-			(await f.harness.snapshot(AgentDoc, receipt.target, context))
-				?.instructions,
-			"worker instructions",
-		);
-		assert.deepEqual(f.reports, []);
-		const reassigned = details(
-			await invoke(f.root, {
-				action: "assign",
-				target: String(answer["target"]),
-				message: "more primes",
-			}),
-		);
-		assert.equal(reassigned["target"], answer["target"]);
-		assert.equal(reassigned["assigned"], true);
-		assert.equal(
-			Object.keys((await f.harness.snapshot(Fleet, context))?.agents ?? {})
-				.length,
-			1,
-		);
-		assert.deepEqual(f.failures, []);
-	} finally {
-		await f.harness.close(context);
-	}
-});
-
-test("profile blocking policy wins and asynchronous completion is task-scoped after the controller replies", {
-	timeout: 10_000,
-}, async () => {
-	const f = await fixture();
-	try {
-		const answer = details(
-			await invoke(f.root, {
-				action: "spawn",
-				agent_type: "async",
-				label: "Slow reader",
-				message: "hold",
-				blocking: true,
-			}),
-		);
+		// Only the explicit watch reports this message. No delegation reporter can mask a broken watcher.
+		await invoke(f.root, {
+			action: "send",
+			target: receipt.name,
+			message: "hold tool round",
+		});
 		await f.hold.begun;
-		assert.equal(answer["status"], "working");
-		assert.deepEqual(f.reports, []);
-		const receipt = await latestDelegation(f.harness);
-		const steering = details(
-			await invoke(f.root, {
-				action: "send",
-				target: receipt.name,
-				message: "steer now",
-			}),
-		);
-		assert.equal(steering["sent"], true);
-		assert.equal(
-			Object.keys((await f.harness.snapshot(Fleet, context))?.delegations ?? {})
-				.length,
-			1,
-		);
-		assert.deepEqual(f.reports, []);
+		await invoke(f.root, { action: "watch", target: receipt.name });
+		const id = (await f.harness.snapshot(Fleet, context))?.watches[
+			`${f.root.id}:${receipt.target}`
+		];
+		assert.ok(id);
+		await setImmediate();
+		await f.harness.close(context);
+		f = await fixture(await openNodeSqliteStorage(path), hold);
+		const delivered = watchDelivery(f.harness, id);
 		f.hold.release();
-		await f.harness.waitForTask(receipt.reporter, context);
-		await f.root.waitForIdle(context);
-		assert.equal((await reportEntries(f.root)).length, 1);
-		assert.equal(f.reports.length, 1);
-		const sent = details(
-			await invoke(f.root, {
-				action: "send",
-				target: receipt.name,
-				message: "next message",
-			}),
-		);
-		assert.equal(sent["sent"], true);
 		const child = await f.harness.conversation(receipt.target, context);
 		assert.ok(child);
 		await child.waitForIdle(context);
-		assert.equal(f.reports.length, 1);
-		assert.deepEqual((await f.harness.snapshot(Fleet, context))?.watches, {});
+		assert.equal(await delivered, "reported");
+		await f.root.waitForIdle(context);
+		// Stop and join the watcher, including any already-durable report phase, before counting reports.
+		await invoke(f.root, { action: "unwatch", target: receipt.name });
+		const watch = await f.harness.waitForTask(id, context);
+		await f.root.waitForIdle(context);
+		const reports = await reportEntries(f.root);
+		assert.equal(reports.length, 1);
+		assert.match(textOf(reports[0]?.model), /FINAL worker answer/);
+		assert.doesNotMatch(textOf(reports[0]?.model), /INTERMEDIATE tool message/);
+		assert.equal(watch.state.outcome.status, "completed");
 		assert.deepEqual(f.failures, []);
 	} finally {
 		await f.harness.close(context);
+		await rm(directory, { recursive: true, force: true });
 	}
 });
 
@@ -727,42 +456,6 @@ test("an asynchronous submission and its report survive independent controller t
 	}
 });
 
-test("worker failures retain their reason and detail in blocking results and asynchronous follow-ups", {
-	timeout: 10_000,
-}, async () => {
-	const f = await fixture();
-	try {
-		const blocked = await invoke(f.root, {
-			action: "spawn",
-			agent_type: "general",
-			label: "Failure worker",
-			message: "fail task",
-		});
-		assert.equal(blocked.isError, true);
-		const failure = details(blocked);
-		assert.equal(failure["status"], "failed");
-		assert.equal(failure["reason"], "model_error");
-		assert.equal(failure["reply"], "Worker rejected task");
-		await invoke(f.root, {
-			action: "assign",
-			target: String(failure["target"]),
-			message: "fail task",
-			blocking: false,
-		});
-		await f.harness.waitForTask(
-			(await latestDelegation(f.harness)).reporter,
-			context,
-		);
-		await f.root.waitForIdle(context);
-		const reports = await reportEntries(f.root);
-		assert.equal(reports.length, 1);
-		assert.match(textOf(reports[0]?.model), /Worker rejected task/);
-		assert.deepEqual(f.failures, []);
-	} finally {
-		await f.harness.close(context);
-	}
-});
-
 test("background-inclusive abort owns workers, reporters and watches", {
 	timeout: 10_000,
 }, async () => {
@@ -790,133 +483,6 @@ test("background-inclusive abort owns workers, reporters and watches", {
 		}
 		assert.deepEqual((await f.harness.snapshot(Fleet, context))?.watches, {});
 		assert.deepEqual(f.failures, []);
-	} finally {
-		await f.harness.close(context);
-	}
-});
-
-test("read is bounded with exact text continuation and entry pagination", {
-	timeout: 10_000,
-}, async () => {
-	const f = await fixture();
-	try {
-		const toolResult = await invoke(f.root, {
-			action: "spawn",
-			agent_type: "general",
-			label: "Large reader",
-			message: "large",
-		});
-		const answer = details(toolResult);
-		assert.equal(
-			jsonObject(JSON.parse(textOf([toolResult])))["reply"],
-			"x".repeat(70_010),
-		);
-		const child = await f.harness.conversation(
-			(await latestDelegation(f.harness)).target,
-			context,
-		);
-		assert.ok(child);
-		await child.commit(async (tx) => {
-			for (let index = 0; index < 42; index++) {
-				await tx.appendEntry(child.id, {
-					kind: "app.note",
-					model: [
-						{ role: "user", content: `Stored note ${index}`, timestamp: 0 },
-					],
-				});
-			}
-		}, context);
-		const read = details(
-			await invoke(f.root, {
-				action: "read",
-				target: String(answer["target"]),
-			}),
-		);
-		const entries = read["entries"];
-		assert.ok(Array.isArray(entries));
-		const entry = entries[0];
-		assert.ok(
-			typeof entry === "object" && entry !== null && !Array.isArray(entry),
-		);
-		assert.equal(String(read["reply"]).length, 36_000);
-		assert.equal(entry["truncated"], true);
-		const rest = details(
-			await invoke(f.root, {
-				action: "read",
-				target: String(answer["target"]),
-				entry: Number(entry["id"]),
-				offset: Number(entry["nextOffset"]),
-			}),
-		);
-		assert.ok(Array.isArray(rest["entries"]));
-		const restEntry = rest["entries"][0];
-		assert.ok(
-			typeof restEntry === "object" &&
-				restEntry !== null &&
-				!Array.isArray(restEntry),
-		);
-		assert.equal(
-			String(read["reply"]) + String(rest["reply"]),
-			"x".repeat(70_010),
-		);
-		const recent = details(
-			await invoke(f.root, {
-				action: "read",
-				target: String(answer["target"]),
-				source: "recent",
-				limit: 1,
-				before: Number(entry["id"]),
-			}),
-		);
-		assert.ok(Array.isArray(recent["entries"]));
-		assert.equal(recent["entries"].length, 1);
-		const prior = recent["entries"][0];
-		assert.ok(
-			typeof prior === "object" && prior !== null && !Array.isArray(prior),
-		);
-		assert.ok(Number(prior["id"]) < Number(entry["id"]));
-		assert.deepEqual(f.failures, []);
-	} finally {
-		await f.harness.close(context);
-	}
-});
-
-test("validation rejects excluded actions, unknown profiles and send blocking before side effects", {
-	timeout: 10_000,
-}, async () => {
-	const f = await fixture();
-	try {
-		for (const args of [
-			{ action: "answer", target: "0" },
-			{ action: "send", target: "0", message: "no", blocking: true },
-			{
-				action: "spawn",
-				agent_type: "missing",
-				label: "No worker",
-				message: "no",
-			},
-			{
-				action: "spawn",
-				agent_type: "general",
-				label: "Invalid",
-				message: "no",
-			},
-			{
-				action: "spawn",
-				agent_type: "general",
-				label: "No worker",
-				message: "no",
-				name: String(f.root.id),
-			},
-		]) {
-			assert.equal((await invoke(f.root, args)).isError, true);
-		}
-		assert.equal(
-			Object.keys((await f.harness.snapshot(Fleet, context))?.agents ?? {})
-				.length,
-			0,
-		);
-		assert.deepEqual(f.reports, []);
 	} finally {
 		await f.harness.close(context);
 	}
