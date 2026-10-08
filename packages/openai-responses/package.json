@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-openai-responses",
-	"version": "0.4.0",
+	"version": "0.5.0",
 	"description": "OpenAI and Codex Responses provider with cached WebSockets and explicit Worker support",
 	"type": "module",
 	"license": "MIT",

@@ -9,7 +9,7 @@ This is a separate execution product, not native Code or Notebook parity. There 
 Install the release package with its pinned Durable peers. It is not published to the npm registry.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/worker-code-v0.1.0/howaboua-pi-durable-worker-code-0.1.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-worker-code-0.5.0.tgz
 ```
 
 Import the package's compiled WASM through your host bundler. For Wrangler, add a `CompiledWasm` rule for `**/*.wasm` with `fallthrough: false`. No runtime fetching or compilation is needed.

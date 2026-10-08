@@ -8,10 +8,10 @@ Install only the components you need. Use their tools directly, or call them tog
 
 Requires Pi Durable 1.1.0. Most components require a Node.js host. Worker Code and the OpenAI Responses provider also support Cloudflare Workers. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
 
-[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Existing releases retain their original peer requirements; the source tree targets 1.1.0. For example, install the earlier Apply Patch release:
+[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Release 0.5.0 targets Durable 1.1.0. For example, install Apply Patch:
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-apply-patch-0.3.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-apply-patch-0.5.0.tgz
 ```
 
 Then add it to the registry passed to your Harness:

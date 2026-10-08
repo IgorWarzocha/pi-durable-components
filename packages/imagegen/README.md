@@ -1,11 +1,9 @@
 # Durable Image Generation
 
-The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
-
 Generate images or edit local and recent conversation images with `imagegen`. Requires Node.js and Pi Durable, pi-ai and Chord 1.1.0, an authenticated Codex-compatible image backend and a conversation ExecutionEnv.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-imagegen-0.3.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-imagegen-0.5.0.tgz
 ```
 
 Install the bundle with your authenticated pi-ai Models collection. Provide a conversation reader if recent-image edits should be available:

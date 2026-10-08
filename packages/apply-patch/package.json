@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-apply-patch",
-	"version": "0.3.0",
+	"version": "0.5.0",
 	"description": "Codex-style patches for Pi Durable",
 	"type": "module",
 	"license": "Apache-2.0 AND MIT",

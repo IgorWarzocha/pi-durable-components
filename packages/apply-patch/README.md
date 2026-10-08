@@ -1,11 +1,9 @@
 # Apply Patch for Pi Durable
 
-The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
-
 Apply Codex-format multi-file patches through the conversation's execution environment. The tool supports additions, updates, deletions, moves, ordered hunks, Unicode-tolerant matching, and mixed line endings. No Rust helper runs at runtime.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-apply-patch-0.3.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-apply-patch-0.5.0.tgz
 ```
 
 Install the bundle in your Durable registry:

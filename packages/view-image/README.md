@@ -3,7 +3,7 @@
 `createViewImageTool(options)` creates a Durable `view_image` registration. Install it in the ordinary tool registry. Code and Notebook discover the same registration.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-view-image-0.3.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-view-image-0.5.0.tgz
 ```
 
 ```ts

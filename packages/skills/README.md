@@ -1,7 +1,5 @@
 # Durable Skills
 
-The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
-
 Discover skill packages and load instructions or selected references on demand. This component registers the ordinary Durable `skills` tool. It does not load Pi extensions or rewrite existing prompts.
 
 Requires Node 22.19 or newer and `@earendil-works/pi-durable`, `@earendil-works/chord`, and `@earendil-works/pi-ai` 1.1.0.
@@ -9,7 +7,7 @@ Requires Node 22.19 or newer and `@earendil-works/pi-durable`, `@earendil-works/
 ## Register
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-skills-0.3.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-skills-0.5.0.tgz
 ```
 
 ```ts
