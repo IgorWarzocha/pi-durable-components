@@ -176,15 +176,14 @@
     "packages/ui": {
       "name": "@howaboua/pi-durable-ui",
       "version": "0.1.0",
-      "dependencies": {
-        "@howaboua/pi-durable-git": "0.1.0",
-      },
       "peerDependencies": {
+        "@howaboua/pi-durable-git": "0.1.0",
         "@pierre/diffs": "1.4.3",
         "react": "19.3.0",
         "react-dom": "19.3.0",
       },
       "optionalPeers": [
+        "@howaboua/pi-durable-git",
         "@pierre/diffs",
         "react",
         "react-dom",

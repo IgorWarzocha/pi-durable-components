@@ -18,7 +18,17 @@ Every snapshot has its own index, so no shared index lock or stale-lock scavengi
 
 The root UI entry imports no framework. `/react/diff` is optional and uses browser-safe Git contracts. Native Git imports no UI. Durable peers are optional for native-only consumers, while React and Pierre peers are optional for lifecycle-only consumers. The only allowed cross-component dependency is UI to Git contracts.
 
-The standalone diff view is read-only. It does not replace richer host editing and review workflows. Generic JSON calls do not stream or cancel remote IO. Abort prevents new calls and rejects stale responses. The independent HTTP example explicitly wires transport disconnects to native Git cancellation.
+The standalone `mountDiff` view is read-only. It does not limit the SDK to read-only components. The low-level `mountUi` JSON call contract does not itself stream or cancel remote IO. The independent Git HTTP example explicitly wires transport disconnects to native Git cancellation.
+
+## Universal interactive contract
+
+The initial diff extraction was not a complete universal SDK. The shared API now defines `UiComponent<State>`, `UiBinding` and `mountComponent` independently of Git, React and Durable runtime imports. A component validates its own state and declares its actions and streams. The host supplies authorized capabilities, discovery, placement and persistence. Notebook execution, Git comments and future component interactions use the same boundary. There is no component-name switch in the SDK.
+
+State snapshots carry monotonically increasing sequence numbers. Subscription precedes the initial read, stale snapshots cannot roll state back, and invalid live state closes the session. `connectUiBinding` hydrates from a host transport whose first snapshot and subsequent updates share one subscription. Disconnects are visible failures, not automatic reconnects.
+
+Actions and async streams receive composed session and per-request abort signals. Cancellation can stop one operation without unmounting the component. Disposal releases subscriptions and stream iterators and waits for exactly-once component cleanup, including late mounts and reentrant abort listeners. Hosts must honor signals to unblock IO. Cancellation does not roll back side effects or authorize retries. Client declarations are not an authorization boundary.
+
+`examples/component-ui` composes real Notebook tools and a Git review capability behind one authenticated HTTP transport. Notebook uses public Durable tasks and ordinary registrations, not a UI-specific execution engine. The review capability owns revision, path, side and line anchors and stores comments outside the viewer. The example deliberately does not implement a full review product, automatic comment rebasing or a layout engine. Existing tool arguments and results remain unchanged.
 
 ## Validation
 
@@ -31,3 +41,9 @@ The independent `examples/git-ui` host used public built package entries and a r
 The monorepo delivery gate passed on 2026-10-08: all 28 retained tests, strict TypeScript 7, Biome, Knip, fourteen builds and dry-pack checks. Frozen installation with scripts disabled passed. An independent review inspected native ownership, security and parity, SDK cleanup, Pierre prop forwarding and the emitted browser dependency graph without establishing a material finding. Browser inspection included a narrow viewport, light and dark rendering, visible keyboard focus and layout selection. These checks are delivery evidence, not new permanent UI assertions.
 
 These packages are version 0.1.0 local-development artifacts. They have not been published. Consumer release packaging and non-Linux native behavior are not validated by this change.
+
+The universal SDK follow-up was independently reviewed and exercised on 2026-10-08. Disposable probes covered snapshot hydration and ordering, invalid state, per-operation cancellation, late results, suspended stream closure, subscription failures and reentrant disposal. Review found and corrected duplicate cleanup on reentrant abort, split UTF-8 request decoding and header-like diff content being mistaken for file metadata. No permanent tests were added.
+
+The independent browser host executed real Notebook cells, resumed a yielded cell, received streamed results, saved a UTF-8 comment and loaded that comment after a server restart. Cancelling a long-running cell joined the example's dedicated Notebook conversation, then a new cell completed without remounting. Cancelling only the observing tool task was insufficient because cells are conversation-owned; the example now uses public conversation cancellation. Unmount removed both component trees. A 390px viewport retained reachable controls, no horizontal overflow and visible keyboard focus.
+
+Lint, fourteen builds, strict TypeScript, Knip, fourteen dry packs and frozen installation passed. The unchanged 28-test suite passed with Node's `--test-concurrency=1`. The default parallel run passed 27 tests but timed out in the existing Code output-budget test at 10 seconds on two runs; that same test passed alone in 137 ms. No Code, shared execution or test-runner source changed. The default umbrella gate is therefore not reported as green. This parallel-suite limitation remains separate from the SDK work.

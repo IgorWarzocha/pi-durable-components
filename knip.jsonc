@@ -40,7 +40,11 @@
 			"entry": [],
 			"project": ["src/**/*.ts", "src/**/*.tsx"],
 			// These peers belong to the optional /react/diff entry, not generic UI mounts.
-			"ignoreDependencies": ["@pierre/diffs", "react-dom"]
+			"ignoreDependencies": [
+				"@howaboua/pi-durable-git",
+				"@pierre/diffs",
+				"react-dom"
+			]
 		},
 		"packages/browser": {
 			"entry": ["src/remote-worker.ts", "test/**/*.test.ts"],

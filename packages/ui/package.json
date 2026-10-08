@@ -16,7 +16,7 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"description": "Host-independent UI lifecycle, theme tokens and composable Git diff views",
+	"description": "Interactive component SDK with live state, actions, streams and host-owned capabilities",
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
@@ -27,15 +27,16 @@
 			"import": "./dist/react/diff.js"
 		}
 	},
-	"dependencies": {
-		"@howaboua/pi-durable-git": "0.1.0"
-	},
 	"peerDependencies": {
+		"@howaboua/pi-durable-git": "0.1.0",
 		"@pierre/diffs": "1.4.3",
 		"react": "19.3.0",
 		"react-dom": "19.3.0"
 	},
 	"peerDependenciesMeta": {
+		"@howaboua/pi-durable-git": {
+			"optional": true
+		},
 		"@pierre/diffs": {
 			"optional": true
 		},

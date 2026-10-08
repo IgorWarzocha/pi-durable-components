@@ -18,7 +18,7 @@ Tool arguments, outputs, errors, cancellation, state, and recovery are part of p
 | Context | Local notes, retained history, checkpoint rollover and managed idle admission | [SQLite recovery and real execution-mode rollover](parity/context.md) |
 | OpenAI Responses | OpenAI and Codex subscription provider, cached transport, explicit Worker runtime, Lite and replay | [Protocol extraction and runtime evidence](parity/openai-responses.md) |
 | Worker Code | Separate bounded Worker execution, not native Code or Notebook parity | [QuickJS WASM and ordinary Durable tool dispatch](parity/worker-code.md) |
-| Git and UI SDK | Howcode Git read capability, composable renderer and trusted-package UI lifecycle | [Source extraction and independent host evidence](parity/git-ui.md) |
+| Git and UI SDK | Git read capability and a component-independent interactive UI contract, with the diff renderer as one consumer | [Source extraction and independent host evidence](parity/git-ui.md) |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 
