@@ -33,3 +33,13 @@ Calls from this component serialize overlapping resolved and canonical paths wit
 The registration is `replay: "unsafe"`. Reopening Durable does not replay an interrupted patch. Read the affected target before deciding what to retry.
 
 Requires Durable, pi-ai, and Chord 1.1.0. Derived engine code is Apache-2.0; adapter code is MIT. See [NOTICE](./NOTICE).
+
+## Headless presentations
+
+Available in local-development builds, not release 0.5.0.
+
+The browser-safe `@howaboua/pi-durable-apply-patch/presentation` entry exports `applyPatchCapability`, `applyPatchSummary`, `applyPatchDetail` and `createApplyPatchPresentationState`. The constructor projects an existing tool receipt into committed file counts, exactness, partial failures, failed targets and serialization warnings.
+
+Start with `createApplyPatchPresentationState(details)`. Its `detail` is `null`, meaning not acquired. Bind the capability once and select either presentation. A summary request for `detail` is a host callback, not a tool call. The host may publish the already recorded body on demand. Empty acquired results remain distinct from `null`.
+
+These readonly receipt capabilities expose no actions or streams. They do not register tools, load artifacts, authenticate, or replay operations. The host owns binding, authorization and any ordinary tool invocation. Never repeat an interrupted side effect to populate a presentation.

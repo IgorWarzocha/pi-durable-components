@@ -121,7 +121,9 @@ if (command === "test") {
 					[
 						"@howaboua/pi-durable-worker-code",
 						"@howaboua/pi-durable-ui",
-					].includes(manifest.name) || entry.import === "./dist/contracts.js"
+					].includes(manifest.name) ||
+					entry.import === "./dist/contracts.js" ||
+					entry.import === "./dist/presentation.js"
 						? "--target=browser"
 						: "--target=node",
 					"--format=esm",

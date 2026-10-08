@@ -29,3 +29,13 @@ For a custom Codex transport, pass `routes: normalizeCodexToolRouteConfig(config
 Requests contain explicit commands, never conversation history. Returned references remain in `details.webRun`. Both runtimes strip cross-origin bearer credentials and limit responses to 8 MiB. Matching service cookies follow their domain and path policy. ChatGPT Cloudflare challenges and unavailable endpoints produce explicit errors. Interrupted calls are not replayed automatically.
 
 See [parity evidence](../../docs/parity/web-imagegen.md) for source revisions and integration boundaries.
+
+## Headless presentations
+
+Available in local-development builds, not release 0.5.0.
+
+The browser-safe `@howaboua/pi-durable-web/presentation` entry exports `webCapability`, `webSummary`, `webDetail` and `createWebPresentationState`. The constructor projects an existing tool receipt into the count of actual search results without interpreting opaque provider entries.
+
+Start with `createWebPresentationState(details.webRun)`. Its `detail` is `null`, meaning not acquired. Bind the capability once and select either presentation. A summary request for `detail` is a host callback, not a tool call. The host may publish the already recorded body on demand. Empty acquired results remain distinct from `null`.
+
+These readonly receipt capabilities expose no actions or streams. They do not register tools, load artifacts, authenticate, or replay operations. The host owns binding, authorization and any ordinary tool invocation. Never repeat an interrupted side effect to populate a presentation.

@@ -9,6 +9,7 @@ import {
 	ToolTask,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
+import { notebookCapability } from "@howaboua/pi-durable-notebook/presentation";
 import {
 	createNodeShellBackend,
 	createNotebookMode,
@@ -35,7 +36,7 @@ export async function notebookChannel(cwd, stateDirectory) {
 	const conversation = await harness.root(BACKGROUND_CONTEXT, {
 		agent: { cwd },
 	});
-	const state = stateSource({ status: "idle", result: null });
+	const state = stateSource({ cell: null, result: null });
 	let busy = false;
 	return {
 		...state,
@@ -58,13 +59,11 @@ export async function notebookChannel(cwd, stateDirectory) {
 					// exec cells are conversation-owned, not children of this ToolTask.
 					// This channel owns a dedicated conversation, so cancel that scope and join it.
 					cancellation = conversation.abort(BACKGROUND_CONTEXT);
-					state.publish({ status: "cancelling", result: null });
 					// Owned below. Attach an observer immediately while the tool wait settles.
 					void cancellation.catch(() => {});
 				}
 			};
 			signal.addEventListener("abort", cancel, { once: true });
-			state.publish({ status: "running", result: null });
 			try {
 				const callId = randomUUID();
 				// A host-authored invocation, not a provider response. No model is called.
@@ -122,16 +121,30 @@ export async function notebookChannel(cwd, stateDirectory) {
 					BACKGROUND_CONTEXT,
 				);
 				const result = entry.model[0];
-				state.publish({ status: result.isError ? "error" : "idle", result });
+				state.publish(
+					notebookCapability.parseState({
+						cell: result.details?.cell_id
+							? { id: result.details.cell_id, status: result.details.status }
+							: null,
+						result: { ...result, diagnostics: entry.data?.diagnostics ?? [] },
+					}),
+				);
 				return result;
 			} catch (error) {
-				state.publish({
-					status: "error",
-					result: {
-						message: String(error),
-						outcome: "Do not replay interrupted side effects automatically.",
-					},
-				});
+				state.publish(
+					notebookCapability.parseState({
+						cell: null,
+						result: {
+							isError: true,
+							content: [
+								{
+									type: "text",
+									text: `${String(error)}. Do not replay interrupted side effects automatically.`,
+								},
+							],
+						},
+					}),
+				);
 				throw error;
 			} finally {
 				signal.removeEventListener("abort", cancel);

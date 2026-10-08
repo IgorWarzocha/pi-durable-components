@@ -19,6 +19,7 @@ Tool arguments, outputs, errors, cancellation, state, and recovery are part of p
 | OpenAI Responses | OpenAI and Codex subscription provider, cached transport, explicit Worker runtime, Lite and replay | [Protocol extraction and runtime evidence](parity/openai-responses.md) |
 | Worker Code | Separate bounded Worker execution, not native Code or Notebook parity | [QuickJS WASM and ordinary Durable tool dispatch](parity/worker-code.md) |
 | Git and UI SDK | Git read capability and a component-independent interactive UI contract, with the diff renderer as one consumer | [Source extraction and independent host evidence](parity/git-ui.md) |
+| Headless presentations | Package-owned summary/detail contracts across the tool components | [Real receipts, lazy detail and host integration](parity/presentations.md) |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 

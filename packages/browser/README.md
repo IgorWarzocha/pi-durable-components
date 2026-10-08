@@ -51,3 +51,13 @@ For SSH routing, pass `routes: parseBrowserRoutes({hosts: ["workstation", "lapto
 Remote hosts need Node, SSH access and their own CDP browser. The shipped worker deploys atomically to `~/.cache/pi-durable-browser/worker.mjs`, refusing to replace an unowned file. Its private socket daemon reuses connections and retires after 20 minutes. Worker sockets and artifacts use `pi-durable-browser` under the remote XDG runtime directory, or a user-scoped temporary directory. These paths and the deployment marker are distinct from Pi Browser's installed helper and state. Screenshots return through SCP into the invocation's artifact store, then the remote screenshot is removed. Text continuation handles stay on the selected remote host.
 
 The CDP implementation derives from [pasky/chrome-cdp-skill](https://github.com/pasky/chrome-cdp-skill) and [pi-browser](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-browser). See `NOTICE` for attribution.
+
+## Headless presentations
+
+Available in local-development builds, not release 0.5.0.
+
+The browser-safe `@howaboua/pi-durable-browser/presentation` entry exports `browserCapability`, `browserSummary`, `browserDetail` and `createBrowserPresentationState`. The constructor projects an existing tool receipt into completed operation counts, screenshot paths, host routing and text continuation cursors.
+
+Start with `createBrowserPresentationState(details)`. Its `detail` is `null`, meaning not acquired. Bind the capability once and select either presentation. A summary request for `detail` is a host callback, not a tool call. The host may publish the already recorded body on demand. Empty acquired results remain distinct from `null`.
+
+These readonly receipt capabilities expose no actions or streams. They do not register tools, load artifacts, authenticate, or replay operations. The host owns binding, authorization and any ordinary tool invocation. Never repeat an interrupted side effect to populate a presentation.

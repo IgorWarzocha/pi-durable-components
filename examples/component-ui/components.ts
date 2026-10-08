@@ -14,22 +14,6 @@ function string(value: JsonValue | undefined): string {
 	return value;
 }
 
-export interface NotebookState {
-	status: string;
-	result: JsonValue;
-}
-export const notebookCapability: UiCapability<NotebookState> = {
-	id: "notebook",
-	version: 1,
-	actions: ["exec", "wait", "notebook"],
-	streams: ["results"],
-	parseState(value) {
-		const state = object(value);
-		return { status: string(state["status"]), result: state["result"] ?? null };
-	},
-	presentations: ["summary", "detail"],
-};
-
 interface Anchor {
 	path: string;
 	side: string;
@@ -84,11 +68,6 @@ export interface SummaryModel {
 	title: string;
 	description: string;
 }
-export const notebookSummary: UiPresentation<NotebookState, SummaryModel> = {
-	id: "summary",
-	select: (state) => ({ title: "Notebook", description: state.status }),
-	requests: ["detail"],
-};
 export const reviewSummary: UiPresentation<ReviewState, SummaryModel> = {
 	id: "summary",
 	select: (state) => ({
@@ -96,11 +75,6 @@ export const reviewSummary: UiPresentation<ReviewState, SummaryModel> = {
 		description: `${state.anchors.length} commentable lines · ${state.comments.length} saved comments`,
 	}),
 	requests: ["detail"],
-};
-export const notebookDetail: UiPresentation<NotebookState, NotebookState> = {
-	id: "detail",
-	select: (state) => state,
-	requests: [],
 };
 export const reviewDetail: UiPresentation<ReviewState, ReviewState> = {
 	id: "detail",

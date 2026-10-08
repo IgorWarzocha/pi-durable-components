@@ -1,6 +1,6 @@
 # Interactive component host
 
-This independent host binds two unrelated capabilities through the public UI SDK. Each uses one `connectUiBinding` connection and one `bindCapability` instance. Headless contracts and summary/detail projections live in `components.ts`. Optional DOM detail renderers live in `views.ts`. The host chooses permissions, handlers, styling, placement, and presentation transitions. The transport dispatcher treats snapshots and results as opaque JSON.
+This independent host binds two unrelated capabilities through the public UI SDK. Each uses one `connectUiBinding` connection and one `bindCapability` instance. Notebook uses its public `/presentation` contract. The host-specific Git review contract lives in `components.ts`. Optional DOM detail renderers live in `views.ts`. The host chooses permissions, handlers, styling, placement, and presentation transitions. The transport dispatcher treats snapshots and results as opaque JSON.
 
 The compact summary and detail presentation share the same capability instance. Open detail requests a named presentation through the SDK. The host handles that request without switching on capability names. Dismiss detail or Escape hides the retained detail session. Reopening does not rebind, cancel active execution, discard drafts, or reset the live result journal. Summary status and comment counts continue updating while detail is hidden. Unmount components is the separate destructive lifecycle control that releases both presentations and their binding.
 

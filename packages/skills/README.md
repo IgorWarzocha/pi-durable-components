@@ -58,3 +58,13 @@ For changing catalogs, use `getLoadedSkills(api, context)`. It runs once per inv
 Discovery does not read Pi settings or resolve Pi packages. Hosts needing those external policies should supply their resolved catalog. See [parity evidence](../../docs/parity/skills.md) for the exact migration boundary.
 
 Filesystem failures are reported rather than replaced by local reads. Missing roots are empty catalogs. Unsupported canonical-path operations fail visibly. Read-only calls may rerun after Durable recovery and see current file contents.
+
+## Headless presentations
+
+Available in local-development builds, not release 0.5.0.
+
+The browser-safe `@howaboua/pi-durable-skills/presentation` entry provides validated host snapshots and pure summary and detail selectors, structurally compatible with `UiCapability` and `UiPresentation`. It does not import the UI runtime.
+
+`skillsCapability`, `skillsSummaryPresentation` and `skillsDetailPresentation` describe catalog metadata and nullable selected instructions. Hosts supply metadata using the existing `CatalogSkill` fields, with absent `category` normalized to null and `body` omitted from the inventory. Populate `detail` with the selected metadata and its acquired Markdown `body`. The ordinary `skills` tool returns formatted text, not this snapshot. Hosts own catalog acquisition and must preserve the configured discovery and environment policies.
+
+Keep `detail: null` until the host acquires it. Detail must match an item in the supplied inventory. Refresh or clear detail when replacing that inventory. These snapshots are presentation data, not a replacement storage model or raw tool-result envelope. The host owns selection, freshness, binding, authorization and native controls. Summary requests identify a detail presentation but do not fetch data. Declared actions name the existing ordinary `skills` registration. Invoke it with its unchanged arguments and results through a host-authorized binding. No streams, transport adapters or additional lifecycle are introduced.

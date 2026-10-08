@@ -1,9 +1,10 @@
+import type { NotebookPresentationState } from "@howaboua/pi-durable-notebook/presentation";
 import type {
 	JsonValue,
 	UiCleanup,
 	UiPresentationContext,
 } from "@howaboua/pi-durable-ui";
-import type { NotebookState, ReviewState } from "./components.ts";
+import type { ReviewState } from "./components.ts";
 
 function object(value: JsonValue): { readonly [key: string]: JsonValue } {
 	if (!value || typeof value !== "object" || Array.isArray(value))
@@ -26,7 +27,7 @@ function required<T extends Element>(
 
 export function mountNotebookDetail(
 	container: HTMLElement,
-	context: UiPresentationContext<NotebookState>,
+	context: UiPresentationContext<NotebookPresentationState>,
 ): UiCleanup {
 	container.innerHTML = `<h2>Notebook</h2><p>TypeScript runs in real Deno. Globals persist within this host conversation.</p><form><label>Source<textarea name="code" spellcheck="false">var count = (typeof count === "undefined" ? 0 : count) + 1; text({count});</textarea></label><button type="submit">Run</button><button type="button" data-cancel>Cancel request</button><label>Yielded cell ID<input name="cell" autocomplete="off"></label><button type="button" data-wait>Wait</button><button type="button" data-stop>Terminate cell</button><button type="button" data-state>Inspect state</button></form><output aria-live="polite"></output><pre data-result></pre><details><summary>Live result stream</summary><pre data-stream></pre></details>`;
 	const form = required(container, "form", HTMLFormElement);
@@ -38,25 +39,20 @@ export function mountNotebookDetail(
 	let active: AbortController | undefined;
 	const render = () => {
 		const state = context.state.getSnapshot();
-		status.value = state.status;
+		status.value = state.cell
+			? `Cell ${state.cell.id}: ${state.cell.status}${state.result?.isError ? " (error)" : ""}`
+			: state.result?.isError
+				? "Request failed"
+				: "Ready";
 		result.textContent = JSON.stringify(state.result, null, 2);
-		if (
-			state.result &&
-			typeof state.result === "object" &&
-			!Array.isArray(state.result)
-		) {
-			const details = object(state.result)["details"];
-			if (details && typeof details === "object" && !Array.isArray(details)) {
-				const id = object(details)["cell_id"];
-				if (typeof id === "string") cell.value = id;
-			}
-		}
+		if (state.cell) cell.value = state.cell.id;
 	};
 	const unsubscribe = context.state.subscribe(render);
 	render();
 	const run = async (action: string, input: JsonValue) => {
 		if (active) return;
 		active = new AbortController();
+		status.value = "Running request";
 		try {
 			await context.call(action, input, { signal: active.signal });
 		} catch (error) {

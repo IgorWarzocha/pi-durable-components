@@ -82,3 +82,15 @@ Yielded cells remain owned by the conversation. `wait` observes the existing cel
 Call `await code.close()` when disposing the component, then close your harness. This stops native hosts and shell sessions.
 
 If the native host exits unexpectedly, interrupted output remains observable. Recreate the component before running new cells. The package does not silently replace a lost session with an empty one.
+
+## Headless presentations
+
+Available in local-development builds, not release 0.5.0.
+
+`@howaboua/pi-durable-code/presentation` exports `codeCapability`, `codeSummary` and `codeDetail`. These browser-safe descriptors are structurally compatible with the UI SDK without importing it. They perform no I/O and have no renderer.
+
+The host supplies `{cell, result}`. Each field is explicitly nullable. A cell is `{id, status}`, with a canonical positive decimal task ID and the actual coordinator status: `running`, `completed`, `failed`, `aborted` or `interrupted`. Read these from exec/wait receipt details `cellId` and `status`. Do not substitute host request activity for cell lifecycle.
+
+`result: null` means output has not been acquired. Otherwise pass the ordinary execution receipt. Parsing retains text, base64 images, `isError`, JSON details and structured diagnostics. Omitted fields normalize to empty content, false, null and empty diagnostics. Usage and controls remain Durable-owned, not presentation actions. Summary selects title, cell identity and status, output availability and nullable `isError`. Detail selects the full validated state. Summary can request detail without acquiring it.
+
+The host authorizes `exec` and `wait` through ordinary registrations and publishes acquired receipts on the declared `results` stream. This is host publication, not a new runtime stream or tool bridge. Each receipt is one bounded observation, not cumulative output. Presentation disposal does not terminate cells, roll back effects or authorize replay. Acquisition, binding and cancellation policy belong to the host.

@@ -49,6 +49,8 @@ Each component's guide includes its install command and host configuration.
 
 Git and the UI SDK are new local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Notebook and Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
 
+The local-development tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
+
 Code and Notebook both include shell tools. Select one execution mode per conversation. Both discover the conversation's ordinary tools, including tools from other Durable extensions.
 
 Worker Code is a separate, bounded execution mode. It uses QuickJS WASM without shell, native imports or ambient network access. It is not a replacement for native Code or Notebook.

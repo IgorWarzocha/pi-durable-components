@@ -63,3 +63,13 @@ Use `harness.abortTask(task, ctx)` to cancel a managed request, including its pe
 Direct `conversation.submit` calls, including another extension's delegation or notifications, bypass managed idle admission. Route inputs through `management.submit` wherever that idle guarantee is needed. Native tool rollover still works on directly submitted conversations.
 
 A window change preserves the conversation ID and live Code or Notebook runtime. A process restart does not preserve kernels or shell sessions. Close the Harness and storage using their normal lifecycle when the host exits. Notes and history remain local, but checkpoint and overflow-summary inference still use your configured model.
+
+## Headless presentations
+
+Available in local-development builds, not release 0.5.0.
+
+The browser-safe `@howaboua/pi-durable-context/presentation` entry provides validated host snapshots and pure summary and detail selectors, structurally compatible with `UiCapability` and `UiPresentation`. It does not import the UI runtime.
+
+`contextCapability`, `contextSummaryPresentation` and `contextDetailPresentation` describe virtual notes. Populate `files` from `notes` with `list_files_by_prefix`. Populate nullable `detail` from the `file` returned by `read_file`. Counts and bytes describe only the supplied inventory, which can be bounded. Detail retains the returned line range and total line count. This is not `management.status` or the component's persisted rollover state.
+
+Keep `detail: null` until the host acquires it. Detail must match an item in the supplied inventory. Refresh or clear detail when replacing that inventory. These snapshots are presentation data, not a replacement storage model or raw tool-result envelope. The host owns selection, freshness, binding, authorization and native controls. Summary requests identify a detail presentation but do not fetch data. Declared actions name the existing ordinary `notes` registration. Invoke it with its unchanged arguments and results through a host-authorized binding. No streams, transport adapters or additional lifecycle are introduced.

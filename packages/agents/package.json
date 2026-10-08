@@ -11,6 +11,10 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
+		"./presentation": {
+			"types": "./dist/presentation.d.ts",
+			"import": "./dist/presentation.js"
+		},
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"

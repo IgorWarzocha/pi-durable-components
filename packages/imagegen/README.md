@@ -28,3 +28,13 @@ Custom transports accept host-loaded `routes: normalizeCodexToolRouteConfig(conf
 Calls execute sequentially and are never replayed automatically after interruption. A lost response can leave the remote outcome unknown. Artifact failure after a successful response is reported separately. Do not automatically repeat either request.
 
 See [parity evidence](../../docs/parity/web-imagegen.md) for source revisions and integration boundaries.
+
+## Headless presentations
+
+Available in local-development builds, not release 0.5.0.
+
+The browser-safe `@howaboua/pi-durable-imagegen/presentation` entry exports `imagegenCapability`, `imagegenSummary`, `imagegenDetail` and `createImagegenPresentationState`. The constructor projects an existing tool receipt into saved artifact paths and image counts without loading image bytes.
+
+Start with `createImagegenPresentationState(output)`. Its `detail` is `null`, meaning not acquired. Bind the capability once and select either presentation. A summary request for `detail` is a host callback, not a tool call. The host may publish the already recorded body on demand. Empty acquired results remain distinct from `null`.
+
+These readonly receipt capabilities expose no actions or streams. They do not register tools, load artifacts, authenticate, or replay operations. The host owns binding, authorization and any ordinary tool invocation. Never repeat an interrupted side effect to populate a presentation.

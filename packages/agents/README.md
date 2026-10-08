@@ -92,3 +92,13 @@ Reports use Durable `whenBusy: "followUp"`. An idle controller starts a new run.
 Failures retain a failed status and reason. Blocking failures set the tool result's `isError`. Pending native work remains monitored rather than being treated as complete. There is no inferred terminal blockage or synthetic assistant response.
 
 [Parity evidence](../../docs/parity/agents.md) records the native boundaries and tests.
+
+## Headless presentations
+
+Available in local-development builds, not release 0.5.0.
+
+The browser-safe `@howaboua/pi-durable-agents/presentation` entry provides validated host snapshots and pure summary and detail selectors, structurally compatible with `UiCapability` and `UiPresentation`. It does not import the UI runtime.
+
+`agentsCapability`, `agentsSummaryPresentation` and `agentsDetailPresentation` describe a roster page and a nullable latest reply. Build `agents` from the `agents` tool's `list` or `find` result. Populate `detail` from `read` with its `target`, `reply` and `truncated` fields. The summary counts only the supplied page, not the entire fleet. A null reply means no assistant answer was returned.
+
+Keep `detail: null` until the host acquires it. Detail must match an item in the supplied inventory. Refresh or clear detail when replacing that inventory. These snapshots are presentation data, not a replacement storage model or raw tool-result envelope. The host owns selection, freshness, binding, authorization and native controls. Summary requests identify a detail presentation but do not fetch data. Declared actions name the existing ordinary `agents` registration. Invoke it with its unchanged arguments and results through a host-authorized binding. No streams, transport adapters or additional lifecycle are introduced.

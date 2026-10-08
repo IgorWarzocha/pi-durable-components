@@ -1,4 +1,9 @@
 import {
+	notebookCapability,
+	notebookDetail,
+	notebookSummary,
+} from "@howaboua/pi-durable-notebook/presentation";
+import {
 	bindCapability,
 	connectUiBinding,
 	mountPresentation,
@@ -8,9 +13,6 @@ import {
 	type UiPresentationContext,
 } from "@howaboua/pi-durable-ui";
 import {
-	notebookCapability,
-	notebookDetail,
-	notebookSummary,
 	reviewCapability,
 	reviewDetail,
 	reviewSummary,
@@ -33,14 +35,15 @@ const report = (error: unknown) => {
 };
 
 // The host chooses renderers and placement, never dispatches on capability names.
-function registration<State>(
+function registration<State, Summary>(
 	capability: UiCapability<State>,
-	summary: UiPresentation<State, SummaryModel>,
+	summary: UiPresentation<State, Summary>,
 	detail: UiPresentation<State, State>,
 	mount: (
 		container: HTMLElement,
 		context: UiPresentationContext<State>,
 	) => UiCleanup,
+	summaryText: (model: Summary) => SummaryModel,
 ) {
 	return async () => {
 		const container = document.getElementById(capability.id);
@@ -89,7 +92,7 @@ function registration<State>(
 				open.setAttribute("aria-controls", detailContainer.id);
 				open.setAttribute("aria-expanded", "false");
 				const render = () => {
-					const model = context.state.getSnapshot();
+					const model = summaryText(context.state.getSnapshot());
 					heading.textContent = model.title;
 					description.textContent = model.description;
 					open.setAttribute("aria-label", "Open " + model.title + " detail");
@@ -144,12 +147,23 @@ const registrations = [
 		notebookSummary,
 		notebookDetail,
 		mountNotebookDetail,
+		(model) => ({
+			title: model.title,
+			description: model.cell
+				? `Cell ${model.cell.id}: ${model.cell.status}${model.isError ? " (error)" : ""}`
+				: model.isError
+					? "Request failed"
+					: model.hasResult
+						? "Control result available"
+						: "No cell observed",
+		}),
 	),
 	registration(
 		reviewCapability,
 		reviewSummary,
 		reviewDetail,
 		mountReviewDetail,
+		(model) => model,
 	),
 ];
 try {

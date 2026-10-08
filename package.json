@@ -25,6 +25,7 @@
 	},
 	"devDependencies": {
 		"@howaboua/pi-durable-git": "workspace:*",
+		"@howaboua/pi-durable-notebook": "workspace:*",
 		"@howaboua/pi-durable-ui": "workspace:*",
 		"@pierre/diffs": "1.4.3",
 		"@types/react": "19.3.0",

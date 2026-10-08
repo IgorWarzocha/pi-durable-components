@@ -41,3 +41,13 @@ VIEW_IMAGE_REFERENCE_BINARY=/path/to/pinned/view_image \
 ```
 
 The differential probe creates temporary fixtures and invokes the reference helper read-only. Original bytes, first-frame conversion and decoder acceptance evidence are recorded in [`docs/parity/view-image.md`](../../docs/parity/view-image.md).
+
+## Headless presentations
+
+Available in local-development builds, not release 0.5.0.
+
+The browser-safe `@howaboua/pi-durable-view-image/presentation` entry exports `viewImageCapability`, `viewImageSummary`, `viewImageDetail` and `createViewImagePresentationState`. The constructor projects an existing tool receipt into the invoked path and returned image MIME type without retaining encoded bytes.
+
+Start with `createViewImagePresentationState(path, image)`. Its `detail` is `null`, meaning not acquired. Bind the capability once and select either presentation. A summary request for `detail` is a host callback, not a tool call. The host may publish the already recorded body on demand. Empty acquired results remain distinct from `null`.
+
+These readonly receipt capabilities expose no actions or streams. They do not register tools, load artifacts, authenticate, or replay operations. The host owns binding, authorization and any ordinary tool invocation. Never repeat an interrupted side effect to populate a presentation.
