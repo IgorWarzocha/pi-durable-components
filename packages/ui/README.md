@@ -126,4 +126,4 @@ Install `@howaboua/pi-durable-git` 0.1.0, React and React DOM 19.3.0, and `@pier
 
 `themeCss` scopes tokens to `[data-durable-ui]`: `--durable-ui-background`, `foreground`, `muted`, `border` and `accent`. It follows the system theme or a `data-theme="light"` or `"dark"` override. Hosts can override these variables for their own palette. No global page styles or font are installed.
 
-See `examples/component-ui` for interactive Notebook execution and revision-anchored Git comments through the same host binding. `examples/git-ui` demonstrates only the low-level read-only renderer. Neither host depends on Howcode. These packages currently use local development artifacts. Publishing and consumer release packaging are separate work.
+See `examples/component-ui` for revision-anchored Git comments through a host binding. `examples/git-ui` demonstrates only the low-level read-only renderer. Neither host depends on Howcode. These packages currently use local development artifacts. Publishing and consumer release packaging are separate work.

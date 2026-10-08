@@ -1,4 +1,3 @@
-import type { NotebookPresentationState } from "@howaboua/pi-durable-notebook/presentation";
 import type {
 	JsonValue,
 	UiCleanup,
@@ -23,99 +22,6 @@ function required<T extends Element>(
 	const element = container.querySelector(selector);
 	if (!(element instanceof type)) throw new Error(`Missing ${selector}`);
 	return element;
-}
-
-export function mountNotebookDetail(
-	container: HTMLElement,
-	context: UiPresentationContext<NotebookPresentationState>,
-): UiCleanup {
-	container.innerHTML = `<h2>Notebook</h2><p>TypeScript runs in real Deno. Globals persist within this host conversation.</p><form><label>Source<textarea name="code" spellcheck="false">var count = (typeof count === "undefined" ? 0 : count) + 1; text({count});</textarea></label><button type="submit">Run</button><button type="button" data-cancel>Cancel request</button><label>Yielded cell ID<input name="cell" autocomplete="off"></label><button type="button" data-wait>Wait</button><button type="button" data-stop>Terminate cell</button><button type="button" data-state>Inspect state</button></form><output aria-live="polite"></output><pre data-result></pre><details><summary>Live result stream</summary><pre data-stream></pre></details>`;
-	const form = required(container, "form", HTMLFormElement);
-	const code = required(container, "textarea", HTMLTextAreaElement);
-	const cell = required(container, "input", HTMLInputElement);
-	const status = required(container, "output", HTMLOutputElement);
-	const result = required(container, "[data-result]", HTMLPreElement);
-	const journal = required(container, "[data-stream]", HTMLPreElement);
-	let active: AbortController | undefined;
-	const render = () => {
-		const state = context.state.getSnapshot();
-		status.value = state.cell
-			? `Cell ${state.cell.id}: ${state.cell.status}${state.result?.isError ? " (error)" : ""}`
-			: state.result?.isError
-				? "Request failed"
-				: "Ready";
-		result.textContent = JSON.stringify(state.result, null, 2);
-		if (state.cell) cell.value = state.cell.id;
-	};
-	const unsubscribe = context.state.subscribe(render);
-	render();
-	const run = async (action: string, input: JsonValue) => {
-		if (active) return;
-		active = new AbortController();
-		status.value = "Running request";
-		try {
-			await context.call(action, input, { signal: active.signal });
-		} catch (error) {
-			if (!context.signal.aborted)
-				status.value = active.signal.aborted
-					? "Cancellation requested for this Notebook conversation, including yielded cells. The host publishes completion after joining them. Side effects were not rolled back."
-					: String(error);
-		} finally {
-			active = undefined;
-		}
-	};
-	form.addEventListener(
-		"submit",
-		(event) => {
-			event.preventDefault();
-			void run("exec", { code: code.value });
-		},
-		{ signal: context.signal },
-	);
-	required(container, "[data-wait]", HTMLButtonElement).addEventListener(
-		"click",
-		() => {
-			void run("wait", { cell_id: cell.value, yield_time_ms: 1000 });
-		},
-		{ signal: context.signal },
-	);
-	required(container, "[data-stop]", HTMLButtonElement).addEventListener(
-		"click",
-		() => {
-			void run("wait", { cell_id: cell.value, terminate: true });
-		},
-		{ signal: context.signal },
-	);
-	required(container, "[data-state]", HTMLButtonElement).addEventListener(
-		"click",
-		() => {
-			void run("notebook", { input: '{"action":"status"}' });
-		},
-		{ signal: context.signal },
-	);
-	required(container, "[data-cancel]", HTMLButtonElement).addEventListener(
-		"click",
-		() => active?.abort(),
-		{ signal: context.signal },
-	);
-	const stream = (async () => {
-		try {
-			for await (const value of context.stream("results", null))
-				journal.textContent =
-					`${JSON.stringify(value, null, 2)}\n${journal.textContent ?? ""}`.slice(
-						0,
-						20000,
-					);
-		} catch (error) {
-			if (!context.signal.aborted) journal.textContent = String(error);
-		}
-	})();
-	return async () => {
-		active?.abort();
-		unsubscribe();
-		await stream;
-		container.replaceChildren();
-	};
 }
 
 export function mountReviewDetail(

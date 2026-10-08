@@ -1,9 +1,4 @@
 import {
-	notebookCapability,
-	notebookDetail,
-	notebookSummary,
-} from "@howaboua/pi-durable-notebook/presentation";
-import {
 	bindCapability,
 	connectUiBinding,
 	mountPresentation,
@@ -19,7 +14,7 @@ import {
 	type SummaryModel,
 } from "./components.ts";
 import { httpTransport } from "./transport.ts";
-import { mountNotebookDetail, mountReviewDetail } from "./views.ts";
+import { mountReviewDetail } from "./views.ts";
 
 const token = document.querySelector<HTMLMetaElement>(
 	'meta[name="rpc-token"]',
@@ -143,22 +138,6 @@ function registration<State, Summary>(
 
 const registrations = [
 	registration(
-		notebookCapability,
-		notebookSummary,
-		notebookDetail,
-		mountNotebookDetail,
-		(model) => ({
-			title: model.title,
-			description: model.cell
-				? `Cell ${model.cell.id}: ${model.cell.status}${model.isError ? " (error)" : ""}`
-				: model.isError
-					? "Request failed"
-					: model.hasResult
-						? "Control result available"
-						: "No cell observed",
-		}),
-	),
-	registration(
 		reviewCapability,
 		reviewSummary,
 		reviewDetail,
@@ -179,8 +158,7 @@ lifecycle.addEventListener("click", () => {
 	controller.abort();
 	void Promise.all(cleanups.map((cleanup) => cleanup()))
 		.then(() => {
-			status.value =
-				"Unmounted. Host comments and notebook state remain owned by the host.";
+			status.value = "Unmounted. Comments remain owned by the host.";
 		})
 		.catch(report);
 });

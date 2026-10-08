@@ -6,7 +6,7 @@ Import from `@howaboua/pi-durable-<component>/presentation`. Git retains its exi
 
 | Component | Snapshot owned by the host |
 |---|---|
-| Code, Notebook, Worker Code | Observed cell identity and status, with an optional execution receipt |
+| Code, Worker Code | Observed cell identity and status, with an optional execution receipt |
 | Agents | Agent roster and an optional selected reply |
 | Context | Notes inventory and an optional note body |
 | Skills | Skill catalog and an optional selected skill body |
@@ -23,4 +23,4 @@ The host owns authorization, tool invocation, snapshot publication, freshness, l
 
 Execution receipts describe bounded observations, not a replayable transcript. A running cell can outlive the request that observed it. Cancelling a view does not authorize replay, and uncertain side effects remain uncertain. The host must use the existing execution and task-ownership APIs.
 
-The [Notebook and Git review example](../examples/component-ui) demonstrates host-owned controls, shared summary/detail state, presentation requests and authorized Durable tool calls. The OpenAI Responses provider has no separate presentation because it is a transport integration, not an interactive tool surface. Shared execution remains internal.
+The [Git review example](../examples/component-ui) demonstrates host-owned controls, shared summary/detail state, presentation requests and revision-anchored comments. Notebook has no presentation contract. The OpenAI Responses provider has no separate presentation because it is a transport integration, not an interactive tool surface. Shared execution remains internal.
