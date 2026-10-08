@@ -1,6 +1,6 @@
 # Durable Browser
 
-The source tree targets upstream 1.0.4. The release archive linked below retains its original 1.0.2 peer requirements.
+The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
 
 Control an authenticated Chrome or Chromium browser through an ordinary Pi Durable tool registration. The browser keeps your existing login session. No Pi TUI or Code/Notebook adapter is required.
 
@@ -12,7 +12,7 @@ Requires Node 22.19 or newer and a browser with remote debugging enabled. The ho
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-browser-0.3.0.tgz
 ```
 
-Use the package with Pi Durable, pi-ai and Chord 1.0.4:
+Use the package with Pi Durable, pi-ai and Chord 1.1.0:
 
 ```ts
 import { join } from "node:path";

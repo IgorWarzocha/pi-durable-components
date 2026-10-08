@@ -15,6 +15,8 @@ The shared implementation is internal to Code, Notebook and Worker Code. Ordinar
 
 Every nested call creates an owned Durable task. Raw JSON values pass through the registration's `prepareArguments` before schema validation. The selected extensions' `ToolTask` hooks run in extension order. Before hooks can replace arguments or block a call. Replacement arguments are validated again before intent commits. The task commits the final arguments and replay policy before executing the registration.
 
+Tool execution and hooks receive the Harness's shared Models collection through Durable 1.1.0's public `models` field, preserving the host's catalog, credentials and request transforms.
+
 Output, details and diagnostics commit while tools run. Final results preserve images, errors, usage and controls. The output retention limits, UTF-8 handling, sanitization and truncation diagnostics follow Durable. Usage updates the conversation's ordinary `UsageDoc` in the same transaction as the terminal result. Nested audit entries have no model contribution. No synthetic assistant calls or tool-result messages are appended.
 
 Nested recovery reruns only when both the committed and current registration policies are `safe`. Unsafe or unavailable interrupted calls report uncertainty and retained output. Execution throws fail the task and cancel its owned work. A returned `isError` result completes normally, as Durable does. Before-hook failures block the call. After-hook failures are reported without discarding the preceding result.

@@ -1,10 +1,10 @@
 # Code Mode for Durable
 
-The source tree targets upstream 1.0.4. The release archive linked below retains its original 1.0.2 peer requirements.
+The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
 
 Run JavaScript that composes ordinary Durable tools. `exec` and `wait` are the model-facing surface. Shell execution and PTY sessions are included.
 
-Requires Node 22.19 or newer and Durable 1.0.4.
+Requires Node 22.19 or newer and Durable 1.1.0.
 
 ```sh
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-code-0.3.0.tgz

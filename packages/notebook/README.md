@@ -1,10 +1,10 @@
 # Notebook for Durable
 
-The source tree targets upstream 1.0.4. The release archive linked below retains its original 1.0.2 peer requirements.
+The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
 
 Run TypeScript in a persistent Deno kernel. Globals and imports survive between cells. Serializable values and self-contained functions restore from checkpoints without replaying the cells that created them. Shell tools are included.
 
-Requires Node 22.19 or newer and Durable 1.0.4.
+Requires Node 22.19 or newer and Durable 1.1.0.
 
 ```sh
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-notebook-0.3.0.tgz

@@ -15,7 +15,9 @@ import {
 	createRegistry,
 	defineTool,
 	Harness,
+	hook,
 	MemoryStorage,
+	ToolTask,
 } from "@earendil-works/pi-durable";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { Type } from "typebox";
@@ -56,6 +58,7 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 	const faux = fauxProvider();
 	models.setProvider(faux.provider);
 	let effects = 0;
+	const hookModels: boolean[] = [];
 	let harness: Harness;
 	const component = createCodeMode({
 		shell: { backend: createNodeShellBackend({ environmentId: files.id }) },
@@ -80,7 +83,12 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 			throw new Error("ordinary requires a number");
 		},
 		replay: "unsafe",
-		async execute(args) {
+		async execute(args, api) {
+			assert.equal(api.models, models);
+			assert.equal(
+				api.models.getModel("faux", "faux-1"),
+				models.getModel("faux", "faux-1"),
+			);
 			effects++;
 			await writeFile(
 				join(directory, "custom.toml"),
@@ -91,7 +99,20 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 		},
 	});
 	const registry = createRegistry();
-	const ordinary = { name: "ordinary", tools: [tool] };
+	const ordinary = {
+		name: "ordinary",
+		tools: [tool],
+		hooks: [
+			hook(ToolTask, {
+				beforeTool(call, api) {
+					if (call.name === tool.name) hookModels.push(api.models === models);
+				},
+				afterTool(call, _result, api) {
+					if (call.name === tool.name) hookModels.push(api.models === models);
+				},
+			}),
+		],
+	};
 	registry.install(component.extension);
 	registry.install(ordinary);
 	registry.install(custom.extension);
@@ -164,6 +185,7 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 			context,
 		);
 		assert.equal(effects, 1);
+		assert.deepEqual(hookModels, [true, true]);
 		assert.equal(results.length, 1);
 		assert.match(JSON.stringify(results[0]?.content), /42/);
 		assert.match(JSON.stringify(results[0]?.content), /liveCustom:input/);

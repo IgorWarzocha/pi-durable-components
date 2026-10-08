@@ -1,6 +1,6 @@
 # OpenAI Responses
 
-The source tree targets upstream 1.0.4. The release archive linked below retains its original 1.0.2 peer requirements.
+The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
 
 Our optimised Responses provider for Pi Durable. It carries cached WebSockets, validated continuation, grammar tools and stream recovery without the coding-agent extension. Codex mode also supports Responses Lite.
 
@@ -8,7 +8,7 @@ Codex mode remains the default. Explicit direct mode targets OpenAI's ordinary R
 
 ## Install
 
-Requires pi-ai 1.0.4. Node.js 22.19 or newer is supported, with Linux tested. Cloudflare Workers with `nodejs_compat` use an explicit native Upgrade runtime, described below.
+Requires pi-ai 1.1.0. Node.js 22.19 or newer is supported, with Linux tested. Cloudflare Workers with `nodejs_compat` use an explicit native Upgrade runtime, described below.
 
 ```sh
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/openai-responses-v0.4.0/howaboua-pi-durable-openai-responses-0.4.0.tgz

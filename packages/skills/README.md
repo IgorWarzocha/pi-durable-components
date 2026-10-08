@@ -1,10 +1,10 @@
 # Durable Skills
 
-The source tree targets upstream 1.0.4. The release archive linked below retains its original 1.0.2 peer requirements.
+The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
 
 Discover skill packages and load instructions or selected references on demand. This component registers the ordinary Durable `skills` tool. It does not load Pi extensions or rewrite existing prompts.
 
-Requires Node 22.19 or newer and `@earendil-works/pi-durable`, `@earendil-works/chord`, and `@earendil-works/pi-ai` 1.0.4.
+Requires Node 22.19 or newer and `@earendil-works/pi-durable`, `@earendil-works/chord`, and `@earendil-works/pi-ai` 1.1.0.
 
 ## Register
 

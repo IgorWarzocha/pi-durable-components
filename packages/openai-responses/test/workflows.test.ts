@@ -107,6 +107,16 @@ test("SQLite Durable tool round reaches real SSE and records cache usage without
 		assert.equal(settled.status, "done", JSON.stringify(settled));
 		assert.equal(effects, 1);
 		assert.deepEqual(reports, []);
+		const timed = (await root.context(context)).messages.filter(
+			(message) =>
+				message.role === "assistant" || message.role === "toolResult",
+		);
+		assert.equal(timed.length, 3);
+		for (const message of timed) {
+			assert.equal(typeof message.durationMs, "number");
+			assert.ok(Number.isFinite(message.durationMs));
+			assert.ok((message.durationMs ?? -1) >= 0);
+		}
 		const { requests } = await fixture.records();
 		assert.equal(requests.length, 2);
 		assert.ok(

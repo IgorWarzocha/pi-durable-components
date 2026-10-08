@@ -1,6 +1,6 @@
 # Durable agents
 
-The source tree targets upstream 1.0.4. The release archive linked below retains its original 1.0.2 peer requirements.
+The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
 
 Delegate to persistent Durable conversations and share findings on their discussion board. A worker remembers earlier messages, can answer synchronously, or can keep working after its controller replies. Explicit watches report future worker answers until removed.
 
@@ -12,7 +12,7 @@ The host supplies named profiles as Durable `AgentChange` presets. This package 
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/agents-v0.3.1/howaboua-pi-durable-agents-0.3.1.tgz
 ```
 
-Use Durable 1.0.4 and a persistent storage backend for restart recovery. Create a fresh component for each Harness. Install the extension before opening the Harness, then bind it before enabling scheduling.
+Use Durable 1.1.0 and a persistent storage backend for restart recovery. Create a fresh component for each Harness. Install the extension before opening the Harness, then bind it before enabling scheduling.
 
 ```ts
 import { createAgents } from "@howaboua/pi-durable-agents";

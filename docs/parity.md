@@ -1,6 +1,6 @@
 # Functionality parity
 
-The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.0.4. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
+The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.1.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
 
 Tool arguments, outputs, errors, cancellation, state, and recovery are part of parity. Pi-specific TUI rendering and slash commands are not being shipped as a compatibility layer. Missing functionality must stay visible here until implemented and validated.
 
@@ -41,6 +41,10 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+The 1.1.0 upgrade forwards the Harness's Models collection to nested tool calls, matching the new `ToolExecutionApi.models` contract. Nested hooks already receive the public task runtime, including `models`. The V8 registration workflow verifies the same Models instance reaches execution and both hooks; it fails before the forwarding fix and passes afterward. The OpenAI Responses provider already uses pi-ai's timed `AssistantMessageEventStream`; its SQLite workflow checks that assistant and tool durations survive into the conversation context. No custom Storage implementation or positional `TaskRuntime.context()` cutoff needs migration here. Scan order defaults remain unchanged. Hosts supplying custom storage must implement 1.1.0's ordered scans.
+
+On 2026-10-08, `bun run check` passed against 1.1.0: all 48 workflows, native V8, Deno and workerd execution, strict TypeScript, lint, Knip and all twelve builds and dry-pack checks. Frozen installation with lifecycle scripts disabled also passed. Existing release archives were not rebuilt or republished.
 
 The 1.0.4 upgrade tracks the published Durable, pi-ai and Chord packages, not upstream's unreleased branch. Nested tool calls now expose the tail output window, account for environment-omitted output, and honor `settings.progress.outputIntervalMs`. The carried output buffer includes 1.0.4's tail-snapshot and byte-order-mark fixes. Components continue to consume the host's execution environment; they do not implement a parallel filesystem adapter. Original source and license notices remain pinned to their extraction versions unless code was refreshed.
 

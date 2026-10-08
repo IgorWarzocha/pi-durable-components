@@ -1,6 +1,6 @@
 # Apply Patch for Pi Durable
 
-The source tree targets upstream 1.0.4. The release archive linked below retains its original 1.0.2 peer requirements.
+The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
 
 Apply Codex-format multi-file patches through the conversation's execution environment. The tool supports additions, updates, deletions, moves, ordered hunks, Unicode-tolerant matching, and mixed line endings. No Rust helper runs at runtime.
 
@@ -34,4 +34,4 @@ Calls from this component serialize overlapping resolved and canonical paths wit
 
 The registration is `replay: "unsafe"`. Reopening Durable does not replay an interrupted patch. Read the affected target before deciding what to retry.
 
-Requires Durable, pi-ai, and Chord 1.0.4. Derived engine code is Apache-2.0; adapter code is MIT. See [NOTICE](./NOTICE).
+Requires Durable, pi-ai, and Chord 1.1.0. Derived engine code is Apache-2.0; adapter code is MIT. See [NOTICE](./NOTICE).

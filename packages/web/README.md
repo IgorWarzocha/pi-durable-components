@@ -1,8 +1,8 @@
 # Durable Web
 
-The source tree targets upstream 1.0.4. The release archive linked below retains its original 1.0.2 peer requirements.
+The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
 
-Search the web and follow returned page references with the `web_run` tool. Requires Pi Durable, pi-ai and Chord 1.0.4, plus an authenticated Codex-compatible backend. Node is the default runtime; Cloudflare Workers can use native fetch.
+Search the web and follow returned page references with the `web_run` tool. Requires Pi Durable, pi-ai and Chord 1.1.0, plus an authenticated Codex-compatible backend. Node is the default runtime; Cloudflare Workers can use native fetch.
 
 ```sh
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/web-v0.3.2/howaboua-pi-durable-web-0.3.2.tgz

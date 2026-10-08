@@ -102,6 +102,7 @@ export function createInvocation<I, S, R, H extends object>(
 		callId: `nested-${runtime.taskId}`,
 		registry: runtime.registry,
 		agent: runtime.agent,
+		models: runtime.models,
 		env: undefined,
 		outputWindow:
 			limits.retain === "tail"

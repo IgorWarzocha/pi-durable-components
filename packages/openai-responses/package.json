@@ -30,7 +30,7 @@
 		"undici": "8.10.2"
 	},
 	"peerDependencies": {
-		"@earendil-works/pi-ai": "1.0.4",
+		"@earendil-works/pi-ai": "1.1.0",
 		"@modelcontextprotocol/sdk": "1.25.2"
 	},
 	"publishConfig": {

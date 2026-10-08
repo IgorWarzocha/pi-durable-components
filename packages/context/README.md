@@ -1,10 +1,10 @@
 # Context management for Durable
 
-The source tree targets upstream 1.0.4. The release archive linked below retains its original 1.0.2 peer requirements.
+The source tree targets upstream 1.1.0. The release archive linked below retains its original 1.0.2 peer requirements.
 
 Continue long conversations through saved notes and clean context windows. Notes, retained history, pending input and rollover progress live in the same SQLite database as your Durable conversation. No Codex account or provider-specific storage is required.
 
-Requires Node 22.19 or newer and Durable 1.0.4.
+Requires Node 22.19 or newer and Durable 1.1.0.
 
 ```sh
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.3.0/howaboua-pi-durable-context-0.3.0.tgz
@@ -50,7 +50,7 @@ With Code or Notebook, also call `code.bind(harness)` or `notebook.bind(harness)
 - At 85% and 90% context usage, advisory reminders ask for a checkpoint. `get_context_remaining` reports provider usage plus an estimated tail, or explicitly reports an unknown budget.
 - After 25 minutes of observed inactivity, the next managed input waits for the same checkpoint-and-rollover path. Its content, attachments and busy policy remain intact.
 
-The idle clock starts when this component observes actual input settlement. Durable 1.0.4 has no native settlement timestamp. Recovery can delay the idle deadline, but cannot move it earlier by guessing from an assistant timestamp.
+The idle clock starts when this component observes actual input settlement. It does not use Durable's task timestamps. Recovery can delay the idle deadline, but cannot move it earlier by guessing from an assistant timestamp.
 
 Normal threshold and manual compaction are declined. Overflow compaction remains an emergency fallback using the configured model, within the same logical window. For a host-initiated rollover, call `management.newContext(conversation.id, ctx)` and await its task. It saves a checkpoint when needed but does not send an extra continuation message.
 
