@@ -12,6 +12,24 @@ export interface GitDiffStats {
 export interface GitDiffResult extends GitDiffStats {
 	diff: string;
 }
+/** Shared state for stats-only summaries and demand-loaded detail views. */
+export interface GitDiffPresentationState {
+	stats: GitDiffStats;
+	/** Null means detail has not been acquired. Loading and errors belong to the host. */
+	detail: GitDiffResult | null;
+}
+/** Framework-neutral descriptors compatible with the UI SDK's UiPresentation. */
+export const gitDiffSummary = {
+	id: "summary",
+	select: (state: GitDiffPresentationState): GitDiffStats => state.stats,
+	requests: ["detail"] as readonly string[],
+};
+export const gitDiffDetail = {
+	id: "detail",
+	select: (state: GitDiffPresentationState): GitDiffResult | null =>
+		state.detail,
+	requests: [] as readonly string[],
+};
 /** Validate the JSON RPC boundary without importing a server or UI runtime. */
 export function parseGitDiffResult(value: unknown): GitDiffResult {
 	if (

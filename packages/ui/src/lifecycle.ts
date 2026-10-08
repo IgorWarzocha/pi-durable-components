@@ -32,6 +32,28 @@ export function mountUi(
 	container: HTMLElement,
 	context: UiContext,
 ): UiSession {
+	return ownUiSession(
+		(signal) =>
+			mount(container, {
+				...context,
+				signal,
+				async call(method, input) {
+					signal.throwIfAborted();
+					const result = await context.call(method, input);
+					signal.throwIfAborted();
+					return result;
+				},
+			}),
+		context.signal,
+	);
+}
+
+/** Internal lifecycle owner shared by bindings, views and DOM mounts. */
+export function ownUiSession(
+	start: (signal: AbortSignal) => UiCleanup | Promise<UiCleanup>,
+	parentSignal: AbortSignal,
+	options?: { startWhenAborted?: boolean },
+): UiSession {
 	const controller = new AbortController();
 	let finish!: () => void;
 	let fail!: (error: unknown) => void;
@@ -43,18 +65,9 @@ export function mountUi(
 	void closed.catch(() => {});
 	let disposing: Promise<void> | undefined;
 	const mounted = Promise.resolve().then(async () => {
-		if (controller.signal.aborted) return undefined;
-		const cleanup = await mount(container, {
-			...context,
-			signal: controller.signal,
-			async call(method, input) {
-				controller.signal.throwIfAborted();
-				const result = await context.call(method, input);
-				// This suppresses stale results, not remote side effects or in-flight IO.
-				controller.signal.throwIfAborted();
-				return result;
-			},
-		});
+		if (controller.signal.aborted && !options?.startWhenAborted)
+			return undefined;
+		const cleanup = await start(controller.signal);
 		if (typeof cleanup !== "function")
 			throw new TypeError("UI mount must return a cleanup function");
 		return cleanup;
@@ -68,22 +81,22 @@ export function mountUi(
 				throw error;
 			});
 		// Publish ownership before abort listeners can reenter dispose.
-		context.signal.removeEventListener("abort", abort);
+		parentSignal.removeEventListener("abort", abort);
 		controller.abort();
 		return disposing;
 	};
 	const abort = () => {
 		void dispose().catch(() => {});
 	};
-	context.signal.addEventListener("abort", abort, { once: true });
-	if (context.signal.aborted) abort();
+	parentSignal.addEventListener("abort", abort, { once: true });
+	if (parentSignal.aborted) abort();
 	const ready = mounted.then(() => {
 		controller.signal.throwIfAborted();
 	});
 	void ready.catch((error: unknown) => {
 		if (!controller.signal.aborted) {
 			controller.abort();
-			context.signal.removeEventListener("abort", abort);
+			parentSignal.removeEventListener("abort", abort);
 			fail(error);
 		}
 	});

@@ -1,12 +1,23 @@
 import {
+	bindCapability,
 	connectUiBinding,
-	mountComponent,
-	type UiComponent,
-	type UiConnection,
-	type UiSession,
+	mountPresentation,
+	type UiCapability,
+	type UiCleanup,
+	type UiPresentation,
+	type UiPresentationContext,
 } from "@howaboua/pi-durable-ui";
-import { notebookComponent, reviewComponent } from "./components.ts";
+import {
+	notebookCapability,
+	notebookDetail,
+	notebookSummary,
+	reviewCapability,
+	reviewDetail,
+	reviewSummary,
+	type SummaryModel,
+} from "./components.ts";
 import { httpTransport } from "./transport.ts";
+import { mountNotebookDetail, mountReviewDetail } from "./views.ts";
 
 const token = document.querySelector<HTMLMetaElement>(
 	'meta[name="rpc-token"]',
@@ -14,54 +25,149 @@ const token = document.querySelector<HTMLMetaElement>(
 const status = document.querySelector<HTMLOutputElement>("#host-status");
 const lifecycle = document.querySelector<HTMLButtonElement>("#lifecycle");
 if (!token || !status || !lifecycle) throw new Error("Missing host controls");
+const rpcToken = token;
 const controller = new AbortController();
-const sessions: UiSession[] = [];
-const connections: UiConnection[] = [];
-const components: readonly UiComponent<unknown>[] = [
-	notebookComponent,
-	reviewComponent,
-];
-try {
-	for (const component of components) {
-		const container = document.getElementById(component.id);
-		if (!container) throw new Error("Missing component container");
+const cleanups: UiCleanup[] = [];
+const report = (error: unknown) => {
+	status.value = String(error);
+};
+
+// The host chooses renderers and placement, never dispatches on capability names.
+function registration<State>(
+	capability: UiCapability<State>,
+	summary: UiPresentation<State, SummaryModel>,
+	detail: UiPresentation<State, State>,
+	mount: (
+		container: HTMLElement,
+		context: UiPresentationContext<State>,
+	) => UiCleanup,
+) {
+	return async () => {
+		const container = document.getElementById(capability.id);
+		if (!container) throw new Error("Missing capability container");
 		const connection = await connectUiBinding(
-			httpTransport(component.id, token),
+			httpTransport(capability.id, rpcToken),
 			{ signal: controller.signal },
 		);
-		connections.push(connection);
-		void connection.closed.catch((error: unknown) => {
-			status.value = String(error);
-		});
-		const session = mountComponent(component, container, {
-			id: component.id,
+		cleanups.push(() => connection.close());
+		void connection.closed.catch(report);
+		const instance = await bindCapability(capability, {
+			id: capability.id,
 			signal: controller.signal,
 			binding: connection,
 		});
-		sessions.push(session);
-		void session.closed.catch((error: unknown) => {
-			status.value = String(error);
+		cleanups.push(() => instance.dispose());
+		void instance.closed.catch(report);
+		const summaryContainer = document.createElement("div");
+		const detailContainer = document.createElement("div");
+		detailContainer.hidden = true;
+		detailContainer.id = capability.id + "-detail";
+		const dismiss = document.createElement("button");
+		dismiss.textContent = "Dismiss detail";
+		dismiss.type = "button";
+		const view = document.createElement("div");
+		detailContainer.append(dismiss, view);
+		container.append(summaryContainer, detailContainer);
+		let open: HTMLButtonElement;
+		const summarySession = mountPresentation(summary, summaryContainer, {
+			instance,
+			signal: controller.signal,
+			onRequestPresentation: async (id, { signal }) => {
+				signal.throwIfAborted();
+				if (id !== detail.id)
+					throw new Error("Unsupported host presentation: " + id);
+				detailContainer.hidden = false;
+				open.setAttribute("aria-expanded", "true");
+				dismiss.focus();
+			},
+			mount: (target, context) => {
+				const heading = document.createElement("h2");
+				const description = document.createElement("p");
+				open = document.createElement("button");
+				open.type = "button";
+				open.textContent = "Open detail";
+				open.setAttribute("aria-controls", detailContainer.id);
+				open.setAttribute("aria-expanded", "false");
+				const render = () => {
+					const model = context.state.getSnapshot();
+					heading.textContent = model.title;
+					description.textContent = model.description;
+					open.setAttribute("aria-label", "Open " + model.title + " detail");
+				};
+				const unsubscribe = context.state.subscribe(render);
+				render();
+				open.addEventListener(
+					"click",
+					() => {
+						void context.requestPresentation(detail.id).catch(report);
+					},
+					{ signal: context.signal },
+				);
+				target.append(heading, description, open);
+				return () => {
+					unsubscribe();
+					target.replaceChildren();
+				};
+			},
 		});
-		await session.ready;
-	}
-	status.value = "Connected";
+		cleanups.push(() => summarySession.dispose());
+		void summarySession.closed.catch(report);
+		await summarySession.ready;
+		const detailSession = mountPresentation(detail, view, {
+			instance,
+			signal: controller.signal,
+			mount,
+		});
+		cleanups.push(() => detailSession.dispose());
+		void detailSession.closed.catch(report);
+		await detailSession.ready;
+		const hide = () => {
+			detailContainer.hidden = true;
+			open.setAttribute("aria-expanded", "false");
+			open.focus();
+		};
+		dismiss.addEventListener("click", hide, { signal: controller.signal });
+		detailContainer.addEventListener(
+			"keydown",
+			(event) => {
+				if (event.key === "Escape") hide();
+			},
+			{ signal: controller.signal },
+		);
+		cleanups.push(() => container.replaceChildren());
+	};
+}
+
+const registrations = [
+	registration(
+		notebookCapability,
+		notebookSummary,
+		notebookDetail,
+		mountNotebookDetail,
+	),
+	registration(
+		reviewCapability,
+		reviewSummary,
+		reviewDetail,
+		mountReviewDetail,
+	),
+];
+try {
+	for (const register of registrations) await register();
+	status.value = "Connected. Open a detail view to work.";
 } catch (error) {
 	controller.abort();
-	status.value = String(error);
+	await Promise.allSettled(cleanups.map((cleanup) => cleanup()));
+	report(error);
 }
 lifecycle.addEventListener("click", () => {
 	lifecycle.disabled = true;
 	controller.abort();
-	void Promise.all([
-		...sessions.map((session) => session.dispose()),
-		...connections.map((connection) => connection.close()),
-	])
+	void Promise.all(cleanups.map((cleanup) => cleanup()))
 		.then(() => {
 			status.value =
 				"Unmounted. Host comments and notebook state remain owned by the host.";
 		})
-		.catch((error: unknown) => {
-			status.value = String(error);
-		});
+		.catch(report);
 });
 window.addEventListener("pagehide", () => controller.abort(), { once: true });

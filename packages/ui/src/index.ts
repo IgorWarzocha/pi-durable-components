@@ -1,4 +1,10 @@
 export {
+	bindCapability,
+	mountPresentation,
+	type UiCapability,
+	type UiCapabilityInstance,
+} from "./capability.ts";
+export {
 	mountComponent,
 	parseUiSnapshot,
 	type UiBinding,
@@ -14,6 +20,12 @@ export {
 	type UiMount,
 	type UiSession,
 } from "./lifecycle.ts";
+export {
+	type UiPresentation,
+	type UiPresentationContext,
+	type UiPresentationOptions,
+	type UiPresentationSession,
+} from "./presentation.ts";
 export {
 	connectUiBinding,
 	type UiConnection,

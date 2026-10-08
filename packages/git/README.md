@@ -30,3 +30,5 @@ const tool = createGitDiffTool({
 Register `tool` like any Durable tool. Code and Notebook discover `git_diff` automatically. Paths resolve through the invocation's environment. An unbound environment fails instead of falling back to the host. A UI host calls the same reader after its own authorization. No UI transport or component-specific Code bridge is required.
 
 The standalone UI host example lives at `examples/git-ui` in the component repository.
+
+For custom interfaces, `/contracts` exports `GitDiffPresentationState`, `gitDiffSummary` and `gitDiffDetail`. The summary selects statistics. Detail selects a nullable diff, where null means not yet acquired. These descriptors work with the UI SDK without importing it. Bind both presentations to one capability instance. The host decides when to fetch detail, how to show loading and failures, and where to place each view. Opening a summary never fetches a patch by itself.

@@ -4,6 +4,39 @@ Interactive browser components backed by host-owned state, actions and streams. 
 
 ## Interactive components
 
+### Headless capabilities and presentations
+
+`UiCapability<State>` declares `id`, contract `version`, `parseState`, `actions`, `streams` and supported `presentations`. It has no renderer. `await bindCapability(capability, { id, signal, binding })` creates one instance with one binding subscription. The instance exposes its `capability` definition, `context`, `closed`, `dispose()` and `present()`.
+
+`UiPresentation<State, Model>` declares an `id`, a semantic `select(state)` projection and allowed presentation `requests`. Different presentations share the same capability without reacquiring its binding or replaying work.
+
+```ts
+const instance = await bindCapability(counterCapability, {
+  id: "counter-instance", signal: lifetime.signal, binding,
+});
+const summary = instance.present(counterSummary, {
+  signal: viewLifetime.signal,
+  onRequestPresentation: async (id, { signal }) => {
+    await host.openPresentation(id, { signal });
+  },
+});
+await summary.ready;
+summary.closed.catch(reportError);
+// Framework-neutral store, suitable for React useSyncExternalStore:
+const model = summary.context.state.getSnapshot();
+await summary.context.requestPresentation("detail");
+await summary.dispose();
+await instance.dispose();
+```
+
+Presentation contexts expose model state, capability actions and streams, and `requestPresentation(id)`. Model snapshots stay referentially stable between accepted source sequences, even when `parseState` reuses an object. A requested target must appear in both the presentation's `requests` and the capability's `presentations`. The host callback owns acquisition, placement and navigation. Requests without a callback reject. Late callback results reject after view cancellation.
+
+Disposing a presentation cancels its work without disposing the shared capability. A projection failure closes only the affected view. Invalid source state closes the capability and all its children. Capability disposal joins child cleanup, including optional renderers. Observe each view's `closed` promise for failures.
+
+`mountPresentation(presentation, container, { instance, signal, onRequestPresentation, mount })` is an optional DOM wrapper. Its `mount(container, context)` receives the same model context and must return a cleanup function. The returned `UiSession` owns the renderer and its presentation, not the shared capability. Headless consumers need no DOM or framework imports. Existing `mountComponent` and `mountUi` remain available.
+
+### Mounted components
+
 A `UiComponent<State>` declares `id`, contract `version`, `parseState`, `mount`, and the allowed `actions` and `streams`. `parseState` validates each accepted JSON snapshot and returns the component's state. `mount` receives a container and `UiComponentContext<State>` and returns a cleanup function, synchronously or asynchronously.
 
 ```ts

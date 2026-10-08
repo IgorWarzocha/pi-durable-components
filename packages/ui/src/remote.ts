@@ -1,8 +1,4 @@
-import {
-	parseUiSnapshot,
-	type UiBinding,
-	type UiSnapshot,
-} from "./component.ts";
+import { parseUiSnapshot, type UiBinding, type UiSnapshot } from "./binding.ts";
 import type { JsonValue } from "./lifecycle.ts";
 
 /** The snapshot stream must subscribe before yielding its initial snapshot. */
