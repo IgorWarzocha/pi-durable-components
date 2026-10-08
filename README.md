@@ -44,6 +44,10 @@ Each component's guide includes its install command and host configuration.
 | [Code Mode](packages/code) | Run JavaScript that calls tools, with a fresh context for each cell |
 | [Notebook Mode](packages/notebook) | Run persistent TypeScript with imports, checkpoints and profiles |
 | [Worker Code](packages/worker-code) | Run bounded JavaScript and ordinary tools inside Cloudflare Workers |
+| [Git](packages/git) | Read repository diffs, full-text context and images through an explicit execution capability |
+| [UI SDK](packages/ui) | Mount trusted browser UIs and compose a reusable Git diff renderer |
+
+Git and the UI SDK are new local-development packages, not part of release 0.5.0. The UI SDK's generic lifecycle entry has no React or Durable runtime import. Its optional diff entry consumes the Git package's browser-safe contract. See the [standalone host example](examples/git-ui).
 
 Code and Notebook both include shell tools. Select one execution mode per conversation. Both discover the conversation's ordinary tools, including tools from other Durable extensions.
 

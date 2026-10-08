@@ -1,10 +1,13 @@
 {
 	"compilerOptions": {
 		"target": "ES2023",
+		"jsx": "react-jsx",
 		"module": "NodeNext",
 		"moduleResolution": "NodeNext",
 		"paths": {
-			"undici-types": ["./node_modules/undici-types"]
+			"undici-types": ["./node_modules/undici-types"],
+			"react": ["./node_modules/@types/react/index.d.ts"],
+			"hast": ["./node_modules/@types/hast/index.d.ts"]
 		},
 		"lib": ["ES2023", "DOM", "DOM.Iterable"],
 		"types": ["node"],
@@ -30,6 +33,12 @@
 		"allowImportingTsExtensions": true,
 		"noEmit": true
 	},
-	"include": ["packages/**/*.ts", "internal/**/*.ts", "test/**/*.ts"],
+	"include": [
+		"packages/**/*.ts",
+		"packages/**/*.tsx",
+		"internal/**/*.ts",
+		"test/**/*.ts",
+		"examples/**/*.ts"
+	],
 	"exclude": ["**/node_modules", "**/dist"]
 }

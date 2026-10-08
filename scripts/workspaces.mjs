@@ -56,7 +56,13 @@ for (const { manifest } of workspaces.values()) {
 		...manifest.dependencies,
 		...manifest.peerDependencies,
 	})) {
-		if (workspaces.has(dependency))
+		if (
+			workspaces.has(dependency) &&
+			!(
+				manifest.name === "@howaboua/pi-durable-ui" &&
+				dependency === "@howaboua/pi-durable-git"
+			)
+		)
 			throw new Error(
 				`${manifest.name} must not require another component: ${dependency}`,
 			);
@@ -79,7 +85,10 @@ if (command === "test") {
 	if (tests.length === 0) throw new Error("No contract tests found");
 	await run(["--experimental-strip-types", "--test", ...tests.sort()]);
 } else if (command === "build") {
-	for (const { directory, manifest } of workspaces.values()) {
+	// Git contracts must be built before the UI declarations consume their public export.
+	for (const { directory, manifest } of [...workspaces.values()].sort((a, b) =>
+		a.manifest.name.localeCompare(b.manifest.name),
+	)) {
 		await rm(join(directory, "dist"), {
 			recursive: true,
 			force: true,
@@ -90,19 +99,37 @@ if (command === "test") {
 			join(directory, "tsconfig.json"),
 		]);
 		// Bundle only owned source. The host must supply one shared Durable runtime.
-		await run(
-			[
-				"build",
-				join(directory, "src/index.ts"),
-				manifest.name === "@howaboua/pi-durable-worker-code"
-					? "--target=browser"
-					: "--target=node",
-				"--format=esm",
-				"--packages=external",
-				`--outfile=${join(directory, manifest.main)}`,
-			],
-			"bun",
+		const entries = Object.values(manifest.exports).filter(
+			(entry) => typeof entry === "object" && entry.import,
 		);
+		for (const entry of entries)
+			await run(
+				[
+					"build",
+					join(
+						directory,
+						entry.import
+							.replace("./dist/", "src/")
+							.replace(
+								/\.js$/,
+								manifest.name === "@howaboua/pi-durable-ui" &&
+									entry.import.includes("/react/")
+									? ".tsx"
+									: ".ts",
+							),
+					),
+					[
+						"@howaboua/pi-durable-worker-code",
+						"@howaboua/pi-durable-ui",
+					].includes(manifest.name) || entry.import === "./dist/contracts.js"
+						? "--target=browser"
+						: "--target=node",
+					"--format=esm",
+					"--packages=external",
+					`--outfile=${join(directory, entry.import)}`,
+				],
+				"bun",
+			);
 		if (manifest.name === "@howaboua/pi-durable-worker-code") {
 			const dependency = createRequire(join(directory, "package.json"));
 			await copyFile(
@@ -176,6 +203,11 @@ if (command === "test") {
 			"NOTICE",
 			manifest.main,
 			manifest.types,
+			...Object.values(manifest.exports).flatMap((entry) =>
+				typeof entry === "object"
+					? [entry.import, entry.types].filter(Boolean)
+					: [],
+			),
 			...(manifest.name === "@howaboua/pi-durable-worker-code"
 				? ["dist/quickjs.wasm", "dist/QUICKJS-LICENSE"]
 				: []),
@@ -192,7 +224,13 @@ if (command === "test") {
 				`${manifest.name} tarball includes development or runtime state`,
 			);
 		}
-		const expectedJavaScript = new Set([manifest.main.replace(/^\.\//, "")]);
+		const expectedJavaScript = new Set(
+			Object.values(manifest.exports).flatMap((entry) =>
+				typeof entry === "object" && entry.import
+					? [entry.import.replace(/^\.\//, "")]
+					: [],
+			),
+		);
 		if (manifest.name === "@howaboua/pi-durable-worker-code") {
 			const dependency = createRequire(join(directory, "package.json"));
 			const shipped = await readFile(join(directory, "dist/quickjs.wasm"));

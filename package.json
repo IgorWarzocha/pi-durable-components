@@ -21,9 +21,17 @@
 		"build": "node scripts/workspaces.mjs build",
 		"pack:dry": "node scripts/workspaces.mjs pack:dry",
 		"pack": "node scripts/workspaces.mjs pack dist",
-		"check": "bun run lint && bun run typecheck && bun run knip && bun run test && bun run build && bun run pack:dry"
+		"check": "bun run lint && bun run build && bun run typecheck && bun run knip && bun run test && bun run pack:dry"
 	},
 	"devDependencies": {
+		"@howaboua/pi-durable-git": "workspace:*",
+		"@howaboua/pi-durable-ui": "workspace:*",
+		"@pierre/diffs": "1.4.3",
+		"@types/react": "19.3.0",
+		"@types/hast": "3.0.4",
+		"@types/react-dom": "19.3.0",
+		"react": "19.3.0",
+		"react-dom": "19.3.0",
 		"@biomejs/biome": "2.5.10",
 		"@earendil-works/chord": "1.1.0",
 		"@earendil-works/pi-ai": "1.1.0",

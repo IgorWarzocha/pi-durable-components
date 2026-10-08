@@ -4,15 +4,19 @@
 	"ignoreDependencies": ["@modelcontextprotocol/sdk"],
 	"workspaces": {
 		".": {
-			// Published gaxios declarations reference this undeclared peer.
-			"ignoreDependencies": ["undici-types"],
+			// Published gaxios and Shiki declarations reference these undeclared type peers.
+			"ignoreDependencies": ["undici-types", "@types/hast"],
 			"entry": [
 				"scripts/*.mjs",
+				"examples/**/*.mjs",
+				"examples/**/client.ts",
 				"test/**/*.test.ts",
 				"packages/execution/test/**/*.test.ts"
 			],
 			"project": [
 				"scripts/*.mjs",
+				"examples/**/*.mjs",
+				"examples/**/*.ts",
 				"test/**/*.ts",
 				"packages/execution/src/**/*.ts",
 				"packages/execution/test/**/*.ts",
@@ -22,6 +26,21 @@
 		"packages/*": {
 			"entry": ["test/**/*.test.ts"],
 			"project": ["src/**/*.ts", "test/**/*.ts"]
+		},
+		"packages/git": {
+			"entry": [],
+			"project": ["src/**/*.ts"],
+			// Only the root Durable registration needs these peers. /native and /contracts do not.
+			"ignoreDependencies": [
+				"@earendil-works/pi-durable",
+				"@earendil-works/chord"
+			]
+		},
+		"packages/ui": {
+			"entry": [],
+			"project": ["src/**/*.ts", "src/**/*.tsx"],
+			// These peers belong to the optional /react/diff entry, not generic UI mounts.
+			"ignoreDependencies": ["@pierre/diffs", "react-dom"]
 		},
 		"packages/browser": {
 			"entry": ["src/remote-worker.ts", "test/**/*.test.ts"],

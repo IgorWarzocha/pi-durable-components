@@ -1,0 +1,10 @@
+Pi Durable UI SDK
+Copyright (c) 2026 Igor Warzocha
+
+Diff defaults and host integration contracts extracted from Howcode, MIT licensed.
+Source: https://github.com/IgorWarzocha/howcode
+Revision: 5c7a4e2b75c3682ce8aeb911f4dc425693507508
+The MIT license and copyright notice are preserved in LICENSE.
+
+Uses @pierre/diffs 1.4.3 as an external dependency, under Apache-2.0.
+No Pierre source is vendored in this package.
