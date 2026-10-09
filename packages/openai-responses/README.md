@@ -58,6 +58,14 @@ Cached continuation, grammar tools, native input items, explicit prewarm, usage 
 
 Configure Codex defaults with `transport`, `responsesLite`, `forceCachedWebSockets`, `originator` and `diagnostics`. Set `responsesLite: false` to disable Lite, or `true` only for a route known to support it. Per-request pi-ai options supply reasoning effort, service tier, verbosity, cancellation, timeouts and retries. Codex deliberately omits `maxTokens` because its endpoint rejects an output-token cap. Deferred generation is not supported. Named tool selection is available in direct mode, but not Codex mode.
 
+Codex accepts `serviceTier: "ultrafast"`. Cost estimates use the final sent payload's tier and model after payload hooks. Ultrafast applies the source's sixfold multiplier only to `gpt-6-astra` and `gpt-6.1-sol`. Other models retain a base-rate estimate because no Ultrafast multiplier is known for them.
+
+A payload hook that changes the model must select an ID registered in this provider's `models` catalog. Its pricing metadata replaces the original model's rates without changing the authorized endpoint or headers. An unknown target fails before generation rather than reporting another model's prices.
+
+Set `daybreak: true` on the provider or request to opt into account-catalog eligibility discovery. Request settings override provider defaults. The connected server must advertise `daybreak_blue` or `daybreak_red` for the final payload model. Blue is preferred. Unknown eligibility fails visibly without switching models. Explicit `false` also queries the catalog and sends `standard` only when advertised, otherwise leaving access programs unset. Omit the setting to preserve existing behavior with no catalog request. Model aliases do not establish eligibility. Direct mode does not support this setting.
+
+Discovery uses the request's endpoint, credentials, model headers, request headers and custom fetch route. It does not follow redirects. Eligibility evidence is bounded to eight identities per provider instance, retained for five minutes on success and thirty seconds on failure. Discovery is cancelled with the request and joined on provider close. Credentials are not logged or retained in cache keys.
+
 `diagnostics(event)` receives transport decisions and usage counts without prompts, tool arguments, credentials or response IDs. Prewarm readiness and continuation reuse do not prove a prompt-cache hit. Only provider-reported cache usage does. This package makes no general latency or billing guarantee.
 
 ## Lifecycle
@@ -82,6 +90,8 @@ await provider.close();
 `provider.prewarm(model, context, options)` prepares a complete request and warms its WebSocket. Options require resolved `apiKey` and `sessionId`. `provider.prewarmPrepared(model, body, options)` accepts an already prepared final payload. The host must run its normal prompt and tool preparation first. Neither method knows about pending host edits.
 
 Default prewarm uses `generate: false`. `mode: "keepalive"` explicitly generates a billable response on an isolated socket lane without advancing the main conversation. No idle timer or automatic generated keepalive is installed. Returned usage belongs to the caller's accounting, not a Durable generation task.
+
+Generated keepalive also returns `billedUsage`, a cost estimate based on its actual sent model and tier. Ordinary preparation returns token usage only. Daybreak selection applies to both prewarm methods when explicitly configured.
 
 `provider.getCanonicalRequest(model, sessionId, apiKey, reconstructedInput)` exposes a validated completed-request snapshot for host-owned native checkpoints. `reconstructedInput` excludes Lite's leading tool and instruction items. Account, endpoint, model and history must match. A mismatch returns a decision without a body. This does not install a compaction policy, persist encrypted checkpoints or replace Durable's context management.
 

@@ -204,7 +204,9 @@ export interface CachedWebSocketRequestBodyResult {
 	decision: WebSocketContinuationDecision;
 }
 
-export type ServiceTier = ResponseCreateParamsStreaming["service_tier"];
+export type ServiceTier =
+	| ResponseCreateParamsStreaming["service_tier"]
+	| "ultrafast";
 export type ProviderEnv = Record<string, string>;
 export type CodexProviderStreamOptions = Omit<
 	SimpleStreamOptions,
@@ -224,6 +226,8 @@ type CodexReasoningEffort =
 	| "xhigh"
 	| "max";
 export type OpenAICodexStreamOptions = CodexProviderStreamOptions & {
+	/** Undefined preserves the existing request without account discovery. */
+	daybreak?: boolean | undefined;
 	reasoningEffort?: CodexReasoningEffort | undefined;
 	responsesLite?: boolean | undefined;
 	grammarToolInputProperties?: ReadonlyMap<string, string> | undefined;
@@ -278,6 +282,8 @@ interface CodexPrewarmUsage {
 export interface CodexPrewarmResult {
 	socketReused: boolean;
 	usage?: CodexPrewarmUsage | undefined;
+	/** Generated keepalive estimate, priced against its actual sent model and tier. */
+	billedUsage?: AssistantMessage["usage"] | undefined;
 }
 
 interface ResponseEnvelope {

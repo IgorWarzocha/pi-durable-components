@@ -97,7 +97,7 @@ import type {
 	ResponsesBody,
 } from "./types.ts";
 import { createInitialAssistantMessage } from "./types.ts";
-import { finalizeUsage } from "./usage.ts";
+import { finalizeUsage, readServiceTier } from "./usage.ts";
 import {
 	isWebSocketSseFallbackActive,
 	recordWebSocketSseFallback,
@@ -120,6 +120,7 @@ export interface CodexProviderRuntimeConfig {
 }
 
 export interface CodexTransportRecoveryDependencies {
+	usageModel(model: Model<Api>, modelId: string): Model<Api>;
 	onCompletion?: CompletionObserver | undefined;
 	canonicalSubscription?: boolean;
 	transportState: CodexTransportState;
@@ -530,6 +531,7 @@ export function createCodexTransportStream<TApi extends Api>(
 				originator,
 			);
 			const bodyJson = JSON.stringify(body);
+			const pricingModel = deps.usageModel(model, body.model);
 			const observe = async (
 				sent: string,
 				responseId: string,
@@ -656,7 +658,7 @@ export function createCodexTransportStream<TApi extends Api>(
 							websocketHeaders,
 							output,
 							stream,
-							model,
+							pricingModel,
 							accountId,
 							() => {
 								websocketStarted = true;
@@ -855,9 +857,10 @@ export function createCodexTransportStream<TApi extends Api>(
 						parseSSE(response, effectiveOptions?.signal, sseIdleTimeoutMs),
 						output,
 						stream,
-						model,
+						pricingModel,
 						{
 							...effectiveOptions,
+							serviceTier: readServiceTier(body.service_tier),
 							onProviderStreamEvent: async (event, selected) => {
 								const raw = event as {
 									type?: string;

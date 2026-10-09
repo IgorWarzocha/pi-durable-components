@@ -20,6 +20,7 @@ export type {
 } from "./completion.ts";
 
 import { DEFAULT_CODEX_BASE_URL } from "./openai-codex/constants.ts";
+import { createDaybreakAccessResolver } from "./openai-codex/daybreak.ts";
 import { createErrorMessage } from "./openai-codex/errors.ts";
 import { openAICodexProviderModels } from "./openai-codex/model-catalog.ts";
 import { openaiCodexNativeOAuthProvider } from "./openai-codex/oauth.ts";
@@ -75,6 +76,8 @@ export interface OpenAIResponsesProviderOptions<
 	models?: readonly Model<TApi>[];
 	/** Auto enables Lite for supported models with grammar-constrained tools. */
 	responsesLite?: boolean | "auto";
+	/** Codex account eligibility. Undefined makes no catalog request. */
+	daybreak?: boolean;
 	transport?: Transport;
 	forceCachedWebSockets?: boolean;
 	originator?: string;
@@ -145,6 +148,18 @@ export function createOpenAIResponsesProvider(
 		forceCachedWebSockets: options.forceCachedWebSockets ?? true,
 		originator: options.originator ?? "pi-durable-openai-responses",
 	};
+	const daybreak = createDaybreakAccessResolver(config.originator);
+	const applyAccess = (
+		model: Model<Api>,
+		body: ResponsesBody,
+		request?: OpenAICodexStreamOptions,
+	) => {
+		const enabled = request?.daybreak ?? options.daybreak;
+		if (enabled === undefined) return Promise.resolve(body);
+		if (mode !== "codex")
+			throw new Error("Daybreak requires a Codex account catalog");
+		return daybreak.apply(model, body, request ?? {}, enabled);
+	};
 	const id = options.id ?? (mode === "direct" ? "openai" : "openai-codex");
 	const baseUrl =
 		options.baseUrl ??
@@ -160,6 +175,16 @@ export function createOpenAIResponsesProvider(
 		baseUrl: options.baseUrl ?? model.baseUrl,
 	}));
 	const transport = options.transport ?? "websocket-cached";
+	const usageModel = (model: Model<Api>, modelId: string): Model<Api> => {
+		if (modelId === model.id) return model;
+		const selected = models.find((candidate) => candidate.id === modelId);
+		if (!selected)
+			throw new Error(
+				`Payload model ${modelId} is not registered. Supply its pricing metadata in provider.models before switching models in a payload hook`,
+			);
+		// Payload selection changes pricing, not the authorized route or headers.
+		return { ...model, id: modelId, cost: selected.cost };
+	};
 	const lite = (
 		model: Model<Api>,
 		context: TranscriptContext,
@@ -178,12 +203,17 @@ export function createOpenAIResponsesProvider(
 		}
 		return useResponsesLite(options.responsesLite ?? "auto", model, context);
 	};
-	const prepare = (
+	const prepare = async (
 		model: Model<Api>,
 		context: TranscriptContext,
 		request: OpenAICodexStreamOptions | undefined,
 		responsesLite: boolean,
-	) => prepareRequestBody(model, context, request, responsesLite, mode);
+	) =>
+		applyAccess(
+			model,
+			await prepareRequestBody(model, context, request, responsesLite, mode),
+			request,
+		);
 	const clearSession = (sessionId: string) => {
 		closeOpenAICodexWebSocketSessions(transportState, sessionId);
 		closeOpenAICodexWebSocketSessions(
@@ -231,6 +261,7 @@ export function createOpenAIResponsesProvider(
 				effectiveOptions,
 				{
 					transportState,
+					usageModel,
 					getConfig: () => config,
 					useResponsesLite: (selected) =>
 						lite(selected, context, effectiveOptions),
@@ -289,14 +320,15 @@ export function createOpenAIResponsesProvider(
 				"context" in source ? source.context : { messages: [] },
 			);
 			const responsesLite = lite(model, context, effective);
-			if ("body" in source) body = source.body;
+			if ("body" in source)
+				body = await applyAccess(model, source.body, effective);
 			else {
 				body = await prepare(model, context, effective, responsesLite);
 			}
 			return await prewarmPrepared(
 				transportState,
 				config,
-				model,
+				usageModel(model, body.model),
 				body,
 				effective,
 				operation.turnState,
@@ -375,6 +407,7 @@ export function createOpenAIResponsesProvider(
 		},
 		close() {
 			return lifecycle.close(async () => {
+				daybreak.clear();
 				closeOpenAICodexWebSocketSessions(transportState);
 				await waitForCodexTransportClose(transportState);
 			});

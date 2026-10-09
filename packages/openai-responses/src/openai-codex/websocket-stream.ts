@@ -38,6 +38,11 @@ import type {
 	ResponsesBody,
 } from "./types.ts";
 import {
+	priceGeneratedPrewarm,
+	readServiceTier,
+	resolveCodexServiceTier,
+} from "./usage.ts";
+import {
 	acquireWebSocket,
 	parseWebSocket,
 	startWebSocketOutputOnFirstEvent,
@@ -194,9 +199,10 @@ export async function processWebSocketStream<TApi extends Api>(
 			),
 			output,
 			stream,
-			model,
+			{ ...model, id: requestBody.model },
 			{
 				...options,
+				serviceTier: readServiceTier(requestBody.service_tier),
 				onOutputItemDone: (item) => responseItems.push(item),
 			},
 		);
@@ -291,6 +297,7 @@ export async function prewarmWebSocket<TApi extends Api>(
 	let responseId: string | undefined;
 	let responseStatus: string | undefined;
 	let usage: CodexPrewarmResult["usage"];
+	let billedUsage: CodexPrewarmResult["billedUsage"];
 	const idleTimeoutMs = normalizeTimeoutMs(
 		options.timeoutMs ??
 			options.websocketConnectTimeoutMs ??
@@ -379,6 +386,15 @@ export async function prewarmWebSocket<TApi extends Api>(
 							? { outputTokens: responseUsage.output_tokens ?? 0 }
 							: {}),
 					};
+					if (generate)
+						billedUsage = priceGeneratedPrewarm(
+							{ ...model, id: requestBody.model },
+							usage,
+							resolveCodexServiceTier(
+								readServiceTier(event.response?.service_tier),
+								readServiceTier(requestBody.service_tier),
+							),
+						);
 				}
 			}
 		}
@@ -399,7 +415,11 @@ export async function prewarmWebSocket<TApi extends Api>(
 			prewarm,
 			...(usage ? { usage } : {}),
 		});
-		return { socketReused: reused, ...(usage ? { usage } : {}) };
+		return {
+			socketReused: reused,
+			...(usage ? { usage } : {}),
+			...(billedUsage ? { billedUsage } : {}),
+		};
 	} catch (error) {
 		keepConnection = false;
 		recordDiagnostics?.({

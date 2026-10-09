@@ -14,7 +14,6 @@ import {
 import type {
 	ResponseInput as OpenAIResponseInput,
 	Tool as OpenAITool,
-	ResponseCreateParamsStreaming,
 	ResponseInputItem,
 	ResponseOutputMessage,
 	ResponseToolSearchOutputItemParam,
@@ -25,6 +24,7 @@ import {
 	resolveGrammarConstrainedSampling,
 	resolveJsonSchemaStrictSampling,
 } from "../constrained-sampling.ts";
+import type { ServiceTier } from "../openai-codex/types.ts";
 import { normalizeResponsesMessageHistory } from "./message-history.ts";
 import {
 	encryptedToolOutputFromDetails,
@@ -67,19 +67,15 @@ type ImageContentWithDetail = {
 };
 
 export interface OpenAIResponsesStreamOptions {
-	serviceTier?: ResponseCreateParamsStreaming["service_tier"] | undefined;
+	serviceTier?: ServiceTier | undefined;
 	grammarToolInputProperties?: ReadonlyMap<string, string> | undefined;
 	resolveServiceTier?: (
-		responseServiceTier:
-			| ResponseCreateParamsStreaming["service_tier"]
-			| undefined,
-		requestServiceTier:
-			| ResponseCreateParamsStreaming["service_tier"]
-			| undefined,
-	) => ResponseCreateParamsStreaming["service_tier"] | undefined;
+		responseServiceTier: ServiceTier | undefined,
+		requestServiceTier: ServiceTier | undefined,
+	) => ServiceTier | undefined;
 	applyServiceTierPricing?: (
 		usage: Usage,
-		serviceTier: ResponseCreateParamsStreaming["service_tier"] | undefined,
+		serviceTier: ServiceTier | undefined,
 	) => void;
 	onOutputItemDone?: (item: unknown) => void;
 }

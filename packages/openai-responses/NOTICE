@@ -7,6 +7,11 @@ The Pi extension, TUI and session-manager adapters are not included.
 Selected protocol refreshes from snapshot 69f50cf70e8a7b05c2349be6227f521b6504f80e:
 SSE opening retry budget from 5a109ed787b2a2e947f262be21f610ed3b732c4f;
 partial_answer signatures and replay from b7d92bd90aa5fa6b25b18080a88539aab54254b5.
+Daybreak account-catalog discovery and Ultrafast pricing adapted from PR491,
+snapshot 88c08f52bbf05be17525ec47a6f1d9958f07fdab, PR head 2a24e1d3.
+Modifications: provider-instance bounded identity cache, Web Crypto identity
+digest for Node and Workers, explicit opt-in settings, and final-body pricing.
+Pi configuration, UI and native compaction integration are not included.
 
 Portions of the Responses conversion and streaming implementation derive
 from Pi, Copyright (c) 2025 Mario Zechner, MIT licensed.

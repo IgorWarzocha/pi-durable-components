@@ -30,6 +30,18 @@ On 2026-10-05 the provider's source and actual dependencies bundled and ran in l
 
 The published 0.4.0 package then completed a live GPT-6 Luna response on the owner-private ChatGPT Site, deployed from `pi-durable-chat` commit `522c6af` on 2026-10-05. The Site selected direct mode, native Worker WebSockets and `websocket-cached`, with SSE forbidden. Its existing subscription grant authorized generation, the reply streamed into the interface, and both new messages persisted across reload with the prior nine messages intact. This establishes live subscription WebSocket authorization in the deployed Worker. Token refresh was not independently observed. The Site closes its provider with each request, so this check does not establish continuation reuse between separate Site requests.
 
+## PR #491 service tiers and Daybreak
+
+The provider adopts the applicable transport delta from `88c08f52bbf05be17525ec47a6f1d9958f07fdab`, PR head `2a24e1d3ab80d73f41c514c065cf8f3e4a631ee2`. `ultrafast` is priced at six times the model's base rate only for `gpt-6-astra` and `gpt-6.1-sol`. Other models retain a base-rate estimate rather than an invented multiplier. SSE, WebSocket and generated-prewarm accounting use the final sent model and tier. Generated prewarm exposes optional `billedUsage` separately from token usage.
+
+Daybreak is an explicit provider or request option. Unset preserves existing behavior without catalog discovery. Enabled selection requires the connected account's bounded model catalog and prefers Blue over Red. Explicitly disabled selection requests Standard only when advertised, otherwise leaves the access program unset. Model aliases do not establish eligibility and remain unchanged. Pi settings UI and native compaction remain outside this component.
+
+Discovery uses the resolved route, credentials and egress, rejects redirects, limits responses to 2 MiB and five seconds, and caches up to eight hashed identities per provider. Successful catalogs last five minutes and failed discovery thirty seconds. Caller cancellation and provider lifecycle cancellation own pending discovery. Unknown enabled eligibility fails visibly instead of sending an unconfirmed generation.
+
+Disposable actual Models checks used local Node SSE and WebSockets for tier hooks, discovery defaults, Blue and Red selection, disabled selection, unknown eligibility, cache boundaries, prewarm and close cancellation. A real local workerd Models check exercised native WebSocket Upgrade, catalog discovery and final tier pricing. Existing retained provider workflows also passed. No permanent tests or live account calls were added, so live Daybreak eligibility and billing remain unverified.
+
+Independent review found that changing only the accounting model ID retained the original model's cost table after a payload hook switched models. The corrected path resolves the target's registered pricing metadata without changing transport authorization. Unknown targets fail before generation. Disposable actual SSE, WebSocket and generated-prewarm checks switched Astra to Sol and verified all cost fields against Sol's rates and the Ultrafast multiplier.
+
 ## Carried behavior
 
 | Boundary | Preserved behavior |
