@@ -16,6 +16,7 @@ import {
 } from "@earendil-works/pi-durable";
 import { boundOutput, OutputBuffer, type OutputLimits } from "./output.ts";
 import { PROGRESS_BYTES_PER_SECOND, Progress } from "./progress.ts";
+import { ToolOriginDoc } from "./tool-origin.ts";
 
 type StoredResult = JsonRepresentation<ToolExecutionResult>;
 export type InvocationState = {
@@ -147,6 +148,9 @@ export function createInvocation<I, S, R, H extends object>(
 			let id;
 			await runtime.commit(async (tx) => {
 				id = await tx.createTask(task, input, options);
+				const source = await tx.doc(ToolOriginDoc, runtime.taskId);
+				if (source.origin !== undefined)
+					(await tx.doc(ToolOriginDoc, id)).origin = { ...source.origin };
 				return undefined;
 			}, taskContext);
 			if (id === undefined) throw new Error("Task creation did not commit");

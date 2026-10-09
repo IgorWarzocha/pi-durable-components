@@ -1,0 +1,8 @@
+Guardian review protocol, exact-action serialization, reviewer wire identity,
+and isolated argument matching adapted from @howaboua/pi-codex-guardian
+at 69f50cf70e8a7b05c2349be6227f521b6504f80e.
+Source: https://github.com/IgorWarzocha/howaboua-pi-stuff
+Copyright (c) 2026 Igor Warzocha. MIT licensed, see LICENSE.
+Modifications: native Durable Generation and Tool hooks, explicit host policy
+and lifecycle API, structural provider completion observation. No Pi extension
+API, TUI, filesystem configuration loader or Code/Notebook bridge is included.

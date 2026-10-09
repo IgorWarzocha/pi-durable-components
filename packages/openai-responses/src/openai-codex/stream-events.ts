@@ -98,7 +98,7 @@ export class CodexProtocolError extends Error {
 
 /** A completed generation must not be replayed to recover a host observer. */
 export async function runCodexCompletionObserver(
-	kind: "output item" | "usage",
+	kind: "output item" | "usage" | "completion",
 	observe: () => void | Promise<void>,
 ): Promise<void> {
 	try {

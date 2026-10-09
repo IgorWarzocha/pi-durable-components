@@ -62,6 +62,8 @@ Configure Codex defaults with `transport`, `responsesLite`, `forceCachedWebSocke
 
 ## Lifecycle
 
+For trusted host admission, `onPreparedRequest(body, model)` can adjust a converted request before final serialization. `onCompletion(observation)` receives the exact sent JSON after an actual successful `response.completed`, correlated by response ID, model and session. Both SSE and WebSockets are covered, including the WebSocket event envelope and continuation payload. Bodies above 96 KiB are not observed. Observations contain no authentication headers and are not persisted. `canonicalSubscription` is false for direct mode, custom routes, custom routing or authentication headers, and custom fetch. Ordinary configured headers, including residency, remain supported. Observer failure reports an error without replaying the completed request. These callbacks are host capabilities, not agent tools.
+
 Durable supplies a persisted provider session ID for each conversation. Direct pi-ai callers should supply their own stable `sessionId`. State is isolated per provider instance and is not restored after a process restart.
 
 Call `await provider.resetSession(sessionId)` when explicitly discarding a conversation's transport state. It cancels active work and clears sockets, continuation, canonical history and sticky fallback. New requests for that session are rejected until reset completes.

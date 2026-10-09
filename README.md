@@ -46,8 +46,10 @@ Each component's guide includes its install command and host configuration.
 | [Worker Code](packages/worker-code) | Run bounded JavaScript and ordinary tools inside Cloudflare Workers |
 | [Git](packages/git) | Read repository diffs, full-text context and images through an explicit execution capability |
 | [UI SDK](packages/ui) | Build interactive component UIs with live state, actions and streams through one host contract |
+| [Sites](packages/sites) | Save committed source and manage ChatGPT Sites with explicit deployment visibility |
+| [Guardian](packages/guardian) | Enforce explicit tool rules and request one-shot Codex action review |
 
-Git and the UI SDK are new local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
+Git, the UI SDK, Sites and Guardian are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
 
 The local-development tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
 

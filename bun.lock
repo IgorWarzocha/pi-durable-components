@@ -112,6 +112,15 @@
         "@earendil-works/pi-durable",
       ],
     },
+    "packages/guardian": {
+      "name": "@howaboua/pi-durable-guardian",
+      "version": "0.5.0",
+      "peerDependencies": {
+        "@earendil-works/chord": "1.1.0",
+        "@earendil-works/pi-ai": "1.1.0",
+        "@earendil-works/pi-durable": "1.1.0",
+      },
+    },
     "packages/imagegen": {
       "name": "@howaboua/pi-durable-imagegen",
       "version": "0.5.0",
@@ -155,6 +164,19 @@
       },
       "peerDependencies": {
         "@earendil-works/pi-ai": "1.1.0",
+        "@modelcontextprotocol/sdk": "1.25.2",
+      },
+    },
+    "packages/sites": {
+      "name": "@howaboua/pi-durable-sites",
+      "version": "0.5.0",
+      "dependencies": {
+        "typebox": "1.3.27",
+      },
+      "peerDependencies": {
+        "@earendil-works/chord": "1.1.0",
+        "@earendil-works/pi-ai": "1.1.0",
+        "@earendil-works/pi-durable": "1.1.0",
         "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
@@ -394,11 +416,15 @@
 
     "@howaboua/pi-durable-git": ["@howaboua/pi-durable-git@workspace:packages/git"],
 
+    "@howaboua/pi-durable-guardian": ["@howaboua/pi-durable-guardian@workspace:packages/guardian"],
+
     "@howaboua/pi-durable-imagegen": ["@howaboua/pi-durable-imagegen@workspace:packages/imagegen"],
 
     "@howaboua/pi-durable-notebook": ["@howaboua/pi-durable-notebook@workspace:packages/notebook"],
 
     "@howaboua/pi-durable-openai-responses": ["@howaboua/pi-durable-openai-responses@workspace:packages/openai-responses"],
+
+    "@howaboua/pi-durable-sites": ["@howaboua/pi-durable-sites@workspace:packages/sites"],
 
     "@howaboua/pi-durable-skills": ["@howaboua/pi-durable-skills@workspace:packages/skills"],
 

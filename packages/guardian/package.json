@@ -1,0 +1,34 @@
+{
+	"name": "@howaboua/pi-durable-guardian",
+	"version": "0.5.0",
+	"description": "Explicit Durable tool rules and one-shot Codex action review",
+	"type": "module",
+	"license": "MIT",
+	"author": "Igor Warzocha",
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/packages/guardian/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/packages/guardian/src/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"NOTICE",
+		"LICENSE"
+	],
+	"sideEffects": false,
+	"peerDependencies": {
+		"@earendil-works/pi-ai": "1.1.0",
+		"@earendil-works/pi-durable": "1.1.0",
+		"@earendil-works/chord": "1.1.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

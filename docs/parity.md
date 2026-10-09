@@ -22,6 +22,8 @@ The approved 2026-10-09 refresh adopts selected behavior from `69f50cf70e8a7b05c
 | Worker Code | Separate bounded Worker execution, not native Code or Notebook parity | [QuickJS WASM and ordinary Durable tool dispatch](parity/worker-code.md) |
 | Git and UI SDK | Git read capability and a component-independent interactive UI contract, with the diff renderer as one consumer | [Source extraction and independent host evidence](parity/git-ui.md) |
 | Headless presentations | Package-owned summary/detail contracts across the tool components | [Real receipts, lazy detail and host integration](parity/presentations.md) |
+| Sites | Structured ChatGPT Sites tools, committed-source saves and explicit deployments | [Offline Harness, Git, binding and recovery evidence](parity/sites.md) |
+| Guardian | Explicit tool rules and one-shot review of genuine pending Codex actions | [Provider completion and nested-admission evidence](parity/guardian.md) |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 
@@ -45,6 +47,8 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-09, Sites and Guardian passed independent review with no material findings. After correcting declaration placement and unused internal exports, `bun run check` passed all 28 retained workflows, lint, strict TypeScript, Knip, sixteen builds and dry-pack checks. Disposable offline probes covered Sites Git and recovery boundaries, provider completion evidence and genuine nested Guardian admission. No permanent tests were added and no live Sites or Guardian service claims are made.
 
 On 2026-10-09, the selected upstream refresh passed one independent review with no material findings and `bun run check`: all 28 retained workflows, lint, strict TypeScript, Knip, fourteen builds and dry-pack checks. No permanent tests were added. Live screenshot focus, provider accounts and non-Linux runtimes were not revalidated.
 

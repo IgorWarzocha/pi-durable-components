@@ -11,7 +11,14 @@ import {
 } from "@earendil-works/pi-ai";
 import { buildBaseOptions } from "@earendil-works/pi-ai/api/simple-options";
 import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
+import type { CompletionObserver } from "./completion.ts";
 import { createRequestLifecycle } from "./lifecycle.ts";
+
+export type {
+	CompletionObservation,
+	CompletionObserver,
+} from "./completion.ts";
+
 import { DEFAULT_CODEX_BASE_URL } from "./openai-codex/constants.ts";
 import { createErrorMessage } from "./openai-codex/errors.ts";
 import { openAICodexProviderModels } from "./openai-codex/model-catalog.ts";
@@ -72,6 +79,10 @@ export interface OpenAIResponsesProviderOptions<
 	forceCachedWebSockets?: boolean;
 	originator?: string;
 	diagnostics?: CodexDiagnosticsSink;
+	/** Opt-in ephemeral evidence of an actually completed sent request. */
+	onCompletion?: CompletionObserver;
+	/** Trusted host preparation, after provider conversion and before serialization. */
+	onPreparedRequest?: (body: ResponsesBody, model: Model<Api>) => void;
 }
 
 export interface OpenAIResponsesProvider<
@@ -225,6 +236,16 @@ export function createOpenAIResponsesProvider(
 						lite(selected, context, effectiveOptions),
 					turnState: mode === "codex" ? current.turnState : undefined,
 					getDiagnostics: () => options.diagnostics,
+					onCompletion: options.onCompletion,
+					beforeRequestSend: (selected, _context, body) =>
+						options.onPreparedRequest?.(body, selected),
+					canonicalSubscription:
+						mode === "codex" &&
+						[
+							"https://chatgpt.com/backend-api",
+							"https://chatgpt.com/backend-api/codex",
+							"https://chatgpt.com/backend-api/codex/responses",
+						].includes(baseUrl.replace(/\/+$/, "")),
 					prepareRequestBody: prepare,
 					onStreamSettled: (message) => current.finish(message),
 				},

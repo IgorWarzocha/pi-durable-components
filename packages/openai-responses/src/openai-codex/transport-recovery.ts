@@ -10,6 +10,7 @@ import {
 	type TranscriptContext,
 	type Transport,
 } from "@earendil-works/pi-ai";
+import type { CompletionObserver } from "../completion.ts";
 import { createGrammarToolInputProperties } from "../constrained-sampling.ts";
 import {
 	hasRemoteCompactionV2Input,
@@ -119,6 +120,8 @@ export interface CodexProviderRuntimeConfig {
 }
 
 export interface CodexTransportRecoveryDependencies {
+	onCompletion?: CompletionObserver | undefined;
+	canonicalSubscription?: boolean;
 	transportState: CodexTransportState;
 	getConfig?: () => CodexProviderRuntimeConfig | undefined;
 	useResponsesLite?: (model: Model<Api>) => boolean;
@@ -527,6 +530,43 @@ export function createCodexTransportStream<TApi extends Api>(
 				originator,
 			);
 			const bodyJson = JSON.stringify(body);
+			const observe = async (
+				sent: string,
+				responseId: string,
+				transport: "sse" | "websocket",
+			) => {
+				if (
+					!deps.onCompletion ||
+					new TextEncoder().encode(sent).byteLength > 96 * 1024
+				)
+					return;
+				await runCodexCompletionObserver("completion", () =>
+					deps.onCompletion?.({
+						responseId,
+						provider: model.provider,
+						api: model.api,
+						model: model.id,
+						sessionId: effectiveOptions.sessionId,
+						url: websocketUrl.replace(/^ws/, "http"),
+						transport,
+						requestBody: sent,
+						canonicalSubscription:
+							deps.canonicalSubscription === true &&
+							mode === "codex" &&
+							resolveCodexUrl(model.baseUrl) ===
+								"https://chatgpt.com/backend-api/codex/responses" &&
+							![
+								...Object.keys(model.headers ?? {}),
+								...Object.keys(effectiveOptions.headers ?? {}),
+							].some((key) =>
+								/^(authorization|chatgpt-account-id|host|x-codex-routing-hint|x-api-key)$/i.test(
+									key,
+								),
+							) &&
+							!effectiveOptions.fetch,
+					}),
+				);
+			};
 			const websocketBody = responsesLite
 				? applyResponsesLiteWebSocketMetadata(body)
 				: body;
@@ -635,6 +675,7 @@ export function createCodexTransportStream<TApi extends Api>(
 								token: canonicalSessionToken,
 								decision: canonicalHistory,
 							},
+							(sent, id) => observe(sent, id, "websocket"),
 						);
 						if (effectiveOptions?.signal?.aborted)
 							throw new Error("Request was aborted");
@@ -769,6 +810,7 @@ export function createCodexTransportStream<TApi extends Api>(
 			for (let attempt = 0; attempt <= streamMaxRetries; attempt++) {
 				if (attempt > 0) output = createInitialAssistantMessage(model);
 				const responseItems: unknown[] = [];
+				let completedId: string | undefined;
 				try {
 					if (effectiveOptions?.compactionDiagnostics) {
 						Object.assign(effectiveOptions.compactionDiagnostics, {
@@ -816,6 +858,19 @@ export function createCodexTransportStream<TApi extends Api>(
 						model,
 						{
 							...effectiveOptions,
+							onProviderStreamEvent: async (event, selected) => {
+								const raw = event as {
+									type?: string;
+									response?: { status?: string; id?: string };
+								};
+								if (
+									raw.type === "response.completed" &&
+									raw.response?.status === "completed" &&
+									typeof raw.response.id === "string"
+								)
+									completedId = raw.response.id;
+								await effectiveOptions.onProviderStreamEvent?.(event, selected);
+							},
 							onOutputItemDone: (item) => responseItems.push(item),
 						},
 					);
@@ -823,6 +878,8 @@ export function createCodexTransportStream<TApi extends Api>(
 					if (effectiveOptions?.signal?.aborted)
 						throw new Error("Request was aborted");
 					assertSuccessfulCodexOutput(output);
+					if (completedId && completedId === output.responseId)
+						await observe(bodyJson, completedId, "sse");
 					recordUsage(diagnostics, lane, "sse", output);
 					await runCodexCompletionObserver("usage", () =>
 						deps.recordUsage?.(

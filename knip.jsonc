@@ -36,6 +36,14 @@
 				"@earendil-works/chord"
 			]
 		},
+		"packages/guardian": {
+			"entry": [],
+			"project": ["src/**/*.ts"]
+		},
+		"packages/sites": {
+			"entry": [],
+			"project": ["src/**/*.ts"]
+		},
 		"packages/ui": {
 			"entry": [],
 			"project": ["src/**/*.ts", "src/**/*.tsx"],

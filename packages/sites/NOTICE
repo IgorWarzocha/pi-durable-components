@@ -1,0 +1,13 @@
+@howaboua/pi-durable-sites
+
+Sites facade, operations, RPC client, redaction, local-project behavior and
+on-demand guides adapted from IgorWarzocha/howaboua-pi-stuff:
+packages/pi-chatgpt-sites at 69f50cf70e8a7b05c2349be6227f521b6504f80e.
+Copyright (c) 2026 pasky
+Copyright (c) 2026 Igor Warzocha
+MIT licensed. The upstream license is reproduced in LICENSE.
+
+Modified for Durable-native ordinary tool registrations, Models OAuth,
+explicit namespace-matched filesystem and Git capabilities, owned execution,
+bundled documentation and bounded, non-retrying transport failures.
+No Pi ExtensionAPI, TUI, compatibility wrapper or upstream runtime is included.

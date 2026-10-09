@@ -71,6 +71,8 @@ At the initial extraction release, the gate passed all 35 then-existing workflow
 
 ## Explicit exclusions
 
+The optional prepared-request and successful-completion callbacks support host-composed [Guardian provenance](guardian.md). Completion observations contain bounded exact sent JSON, response and session identity, transport and canonical-route eligibility, without authentication headers. Both SSE and WebSockets require an actual successful `response.completed`. Disposable offline checks established exact body equality and no replay when the observer throws. This does not establish live review compatibility or billing eligibility.
+
 Pi menus, status widgets, usage dashboards, reserve auto-switching, settings persistence and extension events are not included. Neither are the generic configured-provider proxy overlay, remote context/namespace routers, idle keepalive scheduling, automatic reasoning-selector history, encrypted checkpoint persistence or a native compaction policy. Pure configuration-update normalization and compatible native input support remain available, but the host owns generating and persisting those items. Existing Durable context management remains separate.
 
 WebSocket proxy selection follows explicit request environment overrides and process proxy settings. Custom SSE routing uses the public `fetch` option. Non-Linux platforms, custom Codex passthroughs, interactive authentication and long-prompt cache economics remain unverified. The source's carried retry policy can regenerate incomplete model output, but no tool executes before Durable receives a completed, validated call.

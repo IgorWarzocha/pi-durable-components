@@ -16,6 +16,7 @@ import { observeCell } from "./cell-observation.ts";
 import { createCellTask } from "./cell-task.ts";
 import { createNestedToolTask } from "./nested.ts";
 import { providerProjection } from "./projection.ts";
+import { ToolOriginDoc } from "./tool-origin.ts";
 
 export type { CellCoordinatorOptions } from "./cell-contract.ts";
 
@@ -78,9 +79,16 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 							`Cell ${live.items[0]?.id} is still running. Wait or terminate it before starting another cell`,
 						);
 				}
-				return tx.createTask(task, copied, {
+				const id = await tx.createTask(task, copied, {
 					ownership: { kind: "conversation" },
 				});
+				const inherited = await tx.doc(ToolOriginDoc, api.taskId);
+				(await tx.doc(ToolOriginDoc, id)).origin = inherited.origin ?? {
+					conversationId: api.conversationId,
+					taskId: api.taskId,
+					callId: api.callId,
+				};
+				return id;
 			}, context);
 		},
 		async wait(

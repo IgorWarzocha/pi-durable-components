@@ -74,7 +74,9 @@ export async function processWebSocketStream<TApi extends Api>(
 				decision?: CanonicalHistoryDecision | undefined;
 		  }
 		| undefined,
+	onCompleted?: (sent: string, responseId: string) => Promise<void>,
 ): Promise<void> {
+	let completedId: string | undefined;
 	let streamStarted = false;
 	const idleTimeoutMs = normalizeTimeoutMs(
 		options?.timeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS,
@@ -164,7 +166,8 @@ export async function processWebSocketStream<TApi extends Api>(
 				previousResponseId: Boolean(requestBody.previous_response_id),
 			});
 		}
-		socket.send(responsesWebSocketEvent(transportState.mode, requestBody));
+		const sent = responsesWebSocketEvent(transportState.mode, requestBody);
+		socket.send(sent);
 		await processMappedCodexResponsesStream(
 			startWebSocketOutputOnFirstEvent(
 				mapCodexEvents(
@@ -172,7 +175,15 @@ export async function processWebSocketStream<TApi extends Api>(
 						turnState?.capture(value),
 					),
 					output,
-					(event) => options?.onProviderStreamEvent?.(event, model),
+					async (event) => {
+						if (
+							event.type === "response.completed" &&
+							event.response?.["status"] === "completed" &&
+							typeof event.response["id"] === "string"
+						)
+							completedId = event.response["id"];
+						await options?.onProviderStreamEvent?.(event, model);
+					},
 				),
 				() => {
 					if (!streamStarted) {
@@ -193,6 +204,8 @@ export async function processWebSocketStream<TApi extends Api>(
 			keepConnection = false;
 		} else {
 			assertSuccessfulCodexOutput(output);
+			if (completedId && completedId === output.responseId)
+				await onCompleted?.(sent, completedId);
 			await runCodexCompletionObserver("output item", async () => {
 				for (const item of responseItems)
 					await options?.onOutputItemDone?.(item);

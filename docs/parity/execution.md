@@ -55,6 +55,8 @@ The shared JavaScript projection uses meaningful details as structured fields an
 
 ## Evidence
 
+Generic task-scoped origin metadata records the actual ordinary admission when a cell starts and propagates transactionally to child tasks. It is never taken from model arguments or reconstructed from the latest wrapper. Consumers still have to verify the live originating slot. The [Guardian checks](guardian.md) exercised nested admission while that slot was pending and rejection after a cell yielded past its completion.
+
 `packages/code/test/integration.test.ts` drives the actual V8 host through the real Durable Harness and faux provider. It checks that an ordinary side effect executes once across conversation-owned yielding and reaches the model through V8.
 
 `packages/code/test/output.test.ts` checks fresh wait budgets and nonduplicated delivery through V8. `packages/notebook/test/runtime.test.ts` drives real Deno and the Harness. It checks persistence without source replay, cross-conversation checkpoint isolation, incremental observation and cancellation of unawaited nested calls.
