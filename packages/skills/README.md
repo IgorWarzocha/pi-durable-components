@@ -28,9 +28,10 @@ Pass this registry to your Durable harness and provide its `env` factory. All re
 
 ## Commands
 
-The tool takes `{ command: string }`.
+Call with `{}` for command help and the available catalog, or supply `{ command: string }`. Explicit `help` returns the same discovery result. `list` returns only the catalog.
 
 ```text
+help
 list
 list code visual
 read tooling

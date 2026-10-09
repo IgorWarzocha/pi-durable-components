@@ -3,3 +3,4 @@
 - Watches follow settled input submissions, not completed generations or intermediate assistant entries. Reconcile idle document wakes inside the current task invocation.
 - Cancelling a blocking caller detaches its waiter, not its worker. Preserve background-subtree ownership and deterministic report request IDs, including deduplication between watches and delegation.
 - Board notices belong to the run's first input submission, not its replaceable generation task. Keep them out of the native inbox, which retains queued inputs after failure. Posts, notices and mutation receipts share one commit; hook delivery has its own replay receipt.
+- Catch-up queries fresh subscribed posts once per newly admitted input at the public beforeRequest boundary. Scope seen posts to board and membership, receipt delivery before model invocation, and never revive a stale pending notice. Idle agents remain idle.

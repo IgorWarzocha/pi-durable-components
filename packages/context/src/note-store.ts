@@ -219,7 +219,8 @@ export async function renderNotesThreadHint(
 		(left, right) =>
 			right.updatedAt - left.updatedAt || left.path.localeCompare(right.path),
 	);
-	const header = "Recent notes (up to 5, most-recent first):";
+	const header =
+		"Recent notes (up to 5, most-recent first). More may exist; use notes list_files_by_prefix or search_contents:";
 	const lines: string[] = [];
 	for (const file of files) {
 		if (lines.length >= 5) break;

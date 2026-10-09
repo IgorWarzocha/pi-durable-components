@@ -78,6 +78,7 @@ export class BrowserCdpSession {
 		refId: string,
 		signal: AbortSignal | undefined,
 		action: (tab: ActiveTab) => Promise<T>,
+		rendering: "background" | "foreground" = "background",
 	): Promise<T> {
 		const pages = await this.pages(signal);
 		const targetId = resolvePrefix(
@@ -127,7 +128,19 @@ export class BrowserCdpSession {
 		);
 		const current = bridge;
 		return current.run(targetId.slice(0, prefixLength), signal, async (tab) => {
-			await current.setBackgroundRendering(owned, signal);
+			// Surface capture needs real foreground focus, inside the tab's turn.
+			await current.setBackgroundRendering(
+				owned && rendering === "background",
+				signal,
+			);
+			if (rendering === "foreground") {
+				await tab.cdp.send(
+					"Target.activateTarget",
+					{ targetId },
+					undefined,
+					signal,
+				);
+			}
 			return action(tab);
 		});
 	}

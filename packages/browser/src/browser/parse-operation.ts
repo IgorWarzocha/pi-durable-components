@@ -68,7 +68,7 @@ export function parseActionRequest(value: unknown): ActionRequest {
 	if (!isRecordValue(value)) throw new Error("input must be a JSON object");
 	const action = browserAction(value["action"]);
 	const unknown = Object.keys(value).filter(
-		(key) => !ACTION_FIELDS[action].has(key),
+		(key) => key !== "response_length" && !ACTION_FIELDS[action].has(key),
 	);
 	if (unknown.length > 0) {
 		throw new Error(`unknown ${action} field(s): ${unknown.join(", ")}`);

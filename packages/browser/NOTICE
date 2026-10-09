@@ -3,6 +3,10 @@ request grammar, bounds, lifecycle and managed SSH worker from:
 https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-browser
 Revision: b2006db9def12c373ae48e70044d30f7d6b7e34f
 
+Foreground screenshot capture and discovery/input refresh incorporate:
+Revision: 1feee20371e6455a50fcd1266a69a2e8b8719fa5
+Revision: 69f50cf70e8a7b05c2349be6227f521b6504f80e
+
 The source CDP implementation is based on:
 https://github.com/pasky/chrome-cdp-skill
 

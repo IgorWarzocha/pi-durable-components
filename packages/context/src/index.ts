@@ -45,6 +45,7 @@ const ToolReceipt = defineDoc<{ transition?: TaskId }>({
 export function createContextManagement(options: {
 	models: Models;
 	now?: () => number;
+	automaticIdleRollover?: boolean;
 }) {
 	let binding: ContextHost | undefined;
 	const host = () => {
@@ -60,7 +61,11 @@ export function createContextManagement(options: {
 		await conv.commit((tx) => initializeWindow(tx, id, now()), context);
 	};
 	const rollover = createRollover(host);
-	const input = createInput(host, rollover);
+	const input = createInput(
+		host,
+		rollover,
+		options.automaticIdleRollover ?? false,
+	);
 	const policy = createContextPolicy({
 		models: options.models,
 		host,

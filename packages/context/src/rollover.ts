@@ -37,7 +37,7 @@ type RolloverState =
 	| { phase: "continue"; window: WindowIdentity };
 
 const checkpointPrompt =
-	"Checkpoint this conversation before a clean context window. Write the current task, decisions, useful evidence and next steps to notes. Save only useful state, then finish this turn. Do not call new_context.";
+	"Checkpoint this conversation before a clean context window. Update the task's stable checkpoint path with the request, constraints, decisions, progress, next steps and useful history IDs. Mark completed work in place. Link separate reusable findings and deferred ideas without treating them as permission to implement. Save changed state, then finish this turn. Do not call new_context.";
 const key = (task: TaskId) => `context:checkpoint:${task}`;
 
 /** A successful note write in an aborted generation is not a completed checkpoint. */
@@ -109,6 +109,23 @@ export function createRollover(host: () => ContextHost) {
 					);
 					return;
 				}
+				if (task.input.reason === "idle") {
+					await runtime.commit(async (tx) => {
+						const state = await tx.doc(WindowState, conv.id);
+						if (state.transition === task.id) delete state.transition;
+						return {
+							status: "terminal",
+							outcome: {
+								status: "completed",
+								result: {
+									status: "skipped",
+									reason: "Latest completed run has no fresh notes",
+								},
+							},
+						};
+					}, context);
+					return;
+				}
 				const submission = await conv.submit(
 					{
 						type: "input",
@@ -177,18 +194,25 @@ export function createRollover(host: () => ContextHost) {
 					const tasks = await foreignTasks(tx, task.conversationId);
 					const fresh = await notesAreFresh(tx, task.conversationId);
 					const state = await tx.doc(WindowState, task.conversationId);
+					const completed =
+						task.input.reason !== "idle" ||
+						(state.settlement?.completed === true &&
+							state.settlement.userEntry ===
+								(await latestUserEntry(tx, task.conversationId)));
 					if (!state.window || state.transition !== task.id)
 						throw new Error("Context rollover lost its window claim");
-					if (!idle || tasks.length || !fresh) {
+					if (!idle || tasks.length || !fresh || !completed) {
 						delete state.transition;
 						return {
 							status: "terminal",
 							outcome: {
 								status: "completed",
 								result: {
-									status: "failed",
+									status: task.input.reason === "idle" ? "skipped" : "failed",
 									reason:
-										"Conversation changed before context rollover; retry after it settles",
+										task.input.reason === "idle"
+											? "Conversation changed before automatic context rollover"
+											: "Conversation changed before context rollover; retry after it settles",
 								},
 							},
 						};

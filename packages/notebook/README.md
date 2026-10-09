@@ -42,7 +42,7 @@ Registrations with `executionHints.nativeOnly: true` stay native model tools and
 
 Tool results preserve their details and content. Images expose a base64 `image_url` usable with `image(result)`. Tool failures throw inside the cell. Bare expression values are discarded, so use `text(value)` to emit output.
 
-Call `notebook` with `{ "input": "help" }` for state management. It covers checkpoints, protected project bindings, profiles, disposal, recovery, and historical diagnostics. New npm imports require approval and exact-version `npm:` specifiers. Successfully used imports are inventoried per project. This approval guidance is not a package sandbox.
+Call `notebook` with `{}` or `{ "input": "help" }` for state management help. Inside exec, `await tools.notebook({})` also returns help. It covers checkpoints, protected project bindings, profiles, disposal, recovery, and historical diagnostics. New npm imports require approval and exact-version `npm:` specifiers. Successfully used imports are inventoried per project. This approval guidance is not a package sandbox.
 
 ## Custom commands
 

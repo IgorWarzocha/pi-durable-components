@@ -4,6 +4,8 @@ The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db
 
 Tool arguments, outputs, errors, cancellation, state, and recovery are part of parity. Pi-specific TUI rendering and slash commands are not being shipped as a compatibility layer. Missing functionality must stay visible here until implemented and validated.
 
+The approved 2026-10-09 refresh adopts selected behavior from `69f50cf70e8a7b05c2349be6227f521b6504f80e`, without claiming whole-tree parity at that revision. Component evidence records retry-budget and phase fixes, safe provider errors, foreground screenshots, empty-call discovery, opt-in fresh-note idle rollover, and board continuity. Original extraction pins and historical validation remain identified separately.
+
 | Component | Accepted scope | Evidence |
 |---|---|---|
 | Patch | TypeScript implementation of `apply_patch` | [Native-helper differential and actual tool use](parity/apply-patch.md) |
@@ -15,7 +17,7 @@ Tool arguments, outputs, errors, cancellation, state, and recovery are part of p
 | Agents | Durable-native delegation and shared discussion board | [Real Harness delegation, board, recovery and watches](parity/agents.md) |
 | Code | Code execution with included `exec_command` and `write_stdin` | [Actual V8 execution and tool dispatch](parity/code.md) |
 | Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
-| Context | Local notes, retained history, checkpoint rollover and managed idle admission | [SQLite recovery and real execution-mode rollover](parity/context.md) |
+| Context | Local notes, retained history, explicit checkpoint rollover and opt-in fresh-note idle rollover | [SQLite recovery and real execution-mode rollover](parity/context.md) |
 | OpenAI Responses | OpenAI and Codex subscription provider, cached transport, explicit Worker runtime, Lite and replay | [Protocol extraction and runtime evidence](parity/openai-responses.md) |
 | Worker Code | Separate bounded Worker execution, not native Code or Notebook parity | [QuickJS WASM and ordinary Durable tool dispatch](parity/worker-code.md) |
 | Git and UI SDK | Git read capability and a component-independent interactive UI contract, with the diff renderer as one consumer | [Source extraction and independent host evidence](parity/git-ui.md) |
@@ -43,6 +45,8 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-09, the selected upstream refresh passed one independent review with no material findings and `bun run check`: all 28 retained workflows, lint, strict TypeScript, Knip, fourteen builds and dry-pack checks. No permanent tests were added. Live screenshot focus, provider accounts and non-Linux runtimes were not revalidated.
 
 On 2026-10-08, the contract-spine cull reduced the default suite from 48 to 28 tests and removed 3,011 test and fixture lines. Production code was unchanged. `bun run check` passed all retained tests, including real V8, Deno and workerd execution, strict TypeScript, lint, Knip and all twelve builds and dry-pack checks. Component evidence below distinguishes earlier validation from checks still run by the gate.
 

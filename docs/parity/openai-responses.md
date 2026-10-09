@@ -4,6 +4,12 @@ The reference is `packages/pi-codex-conversion/src/providers` in `IgorWarzocha/h
 
 This is a pi-ai 1.0.2 Provider consumed by Durable's Models collection. It is not a Pi ExtensionAPI compatibility layer. Codex remains the default. Explicit direct mode replaces the ordinary `openai` registration only in the host's Models collection.
 
+## Upstream refresh
+
+The 2026-10-09 refresh adopts the SSE opening retry-budget correction from `5a109ed7` and `partial_answer` replay from `b7d92bd9`, inspected at source revision `69f50cf70e8a7b05c2349be6227f521b6504f80e`. Other extraction pins and deliberate transport corrections remain unchanged.
+
+Disposable actual-provider probes confirmed that `maxRetries: 0` makes one fetch attempt for both HTTP failure and a network exception. The pre-refresh implementation made a second attempt. Signature round-trip and request reconstruction preserve `partial_answer`. The three retained provider workflows passed, including observer failures without replay and owned transport cancellation. These checks used local fixtures, not a live account.
+
 ## Explicit direct Responses adaptation
 
 Direct mode uses `api.openai.com/v1/responses`, ordinary bearer authentication, the stock pi-ai OpenAI catalog and the existing `openai` direct-subscription credential. It does not decode a Codex account claim or emit Codex account, originator, turn-affinity or Lite headers. Credential identity is hashed for canonical lane validation. No application-specific bridge was added.

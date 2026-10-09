@@ -21,7 +21,7 @@ import { contextUsage } from "./usage.ts";
 import { WindowState } from "./window-state.ts";
 
 const checkpoint =
-	"Before rollover, save the active request, decisions, progress, useful history IDs and next steps in notes, then call new_context. Include useful deferred work without treating it as permission to implement. After rollover, read the hinted notes and use history only for a missing detail.";
+	"Keep one task checkpoint at a stable note path: request, constraints, decisions, progress, next steps and useful history IDs. Replace stale state and mark completion in place. Keep reusable findings and deferred ideas in separate topic notes, linked rather than copied. Recording is not permission to implement. Save changed state after substantial work, before replying, new_context or handoff. Skip routine or unchanged state. Include checkpoint paths in handoffs. After rollover, read the checkpoint and linked notes as needed; use history only for missing details.";
 
 // Durable's onYield continuation creates a successor GenerationTask. A task receipt
 // repeats the same answer's decision on recovery, not subsequent answers' decisions.

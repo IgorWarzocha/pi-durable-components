@@ -21,12 +21,18 @@ export const WindowEntry = defineEntry<WindowIdentity>(
 export type TransitionResult =
 	| { status: "done"; window: WindowIdentity; continuation?: SubmissionId }
 	| { status: "failed"; reason: string }
+	| { status: "skipped"; reason: string }
 	| { status: "cancelled" };
 
 export const WindowState = defineDoc<{
 	window?: WindowIdentity;
 	entry?: EntryId;
-	settlement?: { observedAt: number; userEntry: EntryId | null };
+	settlement?: {
+		observedAt: number;
+		userEntry: EntryId | null;
+		/** Missing on older saved settlements, which cannot authorize automatic cuts. */
+		completed?: boolean;
+	};
 	transition?: TaskId<TransitionResult>;
 	reminded: number;
 }>({

@@ -17,7 +17,7 @@ const message = Type.String({ minLength: 1 });
 const action = <T extends string>(name: T) => ({ action: Type.Literal(name) });
 const object = { additionalProperties: false };
 export const AgentsParameters = Type.Union([
-	Type.Object(action("help"), object),
+	Type.Object({ action: Type.Optional(Type.Literal("help")) }, object),
 	Type.Object(
 		{ ...action("list"), offset: Type.Optional(Type.Integer({ minimum: 0 })) },
 		object,
@@ -41,6 +41,7 @@ export const AgentsParameters = Type.Union([
 			message,
 			name: Type.Optional(target),
 			cwd: Type.Optional(target),
+			board_thread_id: Type.Optional(Type.String({ format: "uuid" })),
 			blocking: Type.Optional(
 				Type.Boolean({
 					description:
@@ -93,7 +94,7 @@ export function help(profiles: AgentsOptions["profiles"]) {
 			help: "",
 			list: "offset?",
 			find: "query? status? offset?",
-			spawn: "agent_type label message name? cwd? blocking?",
+			spawn: "agent_type label message name? cwd? blocking? board_thread_id?",
 			send: "target message",
 			assign: "target message blocking?",
 			read: "target source? limit? before? entry? offset?",

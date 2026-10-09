@@ -8,11 +8,17 @@ Pinned source: `howaboua-pi-stuff/packages/pi-browser` at `b2006db9def12c373ae48
 
 The removed surfaces are Pi's `/browser` settings UI, automatic Pi config-file loading/writing, extension startup/shutdown wiring and legacy bridge metadata. Typed route configuration and the lifecycle factory replace those host integration surfaces. The agent-facing command grammar and operations remain.
 
+## Upstream refresh
+
+The 2026-10-09 refresh follows source revision `69f50cf70e8a7b05c2349be6227f521b6504f80e`, including foreground screenshot capture from `1feee203`. Screenshots disable background focus emulation and activate their target inside the existing serialized tab turn. This changes browser focus. Other operations retain their previous rendering policy.
+
+Empty calls return help. Known response-length hints are ignored by operations that do not consume them, while page reads retain validation. Disposable real-Harness probes exercised discovery, unknown-field rejection and request normalization. The retained registration workflow and package typecheck passed. No Chrome binary was available for this refresh, so foreground capture itself remains unverified live. Earlier screenshot evidence below predates the focus change.
+
 ## Contract evidence
 
 | Contract | Source and carried implementation | Evidence |
 | --- | --- | --- |
-| `command`, raw strings and object preparation | Source `browser-tool.ts`; native `src/index.ts` retains `prepareBrowserInput` semantics, including unknown envelope fields for schema rejection | Durable schema remains `{command:string}` with no additional properties. Tool results retain serialized text plus details. |
+| `command`, raw strings and object preparation | Source `browser-tool.ts`; native `src/index.ts` retains `prepareBrowserInput` semantics, including unknown envelope fields for schema rejection | Durable schema is `{command?:string}` with no additional properties. Empty calls return help. Tool results retain serialized text plus details. |
 | Single action, fixed-order batches, validation, help | `browser/request.ts`, `operation.ts`, `operation-input.ts`, `parse-operation.ts`, `parse-tab-operation.ts`, `help.ts` | Parsers and operation definitions carried directly. Help drops Pi/bridge instructions, not actions. Parser unit fixtures were pruned. |
 | `start`, `tabs`, `open`, `show`, `close`, `find`, `stop` | `browser/operation-executor.ts`, `launcher.ts`, all `cdp` discovery/session/tabs/pages/snapshot modules | Complete source implementations retained. Tabs and snapshots retain pagination, ownership flags, compact element references and filtering. Canned CDP unit fixtures were pruned. |
 | `click`, `type`, `fill`, `press`, `wait`, `navigate`, `load_all` | `cdp/actions/{click,type,fill,key,wait,page,element}.ts` | Complete action bodies retained. No skeletal dispatch branches. Canned click fixtures were pruned. |

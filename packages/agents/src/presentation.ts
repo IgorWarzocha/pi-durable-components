@@ -1,3 +1,13 @@
+export {
+	type BoardPostPreview,
+	type BoardPresentationState,
+	type BoardThreadSummary,
+	boardCapability,
+	boardDetailPresentation,
+	boardSummaryPresentation,
+	parseBoardPresentationState,
+} from "./board/presentation.ts";
+
 /** Host-owned roster page and optional latest reply. No acquisition occurs here. */
 export interface AgentRosterItem {
 	target: string;

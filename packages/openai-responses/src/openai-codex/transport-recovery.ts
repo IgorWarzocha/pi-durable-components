@@ -225,7 +225,11 @@ async function openCodexSSE<TApi extends Api>(
 	waitBeforeRetry: (error: unknown, retryCount: number) => Promise<void>,
 ): Promise<Response> {
 	let lastError: Error | undefined;
-	for (let attempt = 0; attempt <= MAX_SSE_REQUEST_RETRIES; attempt++) {
+	const maxRetries =
+		options?.maxRetries === undefined
+			? MAX_SSE_REQUEST_RETRIES
+			: Math.min(codexStreamMaxRetries(options), MAX_SSE_REQUEST_RETRIES);
+	for (let attempt = 0; attempt <= maxRetries; attempt++) {
 		if (options?.signal?.aborted) throw new Error("Request was aborted");
 		let response: Response;
 		try {
@@ -261,7 +265,7 @@ async function openCodexSSE<TApi extends Api>(
 				throw new Error("Request was aborted");
 			}
 			lastError = error instanceof Error ? error : new Error(String(error));
-			if (attempt < MAX_SSE_REQUEST_RETRIES) {
+			if (attempt < maxRetries) {
 				await waitBeforeRetry(lastError, attempt + 1);
 				continue;
 			}
@@ -297,7 +301,7 @@ async function openCodexSSE<TApi extends Api>(
 		const requestRetryable =
 			isRetryableRequestStatus(response.status) &&
 			isRetryableCodexStreamError(error);
-		if (requestRetryable && attempt < MAX_SSE_REQUEST_RETRIES) {
+		if (requestRetryable && attempt < maxRetries) {
 			await waitBeforeRetry(error, attempt + 1);
 			continue;
 		}

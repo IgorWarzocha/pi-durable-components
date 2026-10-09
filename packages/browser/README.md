@@ -30,7 +30,9 @@ registry.install(browser.extension);
 await browser.close();
 ```
 
-The registered tool accepts `{command: "help"}` or a JSON request string. Start with help. For example, `{command: '{"action":"tabs"}'}` lists tab references. Keep each result's tab reference, element IDs and continuation cursors together.
+Call the registered tool with `{}` for help, or supply `{command: "help"}`. For example, `{command: '{"action":"tabs"}'}` lists tab references. Keep each result's tab reference, element IDs and continuation cursors together.
+
+Screenshots bring the target tab to the foreground and can change browser focus. Other actions retain background rendering for owned tabs. Known `response_length` hints are ignored by actions that do not consume them. Snapshot reads validate the hint.
 
 ## Files and lifetime
 

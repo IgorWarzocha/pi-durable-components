@@ -12,10 +12,11 @@ import {
 	type Usage,
 } from "@earendil-works/pi-ai";
 import type {
+	ResponseInput as OpenAIResponseInput,
 	Tool as OpenAITool,
 	ResponseCreateParamsStreaming,
-	ResponseInput,
 	ResponseInputItem,
+	ResponseOutputMessage,
 	ResponseToolSearchOutputItemParam,
 } from "openai/resources/responses/responses.js";
 import {
@@ -39,8 +40,20 @@ import {
 	sanitizeWebSearchCallItem,
 	type WebSearchCallBlock,
 } from "./native-items.ts";
-import { parseTextSignature, shortHash } from "./signatures.ts";
+import {
+	parseTextSignature,
+	shortHash,
+	type TextSignaturePhase,
+} from "./signatures.ts";
 import { normalizeResponsesToolHistory } from "./tool-history.ts";
+
+// Codex supports partial_answer before the OpenAI SDK's Responses declarations.
+type ResponseInput = Array<
+	| Exclude<OpenAIResponseInput[number], ResponseOutputMessage>
+	| (Omit<ResponseOutputMessage, "phase"> & {
+			phase?: TextSignaturePhase | null;
+	  })
+>;
 
 type InternalAssistantContent =
 	| Extract<Message, { role: "assistant" }>["content"][number]

@@ -30,19 +30,27 @@ export interface SkillsOptions extends SkillsCatalogOptions {
 
 const SkillsParameters = Type.Object(
 	{
-		command: Type.String({
-			description:
-				"list [category...] | read <skill> [skill-or-reference...]; separate commands with ;",
-		}),
+		command: Type.Optional(Type.String({ description: "Omit for discovery" })),
 	},
 	{ additionalProperties: false },
 );
+
+function prepareSkillsInput(input: unknown): { command?: string } {
+	if (input === undefined) return {};
+	if (typeof input === "string") return { command: input };
+	if (typeof input !== "object" || input === null || Array.isArray(input))
+		throw new Error("skills expects a string command or command envelope");
+	if ("command" in input && typeof input.command !== "string")
+		throw new Error("skills command must be a string");
+	return input;
+}
 
 export function createSkillsTool(options: SkillsOptions = {}) {
 	return defineTool({
 		name: "skills",
 		description: "Load skill instructions and references",
 		parameters: SkillsParameters,
+		prepareArguments: prepareSkillsInput,
 		replay: "safe",
 		// Source output has its own byte continuation. Do not cut off its continuation footer or long lines.
 		outputLimits: { maxBytes: 48 * 1024, maxLines: Number.MAX_SAFE_INTEGER },
@@ -65,7 +73,7 @@ export function createSkillsTool(options: SkillsOptions = {}) {
 					: { sessionRoot: options.sessionRoot }),
 				...(loadedSkills === undefined ? {} : { loadedSkills }),
 			};
-			const output = await runSkills(args.command, files, catalog);
+			const output = await runSkills(args.command ?? "", files, catalog);
 			return { content: [{ type: "text", text: output }], details: {} };
 		},
 	});

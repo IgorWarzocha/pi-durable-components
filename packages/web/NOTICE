@@ -1,4 +1,7 @@
 Adapted from IgorWarzocha/howaboua-pi-stuff at b2006db9def12c373ae48e70044d30f7d6b7e34f.
+Selected error classification refresh from 6924420b9ae14789efbad9dbecd48c5b8d6de0a6,
+verified at snapshot 69f50cf70e8a7b05c2349be6227f521b6504f80e.
+Diagnostics omit backend bodies and endpoints and use host-owned credential guidance.
 
 Shared Codex transport, schemas, requests and image validation retain the following MIT license.
 

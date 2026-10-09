@@ -10,11 +10,13 @@ Igor selected Durable-native delegation, profiles, messages, blocking and asynch
 
 ## Preserved contracts
 
+The approved refresh adopts selected contracts from source revision `69f50cf70e8a7b05c2349be6227f521b6504f80e`: empty-call discovery for both tools, spawn thread handoff, and fresh subscription catch-up. The original pins remain the baseline for other behavior. Board summary/detail presentations are native host contracts, not a port of the source viewer or archive server.
+
 | Source capability | Durable implementation and evidence |
 | --- | --- |
-| `help` and profiles | Help describes the actual action arguments and configured profile descriptions. Host profiles are named `AgentChange` configurations with the same blocking-policy precedence. |
+| `help` and profiles | Empty calls and explicit help describe the actual action arguments and configured profile descriptions. Host profiles are named `AgentChange` configurations with the same blocking-policy precedence. |
 | `list`, `find` | Session-wide component registry, stable conversation IDs, unique names and labels, case-insensitive query and native idle or working state. Pages contain at most 30 workers with `nextOffset`. Discovery covers component-created conversations, not an external process fleet. |
-| `spawn` | One atomic commit creates the background anchor, child conversation, profile configuration, registry record, dispatch task, and completion reporter. Labels retain the two-or-three-word rule. Derived names retain slug normalization, collision suffixes and the 32-character bound. |
+| `spawn` | One atomic commit creates the background anchor, child conversation, profile configuration, registry record, dispatch task, and completion reporter. Optional `board_thread_id` validates a thread in the caller's current board before admission and adds its read reference to the child's task. Labels retain the two-or-three-word rule. Derived names retain slug normalization, collision suffixes and the 32-character bound. |
 | `assign` | Sends an attributed task to an existing worker with a fresh task-scoped dispatch. Blocking defaults true. A self-delegation is rejected instead of deadlocking. |
 | Blocking completion | Waits for the admitted child submission, returns its real answer entry's text, and suppresses an asynchronous echo after the blocking tool completes. Worker failure returns failed status, reason and detail with `isError`. |
 | Asynchronous completion | Returns durable continuation IDs immediately. The background completion task waits for one delegation and submits its outcome to the controller after the controller can already have replied. Multiple requests answered by one assistant entry share one successful report ID. |
@@ -28,6 +30,7 @@ Igor selected Durable-native delegation, profiles, messages, blocking and asynch
 | Board membership | Spawn atomically inherits the controller's board and returns `boardAgent`. Separate roots and forks get independent boards. Attach joins an idle root leaf; detach restores its former board or creates one for a detached spawned worker. Only a caller's descendants may be detached. Reattachment gets a new address rather than reviving old subscriptions. |
 | Board recovery | Channel creation, posts and subscription changes commit with task-scoped request receipts. Replay returns the original acknowledgement without posting or notifying twice, and cannot reverse a later subscription change. Membership changes also retain task receipts. |
 | Board notices | Channel subscriptions cover first posts, thread subscriptions cover replies, and one-time targets exclude the author. The post and its active-recipient notices commit together. Admission checks the native run and abort mark. Notices neither wake idle recipients nor reach a later unrelated run. |
+| Board catch-up | The first model request preparing a newly admitted input queries unseen subscribed posts from current board membership. It offers thread references to read if relevant, without waking idle agents or replaying stale notices. |
 
 ## Native differences within the approved boundary
 
@@ -50,6 +53,10 @@ Notices use a conversation document keyed to the active run's first input submis
 
 A resumed native run keeps its original input anchor and pending notices. Failed or aborted runs cannot deliver stale pending notices to a new input. Delivered notices remain ordinary conversation history. Delivery is best effort: a competing normal input or reset at the final native boundary can supersede a board continuation, dropping that notice. The post remains readable in the archive. This is not an exactly-once provider-observation guarantee. Board posts require the same host binding as watches; unbound ordinary delegation and sends remain available.
 
+Fresh catch-up is separate from pending-notice delivery. At the public `beforeRequest` boundary it queries the archive once per latest admitted input, considers up to 50 unseen subscribed posts, and excludes the member's own posts. Seen IDs are scoped to board and membership. A task receipt and appended native user entry preserve delivery across replay. Delivered notices and explicit post or thread reads mark posts seen. A subscribed post may therefore be discovered on a later task even when its old active-run notice was discarded. The old notice itself never transfers to that task.
+
+The existing `/presentation` export also supplies `boardCapability`, `boardSummaryPresentation` and `boardDetailPresentation`. It validates host-supplied thread pages and nullable selected-thread detail. The host owns authorization, data acquisition, continuation reads and rendering through the ordinary `board` registration. No server, UI runtime or separate board package is introduced.
+
 ## Executable evidence
 
 `packages/agents/test/agents.test.ts` runs native Harness, registry, tasks, MemoryStorage, file-backed SQLite, and pi-ai's public faux provider. It tests production tool calls rather than substituting a mock `ToolExecutionApi`.
@@ -58,9 +65,11 @@ The six delegation workflows retain independent lifecycle and persistence bounda
 
 `packages/agents/test/board.test.ts` retains three file-backed SQLite workflows. They protect immutable former-board archives and session isolation, notices confined to an active input across abort and provider failure, and interrupted post replay without duplicate posts or notices. Replay compares the original acknowledgement with the resumed result and observes the delivered notice and saved post.
 
+Refresh validation passed all nine retained delegation and board workflows. A disposable SQLite-Harness probe exercised empty-call discovery, valid thread handoff and rejected thread admissions, idle catch-up and reopen deduplication. Actual board pages also passed the UI SDK's capability binding, host invocation and disposal path. The probe was removed. No permanent tests or live provider claims were added.
+
 Earlier implementation and review validation covered profile configuration and blocking precedence, busy and idle sends, worker failure detail, excluded-action validation, bounded reads, Unicode search, pagination and response budgets. It also reproduced an idle-watch document-wake fault, exercised host-created peers and unrelated Fleet wakes, and checked settlement across yield, terminate and handoff paths. Saved-export probes checked full bodies, authors, archive ownership and corrupt storage failures. These feature and regression tours are no longer permanent suite cases. The transaction-draft escape found during recovery validation was corrected by copying receipt fields before leaving the transaction. Historical Code and Notebook toolkit validation exercised board calls through ordinary registration discovery, not a component-specific bridge.
 
-A captured first request through the real Harness contains an Agents schema of 2,700 UTF-8 bytes and its unchanged 46-byte description. Board adds a 232-byte action-only schema and a 63-byte description, 342 bytes for its complete tool declaration. Strict action fields are validated at execution and described by help. The extension adds no prompt sections.
+A pre-refresh captured first request through the real Harness contained an Agents schema of 2,700 UTF-8 bytes and its 46-byte description. Board added a 232-byte action-only schema and a 63-byte description, 342 bytes for its complete tool declaration. These are historical measurements, before empty-call discovery and thread handoff. Strict action fields are validated at execution and described by help. The extension adds no standing prompt sections.
 
 Earlier validation included 12 delegation workflows, board workflows, strict TypeScript with `exactOptionalPropertyTypes`, and the aggregate toolkit gate. Separate real-Harness delivery probes exercised a notice during a tool round and SQLite reopen after pending admission, before-request delivery, and yield-receipt commit. Those probes are historical evidence, not additional cases in the retained suite.
 

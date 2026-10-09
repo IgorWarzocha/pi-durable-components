@@ -28,6 +28,7 @@ export {
 } from "./browser/runtime.ts";
 
 export function prepareBrowserInput(input: unknown): { command: string } {
+	if (input === undefined) return { command: "help" };
 	if (typeof input === "string") return { command: input };
 	if (!isRecordValue(input))
 		throw new Error("browser input must be a command envelope or JSON request");
@@ -65,7 +66,11 @@ export function createBrowserTool(
 		name: "browser",
 		description: "Control logged-in browser; call help before other actions",
 		parameters: Type.Object(
-			{ command: Type.String({ description: "help or JSON request" }) },
+			{
+				command: Type.Optional(
+					Type.String({ description: "help or JSON request; omit for help" }),
+				),
+			},
 			{ additionalProperties: false },
 		),
 		prepareArguments: prepareBrowserInput,
@@ -84,27 +89,30 @@ export function createBrowserTool(
 						context,
 					)
 				: undefined;
-			const result = await runtime.execute(parseBrowserRequest(input.command), {
-				ownerId: String(api.conversationId),
-				signal: context.abortSignal,
-				artifacts,
-				async onOperation(operation, index, total) {
-					api.output(
-						total === 1
-							? `Browser ${operation.action}\n`
-							: `Browser ${operation.action} ${index + 1}/${total}\n`,
-					);
-					await api.details(
-						{
-							action: operation.action,
-							index: index + 1,
-							total,
-							status: "running",
-						},
-						context,
-					);
+			const result = await runtime.execute(
+				parseBrowserRequest(input.command ?? "help"),
+				{
+					ownerId: String(api.conversationId),
+					signal: context.abortSignal,
+					artifacts,
+					async onOperation(operation, index, total) {
+						api.output(
+							total === 1
+								? `Browser ${operation.action}\n`
+								: `Browser ${operation.action} ${index + 1}/${total}\n`,
+						);
+						await api.details(
+							{
+								action: operation.action,
+								index: index + 1,
+								total,
+								status: "running",
+							},
+							context,
+						);
+					},
 				},
-			});
+			);
 			// CDP may contain absent optional fields. Match JSON wire semantics before
 			// crossing Durable's strict JSON document boundary.
 			const text = JSON.stringify(result);

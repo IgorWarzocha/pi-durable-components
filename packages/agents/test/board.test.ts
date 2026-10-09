@@ -84,7 +84,14 @@ async function fixture(path: string, controls: Controls = {}) {
 				if (line.startsWith("Board post ")) controls.seenNotices?.add(line);
 			}
 		}
-		const last = request.messages.findLast((item) => item.role !== "system");
+		const last = request.messages.findLast(
+			(item) =>
+				item.role !== "system" &&
+				!(
+					item.role === "user" &&
+					textOf([item]).startsWith("Unread board updates available;")
+				),
+		);
 		if (last?.role === "toolResult") return fauxAssistantMessage("done");
 		const input = textOf(last === undefined ? [] : [last]);
 		if (input === "hold board recipient") {

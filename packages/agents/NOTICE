@@ -8,6 +8,11 @@ from @howaboua/pi-shepherdr 0.2.13.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb/packages/pi-shepherdr/src/board
 Revision: 5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb
 
+Empty-call discovery, spawn thread references, and subscribed-update wording
+adapted from pi-shepherdr and pi-agent-board at the approved refresh revision.
+Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/69f50cf70e8a7b05c2349be6227f521b6504f80e/packages
+Revision: 69f50cf70e8a7b05c2349be6227f521b6504f80e
+
 Background ownership and idempotent report submission patterns adapted from
 Durable examples 22 and 23. Implementation targets the public
 @earendil-works/pi-durable 1.0.2 API.

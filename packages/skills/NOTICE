@@ -2,6 +2,9 @@ This package adapts discovery, command parsing, document validation, package tra
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-better-skills-tool
 Revision: b2006db9def12c373ae48e70044d30f7d6b7e34f
 
+Empty-call discovery and catalog-backed help incorporate:
+Revision: 69f50cf70e8a7b05c2349be6227f521b6504f80e
+
 Hidden metadata discovery also adapts the ignore and frontmatter policies in core/skills and utils/frontmatter from @earendil-works/pi-coding-agent 1.0.1, the dependency resolved by the pinned source checkout.
 Upstream: https://github.com/earendil-works/pi
 

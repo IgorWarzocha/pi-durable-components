@@ -1,4 +1,7 @@
-export type TextSignaturePhase = "commentary" | "final_answer";
+export type TextSignaturePhase =
+	| "commentary"
+	| "partial_answer"
+	| "final_answer";
 
 export function shortHash(str: string): string {
 	let h1 = 0xdeadbeef;
@@ -38,7 +41,9 @@ export function parseTextSignature(
 				phase?: TextSignaturePhase | string | undefined;
 			};
 			if (parsed.v === 1 && typeof parsed.id === "string") {
-				return parsed.phase === "commentary" || parsed.phase === "final_answer"
+				return parsed.phase === "commentary" ||
+					parsed.phase === "partial_answer" ||
+					parsed.phase === "final_answer"
 					? { id: parsed.id, phase: parsed.phase }
 					: { id: parsed.id };
 			}

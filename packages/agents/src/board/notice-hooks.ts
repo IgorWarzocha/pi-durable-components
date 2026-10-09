@@ -5,7 +5,9 @@ import type {
 	HookRegistration,
 } from "@earendil-works/pi-durable";
 import { GenerationTask, hook } from "@earendil-works/pi-durable";
+import { prepareBoardCatchup } from "./awareness.ts";
 import {
+	activeBoardRun,
 	BoardNoticeReceipt,
 	BoardNotices,
 	receiveBoardNotices,
@@ -33,28 +35,52 @@ async function receive(
 /** Public generation hooks deliver notices without putting turn-bound work in the native inbox. */
 export function createBoardNoticeHooks(
 	binding: () => { harness: Harness },
+	catchupBinding: () => { harness: Harness } | undefined,
 ): HookRegistration[] {
 	return [
 		hook(GenerationTask, {
 			beforeRequest: async (request, api, context) => {
-				const notice = await receive(binding, api, "beforeRequest", context);
-				if (
-					notice === undefined ||
-					request.messages.some(
-						(message) =>
-							message.role === "user" && message.content === notice.content,
-					)
-				)
-					return undefined;
+				const host = catchupBinding();
+				const [notice, catchup] =
+					host === undefined
+						? [await receive(binding, api, "beforeRequest", context), undefined]
+						: await host.harness.commit(async (tx) => {
+								const run = await activeBoardRun(tx, api.conversationId);
+								if (run?.taskId !== api.taskId)
+									return [undefined, undefined] as const;
+								// Deliver and mark notices seen before querying the same archive frame.
+								const notice = await receiveBoardNotices(
+									tx,
+									api,
+									"beforeRequest",
+								);
+								const catchup = await prepareBoardCatchup(tx, api);
+								return [notice, catchup] as const;
+							}, context);
+				const additions = [notice, catchup]
+					.filter((item) => item !== undefined)
+					.filter(
+						(item) =>
+							!request.messages.some(
+								(message) =>
+									message.role === "user" &&
+									message.content === item.content &&
+									message.timestamp === item.timestamp,
+							),
+					);
+				if (additions.length === 0) return undefined;
 				// The native request has a captured cutoff. The appended entry is beyond it.
 				return {
 					messages: [
 						...request.messages,
-						{
-							role: "user",
-							content: notice.content,
-							timestamp: notice.timestamp,
-						},
+						...additions.map(
+							(item) =>
+								({
+									role: "user",
+									content: item.content,
+									timestamp: item.timestamp,
+								}) as const,
+						),
 					],
 				};
 			},

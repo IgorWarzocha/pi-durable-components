@@ -62,18 +62,29 @@ export async function executeCodexWebSearch(
 						configured ?? DEFAULT_WEB_SEARCH_MODEL,
 					),
 	});
-	const response = await fetchCodexTool(provider.searchUrl, {
-		method: "POST",
-		headers: codexToolProviderHeaders(provider, options.runtime),
-		body: JSON.stringify(body),
-		...(context.abortSignal ? { signal: context.abortSignal } : {}),
-		maxResponseBytes: WEB_SEARCH_MAX_RESPONSE_BYTES,
-		...(options.runtime ? { runtime: options.runtime } : {}),
-		...(options.cookieStore
-			? { cookieStore: await options.cookieStore(provider, context) }
-			: {}),
-		...(options.fetch ? { fetch: options.fetch } : {}),
-	});
+	let response;
+	try {
+		response = await fetchCodexTool(provider.searchUrl, {
+			method: "POST",
+			headers: codexToolProviderHeaders(provider, options.runtime),
+			body: JSON.stringify(body),
+			...(context.abortSignal ? { signal: context.abortSignal } : {}),
+			maxResponseBytes: WEB_SEARCH_MAX_RESPONSE_BYTES,
+			...(options.runtime ? { runtime: options.runtime } : {}),
+			...(options.cookieStore
+				? { cookieStore: await options.cookieStore(provider, context) }
+				: {}),
+			...(options.fetch ? { fetch: options.fetch } : {}),
+		});
+	} catch (error) {
+		const limitMessage =
+			"Codex tool response exceeded " +
+			WEB_SEARCH_MAX_RESPONSE_BYTES +
+			" bytes";
+		if (error instanceof Error && error.message === limitMessage)
+			throw new Error(limitMessage);
+		throw new Error("web_run search request failed or was interrupted.");
+	}
 	// The backend body becomes Durable state and model-visible diagnostics.
 	const redact = (text: string) =>
 		response.redact(
@@ -90,24 +101,23 @@ export async function executeCodexWebSearch(
 			(challenge || responseText.toLowerCase().includes("cloudflare"))
 		)
 			throw new Error(
-				"web_run search failed for " +
-					provider.searchUrl +
-					": HTTP 403 Cloudflare challenge",
+				"web_run search failed: HTTP 403 Cloudflare challenge. Try again later.",
 			);
 		if (response.status === 404 && responseText.includes('"Not Found"'))
 			throw new Error(
-				"web_run search failed for " +
-					provider.searchUrl +
-					": HTTP 404 Not Found (Codex endpoint unavailable for this account/backend)",
+				"web_run search failed: HTTP 404 Not Found (Codex endpoint unavailable for this account/backend)",
 			);
-		throw new Error(
-			"web_run search failed for " +
-				provider.searchUrl +
-				": HTTP " +
-				response.status +
-				" " +
-				redact(responseText),
-		);
+		if (
+			response.status === 401 ||
+			(response.status === 403 &&
+				/auth|token|credential|access_enforcement|oauth/i.test(responseText))
+		)
+			throw new Error(
+				"web_run search access was rejected: HTTP " +
+					response.status +
+					". Ask the user to check credentials and access for the configured provider.",
+			);
+		throw new Error("web_run search failed: HTTP " + response.status);
 	}
 	let parsed: unknown;
 	try {

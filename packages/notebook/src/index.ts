@@ -192,7 +192,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 		parameters: NOTEBOOK_PARAMETERS,
 		replay: "unsafe",
 		async execute(args, api, context) {
-			if (args.input === "help")
+			if (args.input === undefined || args.input === "help")
 				return {
 					content: [{ type: "text" as const, text: NOTEBOOK_HELP }],
 					details: { action: "help" },

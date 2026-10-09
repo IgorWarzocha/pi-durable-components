@@ -7,7 +7,7 @@ Import from `@howaboua/pi-durable-<component>/presentation`. Git retains its exi
 | Component | Snapshot owned by the host |
 |---|---|
 | Code, Worker Code | Observed cell identity and status, with an optional execution receipt |
-| Agents | Agent roster and an optional selected reply |
+| Agents | Agent roster and an optional selected reply, plus board thread pages and optional selected-thread detail |
 | Context | Notes inventory and an optional note body |
 | Skills | Skill catalog and an optional selected skill body |
 | Browser | Operation count and continuation metadata, with optional full output |

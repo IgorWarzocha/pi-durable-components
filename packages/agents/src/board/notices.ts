@@ -6,9 +6,17 @@ import type {
 	Tx,
 } from "@earendil-works/pi-durable";
 import { defineDoc, LiveDoc, UserEntry } from "@earendil-works/pi-durable";
+import { markBoardSeen } from "./awareness.ts";
+
+type PendingNotice = {
+	input: SubmissionId;
+	content: string;
+	boardId?: string;
+	messageId?: string;
+};
 
 export const BoardNotices = defineDoc<{
-	pending: Record<string, { input: SubmissionId; content: string }>;
+	pending: Record<string, PendingNotice>;
 }>({
 	kind: "howaboua.agents.board.notices",
 	version: 1,
@@ -29,7 +37,7 @@ export const BoardNoticeReceipt = defineDoc<{
 	initial: () => ({ beforeRequest: null, onYield: null }),
 });
 
-async function activeRun(tx: Tx, conversationId: ConversationId) {
+export async function activeBoardRun(tx: Tx, conversationId: ConversationId) {
 	const live = await tx.doc(LiveDoc, conversationId);
 	const input = live.run?.inputs[0];
 	if (live.run === undefined || input === undefined) return undefined;
@@ -60,6 +68,7 @@ export async function queueBoardNotices(
 	targets: readonly { conversationId: ConversationId; agentName: string }[],
 	notice: JsonObject,
 	requestId: string,
+	boardId: string,
 ): Promise<number> {
 	const recipients = [
 		...new Set(targets.map((target) => target.conversationId)),
@@ -67,7 +76,7 @@ export async function queueBoardNotices(
 	// Keep all recipient reads together, even though admission writes only documents.
 	const prepared = [];
 	for (const conversationId of recipients) {
-		const run = await activeRun(tx, conversationId);
+		const run = await activeBoardRun(tx, conversationId);
 		const notices = await tx.doc(BoardNotices, conversationId);
 		prepared.push({ run, notices });
 	}
@@ -78,7 +87,14 @@ export async function queueBoardNotices(
 		discardStale(notices.pending, run?.input);
 		if (run === undefined || Object.hasOwn(notices.pending, requestId))
 			continue;
-		notices.pending[requestId] = { input: run.input, content };
+		notices.pending[requestId] = {
+			input: run.input,
+			content,
+			boardId,
+			...(typeof notice["message_id"] === "string"
+				? { messageId: notice["message_id"] }
+				: {}),
+		};
 		queued++;
 	}
 	return queued;
@@ -90,7 +106,7 @@ export async function receiveBoardNotices(
 	api: Pick<HookApi, "conversationId" | "taskId">,
 	at: "beforeRequest" | "onYield",
 ): Promise<{ content: string; timestamp: number } | undefined> {
-	const run = await activeRun(tx, api.conversationId);
+	const run = await activeBoardRun(tx, api.conversationId);
 	const notices = await tx.doc(BoardNotices, api.conversationId);
 	const receipt = await tx.doc(BoardNoticeReceipt, api.taskId);
 	discardStale(notices.pending, run?.input);
@@ -105,6 +121,12 @@ export async function receiveBoardNotices(
 		content: pending.map(([, notice]) => notice.content).join("\n"),
 		timestamp: Date.now(),
 	};
+	for (const [, notice] of pending) {
+		if (notice.boardId !== undefined && notice.messageId !== undefined)
+			await markBoardSeen(tx, api.conversationId, notice.boardId, [
+				notice.messageId,
+			]);
+	}
 	for (const [key] of pending) delete notices.pending[key];
 	receipt[at] = delivery;
 	if (at === "beforeRequest") {

@@ -4,6 +4,10 @@ Context notes, history contracts and lifecycle policy adapted from
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff
 The reference working tree also contained the local idle checkpoint changes
 in window-kickoff.ts and window-manager.ts recorded in docs/parity/context.md.
+Fresh-only idle rollover follows revision
+f5b0483ed289c623b74a97f72606ce6ac57a03dd.
+Host opt-in and task checkpoint guidance follow pi-notes-compaction revision
+9b2707ac4490e3997738531f7202d971018ddab6.
 Modifications: Durable-native SQLite documents and tasks, one local notes
 policy, durable admission and cancellation, provider-independent model usage,
 and native-only rollover control through ordinary tool registrations.

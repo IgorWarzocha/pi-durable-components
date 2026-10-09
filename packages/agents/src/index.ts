@@ -44,6 +44,7 @@ export function createAgents(options: AgentsOptions) {
 		},
 		execute: async (args, api, context) => {
 			switch (args.action) {
+				case undefined:
 				case "help":
 					return help(options.profiles);
 				case "list":
@@ -63,6 +64,7 @@ export function createAgents(options: AgentsOptions) {
 				case "assign":
 					return delegate(args, api, context, options.profiles);
 			}
+			throw new Error("Invalid agents request; call agents with {} for help");
 		},
 	});
 	const boardTool = createBoardTool(binding);
@@ -70,7 +72,7 @@ export function createAgents(options: AgentsOptions) {
 		name: "howaboua.agents",
 		tools: [tool, boardTool],
 		tasks: [Anchor, Dispatch, Completion, Watch],
-		hooks: createBoardNoticeHooks(binding),
+		hooks: createBoardNoticeHooks(binding, () => host),
 	});
 	return {
 		extension,

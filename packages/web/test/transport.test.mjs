@@ -145,6 +145,10 @@ test("ordinary Web tool owns native workerd HTTP, affinity, limits and cancellat
 		const egressFailure = await workflow("egress-failure");
 		assert.match(
 			JSON.stringify(egressFailure.observations),
+			/web_run search request failed or was interrupted/,
+		);
+		assert.doesNotMatch(
+			JSON.stringify(egressFailure.observations),
 			/Configured Worker egress unavailable/,
 		);
 		assert.equal(

@@ -15,7 +15,9 @@ import { toolValue } from "../../execution/src/tool-value.ts";
 import { NotebookClient } from "./client.ts";
 import { canExecuteNotebookControlInsideExec } from "./control-contract.ts";
 import {
+	isEmptyNotebookRequest,
 	NOTEBOOK_DESCRIPTION,
+	NOTEBOOK_HELP,
 	parseNotebookRequest,
 } from "./notebook-control.ts";
 import type {
@@ -144,6 +146,9 @@ export function createNotebookEngine(
 				description: NOTEBOOK_DESCRIPTION,
 				usage: "await tools.notebook({action, query?, name?, names?, hook?})",
 				async invoke(input, _context, signal) {
+					signal.throwIfAborted();
+					if (isEmptyNotebookRequest(input))
+						return { message: NOTEBOOK_HELP, details: { action: "help" } };
 					const request = parseNotebookRequest(input);
 					if (!canExecuteNotebookControlInsideExec(request))
 						return {

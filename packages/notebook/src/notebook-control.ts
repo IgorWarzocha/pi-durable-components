@@ -66,7 +66,9 @@ const NOTEBOOK_ACTION_PARAMETERS = Type.Union([
 
 export const NOTEBOOK_PARAMETERS = Type.Object(
 	{
-		input: Type.String({ description: "help or JSON action object" }),
+		input: Type.Optional(
+			Type.String({ description: "help or JSON action object" }),
+		),
 	},
 	{ additionalProperties: false },
 );
@@ -74,7 +76,7 @@ export const NOTEBOOK_PARAMETERS = Type.Object(
 export const NOTEBOOK_DESCRIPTION =
 	"Control persistent notebook state; status queries memory/bindings by glob; prune removes unpinned matches; list/save/load manage profiles";
 
-export const NOTEBOOK_HELP = `Call notebook with {"input":"help"} or {"input":"<JSON action object>"}.
+export const NOTEBOOK_HELP = `Call notebook with {} or {"input":"help"} for help, or {"input":"<JSON action object>"}.
 Example: {"input":"{\\"action\\":\\"status\\",\\"query\\":\\"*\\"}"}
 Action objects accept only the fields shown below; ? means optional.
 
@@ -95,7 +97,16 @@ query uses case-insensitive * and ? globs. prune requires a nonempty query. name
 
 Hooks must be self-contained fn(event), awaited when invoked. startup gets {type:"startup"} once per fresh kernel after restoration, not when pinned; Tools cannot run during startup. tool_result gets {type:"tool_result",toolName,input,status:"success"|"error",result?,error?} after nested tool settlement; handlers are awaited in name order and their tool calls do not retrigger hooks. Recreate imports and live handles inside the function. Startup failures block execution; unpin remains available. External side effects are not rolled back.
 
-Run management calls after exec returns. Inside exec, the existing tools.notebook({action,...}) supports status without query, list and diagnostics only. A blocked call returns the top-level retry. release/prune may restart the kernel for lexical bindings, clearing runtime-only handles. Inspect reported cleanup failures and restore notices. For failed state/helpers, diagnose, repair or prune, then verify recovery. restart restores completed state; reset discards only session state.`;
+Run management calls after exec returns. Inside exec, tools.notebook({}) returns help. tools.notebook({action,...}) supports status without query, list and diagnostics only. A blocked call returns the top-level retry. release/prune may restart the kernel for lexical bindings, clearing runtime-only handles. Inspect reported cleanup failures and restore notices. For failed state/helpers, diagnose, repair or prune, then verify recovery. restart restores completed state; reset discards only session state.`;
+
+export function isEmptyNotebookRequest(input: unknown): boolean {
+	return (
+		typeof input === "object" &&
+		input !== null &&
+		!Array.isArray(input) &&
+		Object.keys(input).length === 0
+	);
+}
 
 export function parseNotebookRequest(input: unknown): NotebookControlRequest {
 	if (!Check(NOTEBOOK_ACTION_PARAMETERS, input))

@@ -41,7 +41,7 @@ The extension registers `agents` and `board` together. Select `agents.extension`
 
 ## Start delegating
 
-Call `agents` with `{ "action": "help" }` for the current profiles and action arguments. For example:
+Call `agents` with `{}` for the current profiles and action arguments. For example:
 
 ```json
 {
@@ -55,13 +55,15 @@ Call `agents` with `{ "action": "help" }` for the current profiles and action ar
 
 An asynchronous call returns a stable conversation `target`, worker `name`, and durable `dispatch` and `reporter` task IDs. Completion arrives as an attributed user-input submission. Blocking calls return the worker's reply directly. Use `assign` for another task and `send` for a message without waiting or adding monitoring.
 
+Supply `board_thread_id` on spawn to hand off a thread from your current board. Admission validates the thread before creating the worker and adds a `board read_thread` reference to its task. This shares a discussion reference, not notes, conversation history or additional permissions.
+
 `list` and `find` discover workers created by this component in the current Harness. Names are unique within that Harness. Numeric names are reserved for conversation IDs. An exact conversation ID can also address a host-created conversation, including a controller. Delegating to or watching yourself is rejected.
 
 `read` returns the newest assistant reply or a bounded recent transcript page. Text is capped at 36,000 characters per result. Use `before` to continue through older entries and `entry` with `nextOffset` to retrieve truncated text. This reads conversation data, not a terminal.
 
 ## Discuss on the board
 
-Call `board` with `{ "action": "help" }` for the action arguments, current board ID and your board address. Spawned workers join their controller's board automatically. Use the `boardAgent` address returned by `agents spawn` or `agents list` for notifications and subscriptions.
+Call `board` with `{}` for the action arguments, current board ID and your board address. Explicit `action: "help"` also works for both tools. Spawned workers join their controller's board automatically. Use the `boardAgent` address returned by `agents spawn` or `agents list` for notifications and subscriptions.
 
 ```json
 {
@@ -76,6 +78,8 @@ Post to an existing `channel_name` to start another thread, or to a `thread_id` 
 Channel subscriptions notify agents about first posts. Thread subscriptions notify them about replies. Authors subscribe automatically unless they explicitly unsubscribed. `agents_to_notify` adds one-time recipients. Notices go only to running agents. They do not start idle workers or queue notifications for absent members. Use `agents send` or `agents assign` when a recipient should start working.
 
 Notices are best effort. Failure or cancellation drops undelivered notices rather than carrying them into another run. A normal input arriving at a final-answer boundary can also supersede a notice. The post stays in the archive. Reopening an interrupted native run preserves that same run's pending notices.
+
+At the first model request preparing a newly admitted input, the component queries fresh subscribed updates and offers thread references to read if relevant to that task. Catch-up never wakes an idle agent or replays a stale pending notice. It excludes your own posts and posts already offered, delivered or read, and considers at most 50 unseen posts per input boundary. Channel subscriptions cover first posts and thread subscriptions cover replies. Receipts preserve the same catch-up across retries and reopen. Board membership scopes awareness, so another board's updates cannot leak into the current one.
 
 `agents attach` joins an idle root agent to your board. `agents detach` removes one of your idle descendants and restores its earlier board. Both require a target without board children. Attachment shares board membership, not context or task ownership.
 
@@ -102,3 +106,5 @@ The browser-safe `@howaboua/pi-durable-agents/presentation` entry provides valid
 `agentsCapability`, `agentsSummaryPresentation` and `agentsDetailPresentation` describe a roster page and a nullable latest reply. Build `agents` from the `agents` tool's `list` or `find` result. Populate `detail` from `read` with its `target`, `reply` and `truncated` fields. The summary counts only the supplied page, not the entire fleet. A null reply means no assistant answer was returned.
 
 Keep `detail: null` until the host acquires it. Detail must match an item in the supplied inventory. Refresh or clear detail when replacing that inventory. These snapshots are presentation data, not a replacement storage model or raw tool-result envelope. The host owns selection, freshness, binding, authorization and native controls. Summary requests identify a detail presentation but do not fetch data. Declared actions name the existing ordinary `agents` registration. Invoke it with its unchanged arguments and results through a host-authorized binding. No streams, transport adapters or additional lifecycle are introduced.
+
+The same entry exports `boardCapability`, `boardSummaryPresentation`, `boardDetailPresentation` and `parseBoardPresentationState`. Supply `board_id`, `channel_name`, `threads`, `has_more`, `next_cursor` and nullable `detail`. Map `list_threads.results` to `threads`, retaining each root preview, latest reply, reply count and activity time. Detail combines its selected `thread_id` with `read_thread`'s `root_post`, `results`, `has_more` and `next_cursor`. All detail posts must belong to that thread and channel, and the thread must appear in the supplied page. Refresh or clear detail when changing the page, channel or board. Preview truncation and continuation remain visible. Full post reads use the ordinary `board` tool through the host's authorized binding. The presentations acquire no data and provide no renderer or server.

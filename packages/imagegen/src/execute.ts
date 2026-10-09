@@ -133,17 +133,35 @@ export async function executeCodexImageGeneration(
 				...(context.abortSignal ? { signal: context.abortSignal } : {}),
 			},
 		);
-	} catch (error) {
+	} catch {
 		throw new Error(
-			"Image request failed or was interrupted. Remote outcome is unknown; do not replay automatically: " +
-				(error instanceof Error ? error.message : String(error)),
-			{ cause: error },
+			"Image request failed or was interrupted. Remote outcome is unknown; do not replay automatically.",
 		);
 	}
-	if (response.status < 200 || response.status >= 300)
-		throw new Error(
-			"image generation failed: HTTP " + response.status + " " + response.text,
-		);
+	if (response.status < 200 || response.status >= 300) {
+		const challenge =
+			response.headers.get("cf-mitigated")?.toLowerCase() === "challenge" ||
+			(response.headers.get("server")?.toLowerCase() === "cloudflare" &&
+				response.text.trimStart().startsWith("<html"));
+		if (
+			response.status === 403 &&
+			(challenge || response.text.toLowerCase().includes("cloudflare"))
+		)
+			throw new Error(
+				"Image generation failed: HTTP 403 Cloudflare challenge. Try again later.",
+			);
+		if (
+			response.status === 401 ||
+			(response.status === 403 &&
+				/auth|token|credential|access_enforcement|oauth/i.test(response.text))
+		)
+			throw new Error(
+				"Image generation access was rejected: HTTP " +
+					response.status +
+					". Ask the user to check credentials and access for the configured provider.",
+			);
+		throw new Error("Image generation failed: HTTP " + response.status);
+	}
 	try {
 		const saved = await saveGeneratedImages(
 			env,

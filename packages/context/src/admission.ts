@@ -22,6 +22,7 @@ import {
 	releaseAdmission,
 	until,
 } from "./lifecycle.ts";
+import { notesAreFresh } from "./note-store.ts";
 import {
 	type createRollover,
 	scheduleRollover,
@@ -41,6 +42,7 @@ type InputState =
 export function createInput(
 	host: () => ContextHost,
 	rollover: ReturnType<typeof createRollover>,
+	automaticIdleRollover: boolean,
 ) {
 	return defineTask<InputSubmissionDraft, InputState, InputResult>({
 		name: INPUT_TASK,
@@ -73,15 +75,24 @@ export function createInput(
 					const state = await tx.doc(WindowState, conv.id);
 					const gate = await tx.doc(Admission, conv.id);
 					const due =
+						automaticIdleRollover &&
 						idle &&
 						tasks.length === 0 &&
 						state.settlement !== undefined &&
+						state.settlement.completed === true &&
 						state.settlement.userEntry === userEntry &&
-						runtime.now() - state.settlement.observedAt >= IDLE_MS;
+						runtime.now() - state.settlement.observedAt >= IDLE_MS &&
+						(await notesAreFresh(tx, conv.id));
 					const transition =
 						state.transition ??
 						(due || task.state.checkpoint.checkpointRequired
-							? await scheduleRollover(tx, conv.id, rollover, "idle", task.id)
+							? await scheduleRollover(
+									tx,
+									conv.id,
+									rollover,
+									task.state.checkpoint.checkpointRequired ? "manual" : "idle",
+									task.id,
+								)
 							: undefined);
 					return { transition, retry: gate.retry };
 				}, context);
@@ -217,7 +228,15 @@ export function createInput(
 					const state = await tx.doc(WindowState, task.conversationId);
 					// This is observation time, not a provider timestamp. Recovery can delay, never advance, the idle cut.
 					if (idle && !state.transition)
-						state.settlement = { observedAt: runtime.now(), userEntry };
+						state.settlement = {
+							observedAt: runtime.now(),
+							userEntry,
+							// A delayed observer must not certify a newer unanswered run.
+							completed:
+								settled.status === "done" &&
+								userEntry !== null &&
+								settled.answer > userEntry,
+						};
 					const result: InputResult =
 						settled.status === "done"
 							? {

@@ -64,6 +64,6 @@ Worker Code is a separate, bounded execution mode. It uses QuickJS WASM without 
 - Notebook downloads checksum-verified Deno on first use. It has filesystem, network and process access. It is not a sandbox.
 - Web and Image Generation require Codex-compatible credentials supplied by your host. Browser requires Chrome with remote debugging enabled.
 - A host restart ends live kernels and shell sessions. Interrupted work is reported rather than replayed. Notebook can restore checkpointed values without rerunning cells.
-- Context management uses the host's SQLite database. Route user input through its managed submission API for durable idle checkpointing.
+- Context management uses the host's SQLite database. Automatic idle rollover is off by default. Opt in through the host and use managed submission to roll over only when fresh checkpoint notes already exist.
 
 Ported from [Howaboua Pi Stuff](https://github.com/IgorWarzocha/howaboua-pi-stuff). [Parity notes](docs/parity.md) record the supported behavior and remaining platform limits.

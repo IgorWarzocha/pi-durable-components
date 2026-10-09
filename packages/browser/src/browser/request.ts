@@ -16,6 +16,7 @@ function requestHost(value: unknown): string | undefined {
 }
 
 export function parseBrowserRequest(input: unknown): BrowserRequest {
+	if (input === undefined) return { help: true };
 	let value = input;
 	if (typeof input === "string") {
 		const text = input.trim();
@@ -33,6 +34,7 @@ export function parseBrowserRequest(input: unknown): BrowserRequest {
 	if (!isRecordValue(value)) {
 		throw new Error("input must be a JSON object");
 	}
+	if (Object.keys(value).length === 0) return { help: true };
 	if (Object.hasOwn(value, "action")) {
 		const host = requestHost(value["host"]);
 		const { host: _host, ...actionValue } = value;
@@ -47,13 +49,6 @@ export function parseBrowserRequest(input: unknown): BrowserRequest {
 	}
 	const host = requestHost(value["host"]);
 	const responseLength = value["response_length"] ?? "medium";
-	if (
-		responseLength !== "short" &&
-		responseLength !== "medium" &&
-		responseLength !== "long"
-	) {
-		throw new Error("response_length must be one of: short, medium, long");
-	}
 	const operations: BrowserOperation[] = [];
 	for (const action of OPERATION_ORDER) {
 		const items = value[action];
@@ -65,9 +60,13 @@ export function parseBrowserRequest(input: unknown): BrowserRequest {
 			if (!isRecordValue(item)) {
 				throw new Error(`${action}[${index}] must be an object`);
 			}
-			const reserved = ["action", "host", "response_length"].filter((key) =>
-				Object.hasOwn(item, key),
-			);
+			const readsPage =
+				action === "find" || (action === "open" && !item["url"]);
+			const reserved = [
+				"action",
+				"host",
+				...(readsPage ? ["response_length"] : []),
+			].filter((key) => Object.hasOwn(item, key));
 			if (reserved.length > 0) {
 				throw new Error(
 					`${action}[${index}] has top-level field(s): ${reserved.join(", ")}`,

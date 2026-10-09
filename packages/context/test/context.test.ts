@@ -24,7 +24,7 @@ import {
 } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { createContextManagement, type InputResult } from "../src/index.ts";
-import { Admission, IDLE_MS } from "../src/lifecycle.ts";
+import { Admission } from "../src/lifecycle.ts";
 
 const context = BACKGROUND_CONTEXT;
 const checkpoint =
@@ -318,7 +318,7 @@ test("replayed note appends commit once and remain readable through retained his
 	}
 });
 
-test("failed idle checkpoints hold queued input across reopen until explicit retry, and cancellation never releases held input", {
+test("failed explicit checkpoints hold queued input across reopen until retry, and cancellation never releases held input", {
 	timeout: 20_000,
 }, async () => {
 	const directory = await mkdtemp(join(tmpdir(), "durable-context-blocked-"));
@@ -329,8 +329,8 @@ test("failed idle checkpoints hold queued input across reopen until explicit ret
 		await submit(f, "original request");
 		const original = (await f.component.status(f.root.id, context)).window
 			?.window?.id;
-		state.now += IDLE_MS;
 		state.failCheckpoint = true;
+		await f.component.newContext(f.root.id, context);
 		const held = await f.component.submit(
 			f.root.id,
 			{
@@ -383,9 +383,9 @@ test("failed idle checkpoints hold queued input across reopen until explicit ret
 			undefined,
 		);
 		state.checkpointGate = undefined;
-		await submit(f, "idle cancellation anchor");
-		state.now += IDLE_MS;
+		await submit(f, "explicit cancellation anchor");
 		state.checkpointGate = gate();
+		const checkpointTask = await f.component.newContext(f.root.id, context);
 		const cancelled = await f.component.submit(
 			f.root.id,
 			{ type: "input", content: "must never be placed" },
@@ -399,7 +399,7 @@ test("failed idle checkpoints hold queued input across reopen until explicit ret
 		);
 		const beforeCancel = (await f.component.status(f.root.id, context)).window
 			?.window?.id;
-		await f.harness.abortTask(cancelled, context);
+		await f.harness.abortTask(checkpointTask, context);
 		assert.equal(
 			(await f.harness.waitForTask(cancelled, context)).state.outcome.status,
 			"aborted",

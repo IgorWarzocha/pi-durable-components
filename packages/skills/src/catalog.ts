@@ -13,6 +13,7 @@ const MAX_OUTPUT_BYTES = 48 * 1024;
 const MAX_COMMAND_BYTES = 4 * 1024;
 
 type SkillRequest =
+	| { action: "help" }
 	| { action: "list"; categories: string[] }
 	| { action: "read"; name: string; selectors: string[] };
 
@@ -22,6 +23,7 @@ interface SkillsRequest {
 }
 
 export function parseRequest(input: unknown): SkillsRequest {
+	if (input === undefined) input = "";
 	if (typeof input !== "string")
 		throw new Error("skills expects a string command");
 	const offsetMatch = input.match(/\s+--offset\s+(\d+)\s*$/);
@@ -43,7 +45,10 @@ export function parseRequest(input: unknown): SkillsRequest {
 function parseCommand(input: string): SkillRequest {
 	const parts = input.trim().split(/\s+/).filter(Boolean);
 	const [action, ...arguments_] = parts;
-	if (!action || action === "list") {
+	if (!action || (action === "help" && arguments_.length === 0)) {
+		return { action: "help" };
+	}
+	if (action === "list") {
 		return { action: "list", categories: [...new Set(arguments_)] };
 	}
 	if (action === "read" && arguments_.length >= 1) {
@@ -59,16 +64,18 @@ function parseCommand(input: string): SkillRequest {
 		);
 	}
 	throw new Error(
-		'Expected "list", "list <category>...", or "read <exact-skill-name> [skill-or-reference...]"',
+		'Expected "help", "list", "list <category>...", or "read <exact-skill-name> [skill-or-reference...]"',
 	);
 }
 
 function formatCommand(commands: SkillRequest[]): string {
 	return commands
 		.map((group) =>
-			group.action === "list"
-				? ["list", ...group.categories].join(" ")
-				: ["read", group.name, ...group.selectors].join(" "),
+			group.action === "help"
+				? "help"
+				: group.action === "list"
+					? ["list", ...group.categories].join(" ")
+					: ["read", group.name, ...group.selectors].join(" "),
 		)
 		.join("; ");
 }
@@ -154,14 +161,16 @@ export async function runSkills(
 	for (const command of request.commands) {
 		files.check();
 		outputs.push(
-			command.action === "list"
-				? formatSkillList(skills, command.categories)
-				: await readSkillPackage(
-						skills,
-						command.name,
-						command.selectors,
-						files,
-					),
+			command.action === "help"
+				? `Commands: list [category...] | read <skill> [skill-or-reference...] | help. Join commands with ;\n\n${formatSkillList(skills)}`
+				: command.action === "list"
+					? formatSkillList(skills, command.categories)
+					: await readSkillPackage(
+							skills,
+							command.name,
+							command.selectors,
+							files,
+						),
 		);
 	}
 	return boundedOutput(outputs.join("\n\n"), request);

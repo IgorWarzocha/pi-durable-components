@@ -46,9 +46,11 @@ With Code or Notebook, also call `code.bind(harness)` or `notebook.bind(harness)
 - `history` searches retained entries by window UUID and item ID, with bounded retrieval. Searches are case-sensitive literal matches. Old history is never automatically reinserted into the prompt.
 - `new_context` reuses fresh notes from a successfully settled run or asks the model to save a checkpoint first. It then starts a clean window and continues from the saved notes. The prompt lists recent note paths, not their contents.
 - At 85% and 90% context usage, advisory reminders ask for a checkpoint. `get_context_remaining` reports provider usage plus an estimated tail, or explicitly reports an unknown budget.
-- After 25 minutes of observed inactivity, the next managed input waits for the same checkpoint-and-rollover path. Its content, attachments and busy policy remain intact.
+- Automatic idle rollover defaults off. Enable it with `createContextManagement({ models, automaticIdleRollover: true })`. After 25 minutes of observed inactivity, the next managed input rolls only if the latest completed run saved fresh notes. Otherwise it is admitted normally, without a synthetic checkpoint. Its content, attachments and busy policy remain intact.
 
 The idle clock starts when this component observes actual input settlement. It does not use Durable's task timestamps. Recovery can delay the idle deadline, but cannot move it earlier by guessing from an assistant timestamp.
+
+Keep each task checkpoint at a stable note path and update it in place, including completion. Link separate reusable findings and deferred ideas instead of copying them. Deferred work is not authorization to implement. Include checkpoint paths in handoffs. The bootstrap lists only five recent paths; use `notes` list or search to find others.
 
 Normal threshold and manual compaction are declined. Overflow compaction remains an emergency fallback using the configured model, within the same logical window. For a host-initiated rollover, call `management.newContext(conversation.id, ctx)` and await its task. It saves a checkpoint when needed but does not send an extra continuation message.
 
