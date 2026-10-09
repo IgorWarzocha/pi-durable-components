@@ -1,0 +1,48 @@
+{
+	"name": "@howaboua/pi-durable-grok-voice",
+	"version": "0.5.0",
+	"description": "Grok realtime voice and dictation for Pi Durable",
+	"type": "module",
+	"license": "MIT",
+	"author": "Igor Warzocha",
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/packages/grok-voice/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/packages/grok-voice/src/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"src/audio/rust",
+		"src/audio/PROVENANCE.md",
+		"!src/audio/rust/target/**",
+		"scripts",
+		"README.md",
+		"LICENSE",
+		"NOTICE"
+	],
+	"sideEffects": false,
+	"dependencies": {
+		"ws": "8.21.3",
+		"@types/ws": "8.18.1"
+	},
+	"peerDependencies": {
+		"@earendil-works/chord": "1.1.0",
+		"@earendil-works/pi-ai": "1.1.0",
+		"@earendil-works/pi-durable": "1.1.0",
+		"@modelcontextprotocol/sdk": "1.25.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"build:audio-helper": "node scripts/build-audio-helper.mjs",
+		"verify:audio-helper": "node scripts/verify-audio-binaries.mjs",
+		"plan:audio-helper": "node scripts/plan-audio-binaries.mjs"
+	}
+}

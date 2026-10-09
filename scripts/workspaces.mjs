@@ -3,6 +3,7 @@ import { copyFile, mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildVoiceAssets, checkVoiceAssets } from "./voice-assets.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const command = process.argv[2];
@@ -163,6 +164,7 @@ if (command === "test") {
 				"bun",
 			);
 		}
+		await buildVoiceAssets(directory, manifest.name);
 	}
 } else {
 	if (destination) await mkdir(resolve(root, destination), { recursive: true });
@@ -199,6 +201,7 @@ if (command === "test") {
 		});
 		const [pack] = JSON.parse(output);
 		const paths = new Set(pack.files.map((file) => file.path));
+		await checkVoiceAssets(directory, manifest.name, paths);
 		for (const required of [
 			"README.md",
 			"LICENSE",
@@ -219,7 +222,7 @@ if (command === "test") {
 		}
 		if (
 			[...paths].some((path) =>
-				/(^|\/)(test|tests|node_modules|\.pi)\//.test(path),
+				/(^|\/)(test|tests|node_modules|target|\.pi)\//.test(path),
 			)
 		) {
 			throw new Error(

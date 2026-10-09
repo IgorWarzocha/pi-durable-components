@@ -24,6 +24,7 @@ The approved 2026-10-09 refresh adopts selected behavior from `69f50cf70e8a7b05c
 | Headless presentations | Package-owned summary/detail contracts across the tool components | [Real receipts, lazy detail and host integration](parity/presentations.md) |
 | Sites | Structured ChatGPT Sites tools, committed-source saves and explicit deployments | [Offline Harness, Git, binding and recovery evidence](parity/sites.md) |
 | Guardian | Explicit tool rules and one-shot review of genuine pending Codex actions | [Provider completion and nested-admission evidence](parity/guardian.md) |
+| Grok and GipPity Voice | Separate native voice, dictation, browser control and authorized transfer integrations | [Pinned sources, native artifacts and offline lifecycle evidence](parity/voice.md) |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 
@@ -47,6 +48,8 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-09, both voice integrations and the PR #491 provider refresh passed independent review after fixing failed-arrival channel cleanup and final-model pricing attribution. The final `bun run check` passed all 28 retained workflows, lint, strict TypeScript, Knip, eighteen builds and dry-pack checks, including native asset integrity. No permanent tests were added. An earlier run timed out in the unchanged Code output workflow. Its focused rerun and the subsequent complete gate passed without changing code or the timeout. Isolated voice consumer checks passed against the pinned dependency graph, with the current unconstrained npm registry failure documented in [voice evidence](parity/voice.md).
 
 On 2026-10-09, Sites and Guardian passed independent review with no material findings. After correcting declaration placement and unused internal exports, `bun run check` passed all 28 retained workflows, lint, strict TypeScript, Knip, sixteen builds and dry-pack checks. Disposable offline probes covered Sites Git and recovery boundaries, provider completion evidence and genuine nested Guardian admission. No permanent tests were added and no live Sites or Guardian service claims are made.
 

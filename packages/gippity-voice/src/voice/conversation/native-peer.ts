@@ -1,0 +1,106 @@
+import type { GippityControlConfig } from "../../config.ts";
+import { deferred } from "../../deferred.ts";
+import type { GippityAudioHost } from "../../host.ts";
+import { VoiceHelperClient, type VoiceHelperEvent } from "../helper.ts";
+import type {
+	CodexRealtimePeerEvent,
+	CodexRealtimeWebRtcPeer,
+} from "./peer.ts";
+
+const OFFER_TIMEOUT_MS = 15_000;
+
+export class NativeCodexRealtimePeer implements CodexRealtimeWebRtcPeer {
+	readonly kind = "webrtc" as const;
+	constructor(host: GippityAudioHost) {
+		this.helper = new VoiceHelperClient(host);
+	}
+	private readonly helper: VoiceHelperClient;
+	private playbackEpoch = 0;
+	private speakerSuppressed = false;
+
+	onEvent(listener: (event: CodexRealtimePeerEvent) => void): () => void {
+		return this.helper.onEvent((event) => {
+			const peerEvent = toPeerEvent(event);
+			if (peerEvent) listener(peerEvent);
+		});
+	}
+
+	onExit(listener: (error: Error) => void): () => void {
+		return this.helper.onExit(listener);
+	}
+
+	async start(config: GippityControlConfig): Promise<string> {
+		await this.helper.start();
+		if (this.helper.protocolVersion !== 6) {
+			const actualVersion = this.helper.protocolVersion ?? "unknown";
+			await this.helper.close();
+			throw new Error(
+				`Incompatible Codex voice helper protocol ${actualVersion}; expected 6`,
+			);
+		}
+		const offer = deferred<string>();
+		const removeEvent = this.helper.onEvent((event) => {
+			if (event.type === "offer") offer.resolve(event.sdp);
+			else if (event.type === "error") offer.reject(new Error(event.message));
+		});
+		const removeExit = this.helper.onExit((error) => offer.reject(error));
+		const timeout = setTimeout(
+			() =>
+				offer.reject(new Error("Codex voice helper did not create an offer")),
+			OFFER_TIMEOUT_MS,
+		);
+		this.helper.send({
+			type: "start_v3",
+			...(config.voice.inputDevice
+				? { microphone: config.voice.inputDevice }
+				: {}),
+			...(config.voice.outputDevice
+				? { speaker: config.voice.outputDevice }
+				: {}),
+		});
+		return offer.promise.finally(() => {
+			clearTimeout(timeout);
+			removeEvent();
+			removeExit();
+		});
+	}
+
+	applyAnswer(sdp: string): void {
+		this.helper.send({ type: "apply_answer", sdp });
+	}
+
+	sendData(message: unknown): void {
+		this.helper.send({ type: "send_data", message });
+	}
+
+	setInputMuted(muted: boolean): void {
+		this.helper.send({ type: "set_input_muted", muted });
+	}
+
+	setSpeakerSuppressed(suppressed: boolean): void {
+		if (this.speakerSuppressed === suppressed) return;
+		this.helper.send({
+			type: "set_speaker_suppressed",
+			suppressed,
+			epoch: ++this.playbackEpoch,
+		});
+		this.speakerSuppressed = suppressed;
+	}
+
+	close(): Promise<void> {
+		return this.helper.close();
+	}
+}
+
+function toPeerEvent(
+	event: VoiceHelperEvent,
+): CodexRealtimePeerEvent | undefined {
+	if (
+		event.type === "state" ||
+		event.type === "data" ||
+		event.type === "error" ||
+		event.type === "playback_activity"
+	)
+		return event;
+	return undefined;
+}

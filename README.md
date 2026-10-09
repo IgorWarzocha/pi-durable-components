@@ -48,8 +48,10 @@ Each component's guide includes its install command and host configuration.
 | [UI SDK](packages/ui) | Build interactive component UIs with live state, actions and streams through one host contract |
 | [Sites](packages/sites) | Save committed source and manage ChatGPT Sites with explicit deployment visibility |
 | [Guardian](packages/guardian) | Enforce explicit tool rules and request one-shot Codex action review |
+| [Grok Voice](packages/grok-voice) | Use xAI realtime voice, dictation and browser audio controls |
+| [GipPity Voice](packages/gippity-voice) | Use Codex subscription voice, dictation and browser audio controls |
 
-Git, the UI SDK, Sites and Guardian are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
+Git, the UI SDK, Sites, Guardian and both voice integrations are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
 
 The local-development tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
 
@@ -65,6 +67,7 @@ Worker Code is a separate, bounded execution mode. It uses QuickJS WASM without 
 - Code downloads a checksum-verified V8 host on first use. `store` and `load` retain values between cells.
 - Notebook downloads checksum-verified Deno on first use. It has filesystem, network and process access. It is not a sandbox.
 - Web and Image Generation require Codex-compatible credentials supplied by your host. Browser requires Chrome with remote debugging enabled.
+- Voice needs explicit audio permissions and one application-owned microphone lease shared by both integrations. LAN control requires host-supplied TLS and network permission. Native helpers ship for six platform targets, but device and live-provider acceptance remain separate checks.
 - A host restart ends live kernels and shell sessions. Interrupted work is reported rather than replayed. Notebook can restore checkpointed values without rerunning cells.
 - Context management uses the host's SQLite database. Automatic idle rollover is off by default. Opt in through the host and use managed submission to roll over only when fresh checkpoint notes already exist.
 

@@ -1,0 +1,12 @@
+Grok voice protocol, browser audio and native audio helper adapted from
+@howaboua/pi-grok-realtime, copyright Igor Warzocha, MIT.
+Source: https://github.com/IgorWarzocha/howaboua-pi-stuff
+Revision: c988e233932ee8604dff64f59b15618f32b81323
+
+Cross-session PCM handoff protocol/audio and alternate-voice settings adopted
+from PR 490 at c7ba4f1398c66d3c10c88c9326c7bddecf0202e1. Pi event/UI
+integration is replaced by public Durable tasks and explicit host grants.
+
+Native helper third-party notices are retained beside each platform binary
+in dist/audio/bin/*/LICENSES.txt. Source dependencies are pinned in
+src/audio/rust/Cargo.lock. See src/audio/PROVENANCE.md.

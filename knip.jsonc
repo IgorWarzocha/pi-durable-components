@@ -40,6 +40,14 @@
 			"entry": [],
 			"project": ["src/**/*.ts"]
 		},
+		"packages/grok-voice": {
+			"entry": ["scripts/**/*.mjs"],
+			"project": ["src/**/*.ts", "scripts/**/*.mjs"]
+		},
+		"packages/gippity-voice": {
+			"entry": ["scripts/**/*.mjs"],
+			"project": ["src/**/*.ts", "scripts/**/*.mjs"]
+		},
 		"packages/sites": {
 			"entry": [],
 			"project": ["src/**/*.ts"]

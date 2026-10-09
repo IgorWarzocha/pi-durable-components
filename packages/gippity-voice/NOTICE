@@ -1,0 +1,14 @@
+GipPity voice is derived from packages/pi-gippity-control in
+https://github.com/IgorWarzocha/howaboua-pi-stuff
+at 69f50cf70e8a7b05c2349be6227f521b6504f80e (MIT, Igor Warzocha).
+Alternating handoff voices and arrival greeting adopt the source delta through
+c7ba4f1398c66d3c10c88c9326c7bddecf0202e1 (PR 490).
+
+Native Rust source, Cargo.lock, six platform helpers, vendor notices and licenses
+are carried from 69f50cf without modification. Vendored OpenAI Codex audio DSP
+is Apache-2.0; see src/voice/rust/VENDORED.md and
+src/voice/rust/vendor/openai-codex/{LICENSE,NOTICE}.
+Provider wire, PCM, interruption epochs, transcript/delegation tracking,
+browser scripts and bounded helper protocol retain their source implementation.
+The Durable controller, host permissions, context service and LAN server are
+native integrations, not a Pi ExtensionAPI compatibility layer.
