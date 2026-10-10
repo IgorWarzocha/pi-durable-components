@@ -7,19 +7,12 @@ import type {
 	Storage,
 	TaskId,
 } from "@earendil-works/pi-durable";
-import {
-	defineDoc,
-	defineExtension,
-	defineTool,
-	LiveDoc,
-} from "@earendil-works/pi-durable";
-import { Type } from "typebox";
+import { defineExtension } from "@earendil-works/pi-durable";
 import { createInput } from "./admission.ts";
 import { createHistoryTool } from "./history.ts";
 import {
 	Admission,
 	type ContextHost,
-	Continuation,
 	conversation,
 	InputReceipt,
 	type InputResult,
@@ -28,18 +21,12 @@ import {
 import { createNotesTool } from "./notes.ts";
 import { createContextPolicy } from "./policy.ts";
 import { createRollover, scheduleRollover } from "./rollover.ts";
+import { createToolRollover } from "./tool-rollover.ts";
 import { WindowState } from "./window-state.ts";
 
 export type { InputResult } from "./lifecycle.ts";
 export { readSavedNotes, type SavedNote } from "./note-store.ts";
 export type { TransitionResult, WindowIdentity } from "./window-state.ts";
-
-const ToolReceipt = defineDoc<{ transition?: TaskId }>({
-	kind: "howaboua.context.rollover-receipt",
-	version: 1,
-	scope: "task",
-	initial: () => ({}),
-});
 
 /** Install the extension before opening. Bind the same Harness and storage before resuming it. */
 export function createContextManagement(options: {
@@ -76,70 +63,13 @@ export function createContextManagement(options: {
 	const history = createHistoryTool({
 		conversation: (id, context) => conversation(host(), id, context),
 	});
-	const newContext = defineTool({
-		name: "new_context",
-		description:
-			"Checkpoint and continue in a clean context window. Call alone",
-		parameters: Type.Object({}, { additionalProperties: false }),
-		replay: "safe",
-		executionMode: "sequential",
-		async execute(_args, api, context) {
-			const transition = await api.commit(async (tx) => {
-				const receipt = await tx.doc(ToolReceipt, api.taskId);
-				if (receipt.transition) return receipt.transition;
-				const live = await tx.doc(LiveDoc, api.conversationId);
-				if (live.tools?.length !== 1)
-					throw new Error(
-						"Call new_context alone in its tool round, after saving notes",
-					);
-				const window = await tx.doc(WindowState, api.conversationId);
-				if (window.transition)
-					throw new Error(
-						"A context checkpoint is already in progress. Save notes and finish this turn",
-					);
-				const pending = await scheduleRollover(
-					tx,
-					api.conversationId,
-					rollover,
-					"tool",
-				);
-				for (const submission of live.run?.inputs ?? [])
-					(
-						await tx.doc(
-							Continuation,
-							api.conversationId,
-							String(submission),
-							null,
-						)
-					).task = pending;
-				receipt.transition = pending;
-				return pending;
-			}, context);
-			// The current generation must end before its rollover can wait for idle.
-			return {
-				content: [
-					{
-						type: "text",
-						text: JSON.stringify({
-							status: "scheduled",
-							task_id: String(transition),
-						}),
-					},
-				],
-				control: { terminate: true },
-			};
-		},
-	});
-	const nativeNewContext = {
-		...newContext,
-		executionHints: { nativeOnly: true as const },
-	};
+	const newContext = createToolRollover(host, now);
 	const extension = defineExtension({
 		name: "howaboua.context",
-		tools: [notes, history, policy.remainingTool, nativeNewContext],
+		tools: [notes, history, policy.remainingTool, newContext.tool],
 		tasks: [input, rollover],
 		sections: policy.sections,
-		hooks: policy.hooks,
+		hooks: [...newContext.hooks, ...policy.hooks],
 	});
 	return {
 		extension,

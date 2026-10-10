@@ -1,4 +1,6 @@
 // Adapted from pi-codex-conversion, Copyright (c) 2026 Igor Warzocha, MIT.
+
+import type { ConversationId } from "@earendil-works/pi-durable";
 import { type Static, Type } from "typebox";
 
 const HISTORY_ACTIONS = [
@@ -17,10 +19,17 @@ const NOTES_ACTIONS = [
 
 const nullableString = Type.Union([Type.String(), Type.Null()]);
 const positiveInteger = Type.Integer({ minimum: 1 });
+const target = Type.Optional(
+	Type.String({
+		pattern: "^[1-9][0-9]*$",
+		description: "Durable conversation ID; defaults to caller",
+	}),
+);
 
 export const historyParameters = Type.Object(
 	{
 		action: Type.Union(HISTORY_ACTIONS.map((action) => Type.Literal(action))),
+		target,
 		item_id: Type.Optional(Type.String()),
 		limit: Type.Optional(positiveInteger),
 		limit_chars: Type.Optional(positiveInteger),
@@ -48,6 +57,7 @@ export const historyParameters = Type.Object(
 export const notesParameters = Type.Object(
 	{
 		action: Type.Union(NOTES_ACTIONS.map((action) => Type.Literal(action))),
+		target,
 		file_order: Type.Optional(
 			Type.Union([Type.Literal("ascending"), Type.Literal("descending")]),
 		),
@@ -147,12 +157,24 @@ function validateFields(
 	fields: readonly string[],
 ): void {
 	const unexpected = Object.keys(args).find(
-		(key) => key !== "action" && !fields.includes(key),
+		(key) => key !== "action" && key !== "target" && !fields.includes(key),
 	);
 	if (unexpected)
 		throw new Error(
 			`${namespace} ${args.action} does not accept ${unexpected}`,
 		);
+}
+
+export function targetConversationId(
+	value: string | undefined,
+	caller: ConversationId,
+): ConversationId {
+	if (value === undefined) return caller;
+	if (!/^[1-9][0-9]*$/.test(value) || !Number.isSafeInteger(Number(value)))
+		throw new Error(
+			"target must be a positive safe-integer Durable conversation ID",
+		);
+	return Number(value) as ConversationId;
 }
 
 export function requiredString(

@@ -59,7 +59,7 @@ Supply `board_thread_id` on spawn to hand off a thread from your current board. 
 
 `list` and `find` discover workers created by this component in the current Harness. Names are unique within that Harness. Numeric names are reserved for conversation IDs. An exact conversation ID can also address a host-created conversation, including a controller. Delegating to or watching yourself is rejected.
 
-`read` returns the newest assistant reply or a bounded recent transcript page. Text is capped at 36,000 characters per result. Use `before` to continue through older entries and `entry` with `nextOffset` to retrieve truncated text. This reads conversation data, not a terminal.
+Use the returned conversation ID to inspect a worker through the host's Durable conversation view or the Context component's targeted `history` tool. Agents does not register a transcript-reading action.
 
 ## Discuss on the board
 
@@ -103,7 +103,7 @@ Available in local-development builds, not release 0.5.0.
 
 The browser-safe `@howaboua/pi-durable-agents/presentation` entry provides validated host snapshots and pure summary and detail selectors, structurally compatible with `UiCapability` and `UiPresentation`. It does not import the UI runtime.
 
-`agentsCapability`, `agentsSummaryPresentation` and `agentsDetailPresentation` describe a roster page and a nullable latest reply. Build `agents` from the `agents` tool's `list` or `find` result. Populate `detail` from `read` with its `target`, `reply` and `truncated` fields. The summary counts only the supplied page, not the entire fleet. A null reply means no assistant answer was returned.
+`agentsCapability`, `agentsSummaryPresentation` and `agentsDetailPresentation` describe a roster page and a nullable latest reply. Build `agents` from the `agents` tool's `list` or `find` result. The host acquires detail through its Durable conversation view or targeted history, then supplies `target`, `reply` and `truncated`. The summary counts only the supplied page, not the entire fleet. A null reply means no assistant answer was returned.
 
 Keep `detail: null` until the host acquires it. Detail must match an item in the supplied inventory. Refresh or clear detail when replacing that inventory. These snapshots are presentation data, not a replacement storage model or raw tool-result envelope. The host owns selection, freshness, binding, authorization and native controls. Summary requests identify a detail presentation but do not fetch data. Declared actions name the existing ordinary `agents` registration. Invoke it with its unchanged arguments and results through a host-authorized binding. No streams, transport adapters or additional lifecycle are introduced.
 

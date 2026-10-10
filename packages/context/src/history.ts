@@ -19,6 +19,7 @@ import {
 	boundedInteger,
 	type HistoryArguments,
 	historyParameters,
+	targetConversationId,
 	validateHistoryArguments,
 } from "./tool-contract.ts";
 import { WindowEntry, WindowState } from "./window-state.ts";
@@ -29,30 +30,21 @@ export function createHistoryTool(options: {
 	return defineTool({
 		name: "history",
 		description:
-			"Prior-window detail. Pass IDs unchanged. Search, never browse.",
+			"Conversation history, including prior windows. Pass IDs unchanged. Search, never browse.",
 		parameters: historyParameters,
 		replay: "safe",
 		async execute(args, api, context) {
 			validateHistoryArguments(args);
 			context.abortSignal?.throwIfAborted();
-			const state = await api.snapshot(
-				WindowState,
-				api.conversationId,
-				context,
-			);
-			if (!state?.window)
-				throw new Error(
-					"Context window is missing; ask the host to run context.bind or context.submit before using context tools",
-				);
-			const conversation = await options.conversation(
-				api.conversationId,
-				context,
-			);
-			if (conversation.id !== api.conversationId)
+			const target = targetConversationId(args.target, api.conversationId);
+			const conversation = await options.conversation(target, context);
+			if (conversation.id !== target)
 				throw new Error("History reader is bound to a different conversation");
+			const state = await api.snapshot(WindowState, target, context);
 			const result = await readHistory(
 				conversation,
-				state.window.id,
+				// Host-created conversations need no Context initialization to be read.
+				state?.window?.id ?? `conversation:${target}`,
 				args,
 				context,
 			);

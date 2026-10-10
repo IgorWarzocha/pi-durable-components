@@ -12,27 +12,40 @@ import {
 	NotesState,
 	noteMetadata,
 	readNoteText,
-	requireNotesWindow,
 } from "./note-store.ts";
 import {
 	boundedInteger,
 	type NotesArguments,
 	notesParameters,
 	requiredString,
+	targetConversationId,
 	validateNotesArguments,
 } from "./tool-contract.ts";
 
 export function createNotesTool(options: { now: () => number }) {
 	return defineTool({
 		name: "notes",
-		description: "Cross-window checkpoints on virtual paths under /notes",
+		description:
+			"Cross-window checkpoints under /notes. Foreign targets are read-only",
 		parameters: notesParameters,
 		replay: "safe",
 		async execute(args, api, context) {
 			validateNotesArguments(args);
 			context.abortSignal?.throwIfAborted();
+			const target = targetConversationId(args.target, api.conversationId);
+			const writing =
+				args.action === "append_to_file" || args.action === "write_file";
+			if (writing && target !== api.conversationId)
+				throw new Error("Notes writes may only target the caller conversation");
+			// tx.doc creates missing documents, even for reads. An absent catalog is
+			// an empty snapshot, not permission to initialize a foreign conversation.
+			const hasCatalog =
+				writing ||
+				(await api.snapshot(NotesState, target, context)) !== undefined;
 			const result = await api.commit(async (tx): Promise<JsonObject> => {
-				if (args.action === "append_to_file" || args.action === "write_file") {
+				if (!(await tx.conversation(target)))
+					throw new Error(`Conversation ${target} does not exist`);
+				if (writing) {
 					const file = await mutateNote(tx, {
 						conversationId: api.conversationId,
 						taskId: api.taskId,
@@ -47,8 +60,7 @@ export function createNotesTool(options: { now: () => number }) {
 					});
 					return { source: "sqlite", file: noteMetadata(file) };
 				}
-				await requireNotesWindow(tx, api.conversationId);
-				return readNotes(tx, api.conversationId, args);
+				return readNotes(tx, target, args, hasCatalog);
 			}, context);
 			return {
 				content: [{ type: "text", text: JSON.stringify(result) }],
@@ -62,8 +74,9 @@ async function readNotes(
 	tx: Tx,
 	id: ConversationId,
 	args: NotesArguments,
+	hasCatalog: boolean,
 ): Promise<JsonObject> {
-	const state = await tx.doc(NotesState, id);
+	const state = hasCatalog ? await tx.doc(NotesState, id) : { files: [] };
 	if (args.action === "read_file") {
 		const path = normalizeFilePath(args.path);
 		const file = state.files.find((file) => file.path === path);

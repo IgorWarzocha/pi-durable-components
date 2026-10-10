@@ -8,7 +8,7 @@ export {
 	parseBoardPresentationState,
 } from "./board/presentation.ts";
 
-/** Host-owned roster page and optional latest reply. No acquisition occurs here. */
+/** Host-owned roster page and optional latest reply from Durable views or history. */
 export interface AgentRosterItem {
 	target: string;
 	name: string;

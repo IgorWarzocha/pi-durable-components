@@ -54,6 +54,7 @@ export function createContextPolicy(options: {
 			const window = state?.window;
 			return [
 				checkpoint,
+				`Current conversation ID: ${input.conversationId}. notes and history accept target with another conversation ID in this shared storage. Read any conversation's context; write only your own notes.`,
 				window && `Current context window UUID: ${window.id}`,
 				window?.previous && `Previous context window UUID: ${window.previous}`,
 				hints,

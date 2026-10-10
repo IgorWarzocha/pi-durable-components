@@ -36,21 +36,23 @@ const task = await management.submit(conversation.id, {
 const receipt = await harness.waitForTask(task, ctx);
 ```
 
-The receipt uses Durable's normal task outcomes. A completed input result contains `status`, the native `submission` ID and either the final `answer` entry ID or an unanswered reason. A `new_context` tool call does not finish this managed request early. It follows the rollover's continuation to the final answer. Reusing a `requestId` returns the original task without admitting the input twice.
+The receipt uses Durable's normal task outcomes. A completed input result contains `status`, the native `submission` ID and either the final `answer` entry ID or an unanswered reason. A `new_context` tool call keeps the original native input open until the final answer. Delegation, watches and direct submission waits therefore see the same completion, without a Context-specific connector. Reusing a `requestId` returns the original task without admitting the input twice.
 
 With Code or Notebook, also call `code.bind(harness)` or `notebook.bind(harness)`. The ordinary `notes`, `history` and `get_context_remaining` tools remain callable inside execution cells. `new_context` stays on the native model surface and must be called alone, outside a cell.
 
 ## What happens during a conversation
 
-- `notes` reads and writes virtual paths under `/notes`. Relative paths resolve there. Notes are not workspace files. Each file is limited to 1 MB, with 10 MB of note content per conversation.
-- `history` searches retained entries by window UUID and item ID, with bounded retrieval. Searches are case-sensitive literal matches. Old history is never automatically reinserted into the prompt.
-- `new_context` reuses fresh notes from a successfully settled run or asks the model to save a checkpoint first. It then starts a clean window and continues from the saved notes. The prompt lists recent note paths, not their contents.
+- `notes` reads and writes virtual paths under `/notes`. Relative paths resolve there. Notes are not workspace files. Each file is limited to 1 MB, with 10 MB of note content per conversation. Supply `target` with another conversation's numeric ID as a string to read its notes. Writes can only target the calling conversation.
+- `history` searches retained entries by window and item ID, with bounded retrieval. Its optional `target` selects another conversation in the same storage. Searches are case-sensitive literal matches. Old history is never automatically reinserted into the prompt. Conversations without Context windows use `conversation:<id>` as their window ID.
+- `new_context` requires fresh notes and a standalone native tool round. Without fresh notes it returns `checkpoint_required`, asking the model to save its checkpoint and call again. Once the round completes, it cuts the context and continues within the same native input. If queued input or other foreground work prevents a safe cut, the model receives an explicit skipped-rollover message and the window stays intact. The prompt lists recent note paths, not their contents.
 - At 85% and 90% context usage, advisory reminders ask for a checkpoint. `get_context_remaining` reports provider usage plus an estimated tail, or explicitly reports an unknown budget.
 - Automatic idle rollover defaults off. Enable it with `createContextManagement({ models, automaticIdleRollover: true })`. After 25 minutes of observed inactivity, the next managed input rolls only if the latest completed run saved fresh notes. Otherwise it is admitted normally, without a synthetic checkpoint. Its content, attachments and busy policy remain intact.
 
 The idle clock starts when this component observes actual input settlement. It does not use Durable's task timestamps. Recovery can delay the idle deadline, but cannot move it earlier by guessing from an assistant timestamp.
 
 Keep each task checkpoint at a stable note path and update it in place, including completion. Link separate reusable findings and deferred ideas instead of copying them. Deferred work is not authorization to implement. Include checkpoint paths in handoffs. The bootstrap lists only five recent paths; use `notes` list or search to find others.
+
+All conversations in the same storage can be read, including host-created peers. Board membership does not grant or restrict this access. Keep private conversations in a separate storage boundary. Use conversation IDs returned by Agents or the host. For example, `history` with `{"action":"search_contents","target":"42","query":"deployment"}` searches conversation 42 without waking it. These reads do not copy its context into the caller's prompt beyond the requested results.
 
 Normal threshold and manual compaction are declined. Overflow compaction remains an emergency fallback using the configured model, within the same logical window. For a host-initiated rollover, call `management.newContext(conversation.id, ctx)` and await its task. It saves a checkpoint when needed but does not send an extra continuation message.
 
@@ -62,7 +64,7 @@ If a checkpoint fails or finishes without saving fresh notes, the old window sta
 
 Use `harness.abortTask(task, ctx)` to cancel a managed request, including its pending rollover. Cancelling an idle checkpoint cancels the messages held behind it. Use `conversation.abort(ctx)` to stop all foreground work. Resubmit cancelled messages explicitly if you still want them processed.
 
-Direct `conversation.submit` calls, including another extension's delegation or notifications, bypass managed idle admission. Route inputs through `management.submit` wherever that idle guarantee is needed. Native tool rollover still works on directly submitted conversations.
+Direct `conversation.submit` calls, including another extension's delegation or notifications, bypass managed idle admission. Route inputs through `management.submit` wherever that idle guarantee is needed. Native tool rollover works on directly submitted conversations and does not settle their inputs early. Host-initiated rollover still uses the managed checkpoint task and native idle boundary.
 
 A window change preserves the conversation ID and live Code or Notebook runtime. A process restart does not preserve kernels or shell sessions. Close the Harness and storage using their normal lifecycle when the host exits. Notes and history remain local, but checkpoint and overflow-summary inference still use your configured model.
 

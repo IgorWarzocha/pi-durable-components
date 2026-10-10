@@ -1,4 +1,4 @@
-- Keep `src/index.ts` limited to registration, host binding and action routing. Tool contracts, delegation admission, transcript queries and watch membership have separate owners.
+- Keep `src/index.ts` limited to registration, host binding and action routing. History retrieval belongs to Context or the host's Durable views, not a second Agents transcript tool.
 - Admit a worker, its dispatch, its reporter and the caller-task receipt in one transaction. Recover retries from that receipt. Return copied fields, never transaction drafts.
 - Watches follow settled input submissions, not completed generations or intermediate assistant entries. Reconcile idle document wakes inside the current task invocation.
 - Cancelling a blocking caller detaches its waiter, not its worker. Preserve background-subtree ownership and deterministic report request IDs, including deduplication between watches and delegation.

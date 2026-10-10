@@ -108,10 +108,7 @@ export async function readSavedNotes(
 	return notes.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-export async function requireNotesWindow(
-	tx: Tx,
-	id: ConversationId,
-): Promise<string> {
+async function requireNotesWindow(tx: Tx, id: ConversationId): Promise<string> {
 	const state = await tx.doc(WindowState, id);
 	if (!state.window)
 		throw new Error(

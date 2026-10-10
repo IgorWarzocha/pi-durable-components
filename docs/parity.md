@@ -17,7 +17,7 @@ The approved 2026-10-09 refresh adopts selected behavior from `69f50cf70e8a7b05c
 | Agents | Durable-native delegation and shared discussion board | [Real Harness delegation, board, recovery and watches](parity/agents.md) |
 | Code | Code execution with included `exec_command` and `write_stdin` | [Actual V8 execution and tool dispatch](parity/code.md) |
 | Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
-| Context | Local notes, retained history, explicit checkpoint rollover and opt-in fresh-note idle rollover | [SQLite recovery and real execution-mode rollover](parity/context.md) |
+| Context | Shared same-storage notes and history reads, own-note writes, explicit checkpoint rollover and opt-in fresh-note idle rollover | [SQLite recovery and real execution-mode rollover](parity/context.md) |
 | OpenAI Responses | OpenAI and Codex subscription provider, cached transport, explicit Worker runtime, Lite and replay | [Protocol extraction and runtime evidence](parity/openai-responses.md) |
 | Worker Code | Separate bounded Worker execution, not native Code or Notebook parity | [QuickJS WASM and ordinary Durable tool dispatch](parity/worker-code.md) |
 | Git and UI SDK | Git read capability and a component-independent interactive UI contract, with the diff renderer as one consumer | [Source extraction and independent host evidence](parity/git-ui.md) |
@@ -40,7 +40,7 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 
 ## Accepted native differences
 
-- Agent delegation and board membership use Durable conversations. Herdr machine and pane control, SSH routing, shared-context attachment and Ask answers are excluded.
+- Agent delegation and board membership use Durable conversations. Herdr machine and pane control, SSH routing and Ask answers are excluded. Context reads use conversation targets, not attachment permissions or an Agents transcript pager.
 - Images use native Durable image content. The provider owns transport detail selection. Original bytes and optional descriptions remain available.
 - Host configuration replaces ambient Pi directories, extension globals and terminal rendering. Code and Notebook consume ordinary registrations, not per-tool bridges.
 - Context management and OpenAI Responses follow the later source revisions pinned in their parity documents. Context uses one notes-and-history policy, without source backend or continuity-mode selectors.
@@ -48,6 +48,8 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-10, the native-boundary cleanup passed independent review and the final `bun run check`: all 28 retained workflows, lint, strict TypeScript, Knip, eighteen builds and dry-pack checks. Disposable Harness and SQLite probes verified shared reads, caller-only note writes, native completion through rollover, watch deduplication, cut recovery, cancellation and queued-input safety. No permanent tests were added. An earlier gate timed out in the unchanged Code output workflow; the unchanged full rerun passed. MCP peers remain necessary through pi-ai's transitive Google declarations.
 
 On 2026-10-09, both voice integrations and the PR #491 provider refresh passed independent review after fixing failed-arrival channel cleanup and final-model pricing attribution. The final `bun run check` passed all 28 retained workflows, lint, strict TypeScript, Knip, eighteen builds and dry-pack checks, including native asset integrity. No permanent tests were added. An earlier run timed out in the unchanged Code output workflow. Its focused rerun and the subsequent complete gate passed without changing code or the timeout. Isolated voice consumer checks passed against the pinned dependency graph, with the current unconstrained npm registry failure documented in [voice evidence](parity/voice.md).
 

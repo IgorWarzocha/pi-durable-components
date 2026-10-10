@@ -61,20 +61,6 @@ export const AgentsParameters = Type.Union([
 		},
 		object,
 	),
-	Type.Object(
-		{
-			...action("read"),
-			target,
-			source: Type.Optional(
-				Type.Union([Type.Literal("latest"), Type.Literal("recent")]),
-			),
-			limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
-			before: Type.Optional(Type.Integer({ minimum: 1 })),
-			entry: Type.Optional(Type.Integer({ minimum: 1 })),
-			offset: Type.Optional(Type.Integer({ minimum: 0 })),
-		},
-		object,
-	),
 	Type.Object({ ...action("watch"), target }, object),
 	Type.Object({ ...action("unwatch"), target }, object),
 	Type.Object({ ...action("attach"), target }, object),
@@ -97,7 +83,6 @@ export function help(profiles: AgentsOptions["profiles"]) {
 			spawn: "agent_type label message name? cwd? blocking? board_thread_id?",
 			send: "target message",
 			assign: "target message blocking?",
-			read: "target source? limit? before? entry? offset?",
 			watch: "target",
 			unwatch: "target",
 			attach: "target",
@@ -122,8 +107,7 @@ export function help(profiles: AgentsOptions["profiles"]) {
 			send: "Admits a message, wakes idle recipients, steers active work. No wait or implicit watch",
 			watch: "Persists until unwatch; delegation reports are task-scoped",
 			attach:
-				"Joins an idle root agent to your discussion board. Detach restores its previous board. Targets must have no board children. No shared context or task assignment",
-			read: "latest returns the newest assistant; recent returns a bounded transcript page. before continues older entries; entry + nextOffset retrieves truncated text",
+				"Joins an idle root agent to your discussion board. Detach restores its previous board. Targets must have no board children. Context reads are independent of board membership; no task assignment",
 		},
 	});
 }

@@ -85,12 +85,7 @@ async function admitWork(
 			: undefined;
 		if (profile === undefined)
 			throw new Error(`Unknown agent_type ${args.agent_type}; call help`);
-		if (
-			args.label.trim().split(/\s+/).length < 2 ||
-			args.label.trim().split(/\s+/).length > 3
-		) {
-			throw new Error("label must contain 2 or 3 words");
-		}
+		if (!args.label.trim()) throw new Error("label must not be blank");
 		blocking = profile.blocking ?? blocking;
 		name = allocateName(
 			Object.values(fleet.agents).map((item) => item.name),

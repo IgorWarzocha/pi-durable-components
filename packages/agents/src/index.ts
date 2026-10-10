@@ -6,7 +6,7 @@ import { createBoardTool } from "./board/tool.ts";
 import type { AgentsOptions } from "./contract.ts";
 import { AgentsParameters, help } from "./contract.ts";
 import { delegate, send } from "./delegation.ts";
-import { discoverAgents, readAgent } from "./queries.ts";
+import { discoverAgents } from "./queries.ts";
 import { Anchor, Completion, Dispatch } from "./tasks.ts";
 import type { AgentsBinding } from "./watch.ts";
 import { createWatch } from "./watch.ts";
@@ -37,7 +37,7 @@ export function createAgents(options: AgentsOptions) {
 		parameters: AgentsParameters,
 		replay: "safe",
 		executionMode: "sequential",
-		// Delegation results retain full replies. Only read applies an intentional output bound.
+		// Delegation results retain full replies.
 		outputLimits: {
 			maxBytes: Number.MAX_SAFE_INTEGER,
 			maxLines: Number.MAX_SAFE_INTEGER,
@@ -50,8 +50,6 @@ export function createAgents(options: AgentsOptions) {
 				case "list":
 				case "find":
 					return discoverAgents(args, api, context);
-				case "read":
-					return readAgent(args, api, context);
 				case "watch":
 				case "unwatch":
 					return updateSubscription(args, api, context, Watch, binding);
