@@ -1,0 +1,1 @@
+Frontmatter and schedule algorithms carried from IgorWarzocha/pi-clawa (Howaclawa), revision 07fbb0ad71a08a864b285b01d512c2052861b91d, src/pulses/frontmatter.ts and schedule.ts. Copyright Igor Warzocha. MIT license; see LICENSE. Parser and scheduling semantics preserved; filesystem, native admission and execution are Durable-native implementations.

@@ -6,6 +6,7 @@ import { createBoardTool } from "./board/tool.ts";
 import type { AgentsOptions } from "./contract.ts";
 import { AgentsParameters, help } from "./contract.ts";
 import { delegate, send } from "./delegation.ts";
+import { createHostAccess } from "./host.ts";
 import { discoverAgents } from "./queries.ts";
 import { Anchor, Completion, Dispatch } from "./tasks.ts";
 import type { AgentsBinding } from "./watch.ts";
@@ -19,6 +20,7 @@ export {
 } from "./board/saved-threads.ts";
 export type { AgentProfile, AgentsOptions } from "./contract.ts";
 export { AgentsParameters } from "./contract.ts";
+export type { AgentMessage, AgentObservation } from "./host.ts";
 
 /** Install before opening, bind the Harness and storage before scheduling, and select on controllers. */
 export function createAgents(options: AgentsOptions) {
@@ -26,7 +28,7 @@ export function createAgents(options: AgentsOptions) {
 	const binding = () => {
 		if (host === undefined)
 			throw new Error(
-				"Bind the Agents component before using persistent watches or board posts. Delegation and message-only send remain available",
+				"Bind the Agents component before using host access, persistent watches or board posts. Delegation and tool send remain available",
 			);
 		return host;
 	};
@@ -73,6 +75,7 @@ export function createAgents(options: AgentsOptions) {
 		hooks: createBoardNoticeHooks(binding, () => host),
 	});
 	return {
+		...createHostAccess(binding),
 		extension,
 		tool,
 		boardTool,
@@ -84,6 +87,10 @@ export function createAgents(options: AgentsOptions) {
 				throw new Error("Create a separate agents component for each Harness");
 			}
 			host = { harness, storage };
+		},
+		/** Release only after the host has closed this Harness and its task invocations. */
+		unbind(harness: Harness) {
+			if (host?.harness === harness) host = undefined;
 		},
 	};
 }

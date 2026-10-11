@@ -97,6 +97,18 @@ Failures retain a failed status and reason. Blocking failures set the tool resul
 
 [Parity evidence](../../docs/parity/agents.md) records the native boundaries and tests.
 
+## Host observation and control
+
+Available in local-development builds, not release 0.5.0. After binding, `agents.roster(context)` returns every registered worker's target, name, label, profile and controller, plus its native Durable `owner` edge and `state`. State is `idle` or `working` with the native run task ID. Controller metadata records the original delegation controller. It does not replace native task ownership.
+
+The roster uses separate committed reads, not an atomic frame. Refresh it through the host's native Harness commit subscriptions or watches. Read transcripts through Durable conversation views or history. No separate worker graph or observer lifecycle is introduced.
+
+To reuse a component after runtime close, first close the old Harness and wait for its task invocations to finish, then call `agents.unbind(oldHarness)` before binding the replacement. Release only clears a matching binding, so stale cleanup cannot clear a newer Harness. The component never closes the Harness or storage itself.
+
+`agents.stop(target, context, options?)` calls the worker's native conversation abort and waits for its ordinary ownership scope to become idle. Nested background workers survive by default. Pass `{ background: true }` deliberately to cross those boundaries. Stopping does not delete the worker or change completion-report policy.
+
+`agents.message({ target, sender, message, requestId }, context)` submits an attributed message with `whenBusy: "steer"` and returns the native submission. Use a unique, stable request ID for each operation and reuse it when retrying an uncertain outcome. This sends no additional completion report. Both controls require a registered worker. The sender must be an existing conversation. The host owns authorisation of every read and control, including sender attribution.
+
 ## Headless presentations
 
 Available in local-development builds, not release 0.5.0.

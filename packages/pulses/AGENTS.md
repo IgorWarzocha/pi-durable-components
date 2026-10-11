@@ -1,0 +1,2 @@
+- Rejoin a manual run's native request receipt before reading current definitions or applying new-admission policy. Definition edits, disablement and deletion must not invalidate an already admitted request.
+- Reacquire nested tracked document values after insertion. An assignment expression returns the untracked supplied object; later mutations through that object do not persist.

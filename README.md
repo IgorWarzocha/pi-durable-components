@@ -39,6 +39,7 @@ Each component's guide includes its install command and host configuration.
 | [Image Generation](packages/imagegen) | Generate and edit images, saving results in the workspace |
 | [Browser](packages/browser) | Control Chrome through CDP using its existing login session |
 | [Agents](packages/agents) | Delegate work and share findings on a persistent discussion board |
+| [Pulses](packages/pulses) | Run scheduled Markdown prompts in owned conversations and deliver passive results |
 | [Context](packages/context) | Save notes, retrieve history and resume through clean context windows |
 | [OpenAI Responses](packages/openai-responses) | Use cached OpenAI or Codex WebSockets on Node and Workers, with Responses Lite in Codex mode |
 | [Code Mode](packages/code) | Run JavaScript that calls tools, with a fresh context for each cell |
@@ -51,7 +52,7 @@ Each component's guide includes its install command and host configuration.
 | [Grok Voice](packages/grok-voice) | Use xAI realtime voice, dictation and browser audio controls |
 | [GipPity Voice](packages/gippity-voice) | Use Codex subscription voice, dictation and browser audio controls |
 
-Git, the UI SDK, Sites, Guardian and both voice integrations are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
+Git, the UI SDK, Sites, Guardian, Pulses and both voice integrations are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
 
 The local-development tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
 

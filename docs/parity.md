@@ -15,6 +15,7 @@ The approved 2026-10-09 refresh adopts selected behavior from `69f50cf70e8a7b05c
 | Image generation | Generation, editing, recent images, artifacts | [Real generation, viewing and recent-image editing](parity/web-imagegen.md) |
 | Browser | Logged-in browser control | [CDP lifecycle and output contracts](parity/browser.md) |
 | Agents | Durable-native delegation and shared discussion board | [Real Harness delegation, board, recovery and watches](parity/agents.md) |
+| Pulses | Clawa Markdown definitions and scheduling with native conversation execution and passive parent results | [Pinned Clawa source and accepted native differences](../packages/pulses/README.md#source-parity) |
 | Code | Code execution with included `exec_command` and `write_stdin` | [Actual V8 execution and tool dispatch](parity/code.md) |
 | Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
 | Context | Shared same-storage notes and history reads, own-note writes, explicit checkpoint rollover and opt-in fresh-note idle rollover | [SQLite recovery and real execution-mode rollover](parity/context.md) |
