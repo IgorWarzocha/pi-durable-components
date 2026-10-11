@@ -22,6 +22,10 @@ The consuming app supplies:
 - `send(text, requestId?)`, `state()`, `settings()`, `configure(models, patch)` and `loadSettings()`
 - `startLan(...)` / `stopLan()` / `close()`
 
+For shared settings, pass `preferences: { storage, writeScope: "project" }` instead of the legacy `settings` callbacks. The host supplies `SettingsStorage` from `@howaboua/pi-durable-settings` with explicit global and project storage roots. Grok does not discover paths or persist credentials, prompts or host capabilities.
+
+With preferences enabled, `settingsContribution` exposes `howaboua.grok-voice` for the host's settings service. Grok validates partial settings strictly and merges its defaults, global overrides and project overrides in that order. Service patches, `configure` and browser saves use the same store. A patch preserves omitted overrides and inherited values. Saves take effect only after persistence succeeds and apply on next use, leaving active calls unchanged. Without preferences, the existing configuration and settings callbacks behave as before.
+
 Dictation returns its finalized transcript once and optionally sends it to the host's editable draft. It never submits a generation automatically. Typed requests and `send_task` use ordinary conversation admission with explicit steering and request IDs. Other provider function calls become owned Durable child tasks invoking the conversation's selected ordinary registrations, including argument validation, hooks, cancellation and replay policy. There is no Code/Notebook bridge or voice-only tool registry. `send_task`, `end_the_call` and `work_landed` are reserved names; native xAI search also conflicts with a local `web_search` when enabled.
 
 Conversation summaries require `allowContext: true`. `contextModel: "off"` disables them. The selected Models chat model performs summarization separately from realtime voice; opaque native compaction checkpoints are rejected rather than silently omitted. Transcript and diagnostic entries are display-only. Live assistant/activity observation uses Durable's public, experimental `watchEvents` stream.

@@ -1,6 +1,7 @@
 import type { ConversationId } from "@earendil-works/pi-durable";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 import type { ClientOptions, WebSocket } from "ws";
+import type { SettingsStorage } from "../../../internal/settings/index.ts";
 import type { RealtimeAudio } from "./audio.ts";
 import type { GrokRealtimeConfig } from "./config.ts";
 import type { VoiceHandoffChannel } from "./handoff-contract.ts";
@@ -36,7 +37,7 @@ export interface GrokHostCapabilities {
 		signal: AbortSignal,
 	): Promise<{ release(): Promise<void> }>;
 }
-export interface GrokVoiceOptions {
+interface GrokVoiceBaseOptions {
 	/** Stable suffix when composing several instances in one registry. Persist this across restart. */
 	instanceName?: string;
 	/** Supply the SAME atomic, rejecting lease to both voice components. */
@@ -57,13 +58,27 @@ export interface GrokVoiceOptions {
 		environment: ExecutionEnv | undefined,
 		signal: AbortSignal,
 	): Promise<string>;
-	settings?: {
-		load(): Promise<unknown>;
-		save(config: GrokRealtimeConfig): Promise<void>;
-	};
 	present?(event: { type: string; [key: string]: unknown }): void;
 	draft?(text: string): void | Promise<void>;
 	/** Nonfatal host presentation and teardown failures. */
 	report?(error: unknown): void;
 	socket?: GrokSocketFactory;
 }
+
+export type GrokVoiceOptions = GrokVoiceBaseOptions &
+	(
+		| {
+				preferences: {
+					storage: SettingsStorage;
+					writeScope: "global" | "project";
+				};
+				settings?: never;
+		  }
+		| {
+				preferences?: never;
+				settings?: {
+					load(): Promise<unknown>;
+					save(config: GrokRealtimeConfig): Promise<void>;
+				};
+		  }
+	);

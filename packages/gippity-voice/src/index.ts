@@ -29,6 +29,7 @@ export {
 	createNativeGippityAppFiles,
 	createNativeGippityAudioHost,
 } from "./native.ts";
+export type { GippityPreferences } from "./preferences.ts";
 export type {
 	TransferredVoiceControls,
 	VoiceHandoffChannel,

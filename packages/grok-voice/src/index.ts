@@ -13,6 +13,7 @@ import {
 	type TaskId,
 	watchEvents,
 } from "@earendil-works/pi-durable";
+import { createSettingsContribution } from "../../../internal/settings/index.ts";
 import { createNestedToolTask } from "../../execution/src/nested.ts";
 import type { RealtimeAudio } from "./audio.ts";
 import {
@@ -37,6 +38,7 @@ import { asError, isRecord, VoiceHandoffLink } from "./handoff-wire.ts";
 import type { GrokHostCapabilities, GrokVoiceOptions } from "./host.ts";
 import { startLan as openLan } from "./lan/server.ts";
 import { DEFAULT_THEME } from "./lan/theme.ts";
+import { grokSettingsDefinition } from "./preferences.ts";
 import { appendVoiceInstructions } from "./prompt.ts";
 import { SwitchableAudio } from "./switchable-audio.ts";
 
@@ -90,6 +92,8 @@ type Request = {
 
 /** One component instance owns one live voice/dictation and one optional LAN listener. */
 export function createGrokVoice(options: GrokVoiceOptions) {
+	if (options.preferences && options.settings)
+		throw new Error("Grok preferences and settings are mutually exclusive");
 	if (
 		options.instanceName !== undefined &&
 		!/^[a-zA-Z0-9._-]{1,64}$/.test(options.instanceName)
@@ -98,6 +102,28 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 	const name = `howaboua.grok-voice${options.instanceName ? `.${options.instanceName}` : ""}`;
 	const toolTask = createNestedToolTask(`${name}.tool`);
 	let config = normalizeConfig(options.config ?? {}, DEFAULT_CONFIG);
+	let preferencesGeneration = 0;
+	const settingsContribution = options.preferences
+		? createSettingsContribution({
+				definition: grokSettingsDefinition,
+				storage: options.preferences.storage,
+				async apply(effective) {
+					preferencesGeneration++;
+					config = effective;
+					publish();
+					return { status: "next-use" };
+				},
+			})
+		: undefined;
+	async function refreshSettings() {
+		if (settingsContribution) {
+			const generation = preferencesGeneration;
+			const snapshot = await settingsContribution.read();
+			// A read started before a completed save must not undo its application.
+			if (generation === preferencesGeneration) config = snapshot.effective;
+		} else if (options.settings)
+			config = normalizeConfig(await options.settings.load(), config);
+	}
 	const prepareContext = createContextPreparer(options.allowContext === true);
 	const requests = new Map<string, Request>();
 	const lanRequests = new Map<string, Request>();
@@ -250,8 +276,7 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 				let clean = false;
 				try {
 					const grant = await capabilities(runtime, context);
-					if (options.settings)
-						config = normalizeConfig(await options.settings.load(), config);
+					await refreshSettings();
 					if (request.arrival) {
 						if (!grant.handoff)
 							throw new Error(
@@ -635,9 +660,12 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 	}
 	async function configure(models: Models, patch: unknown) {
 		const save = settingsOperation.then(async () => {
-			const base = options.settings
-				? normalizeConfig(await options.settings.load(), config)
-				: config;
+			const snapshot = await settingsContribution?.read();
+			const base = snapshot
+				? snapshot.effective
+				: options.settings
+					? normalizeConfig(await options.settings.load(), config)
+					: config;
 			const next = normalizeConfig(patch, base);
 			if (isRecord(patch) && Object.hasOwn(patch, "access")) {
 				const auth = await models.checkAuth("xai");
@@ -645,6 +673,24 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 					throw new Error(
 						"Selected xAI authentication type is unavailable; settings unchanged",
 					);
+			}
+			if (settingsContribution && snapshot && options.preferences) {
+				const scope = options.preferences.writeScope;
+				const override = grokSettingsDefinition.validateOverride(patch);
+				const changed = Object.fromEntries(
+					Object.entries(override).filter(
+						([key, value]) =>
+							value !== Object.getOwnPropertyDescriptor(base, key)?.value,
+					),
+				);
+				const result = await settingsContribution.replaceOverride({
+					scope,
+					value: { ...snapshot.overrides[scope], ...changed },
+					expectedRevision: snapshot.revision,
+				});
+				if (result.application.status === "failed")
+					throw new Error(result.application.message);
+				return { ...result.snapshot.effective };
 			}
 			await options.settings?.save(next);
 			config = next;
@@ -696,8 +742,7 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 				let activityWatch: Awaited<ReturnType<typeof watchEvents>> | undefined;
 				try {
 					const grant = await capabilities(runtime, context);
-					if (options.settings)
-						config = normalizeConfig(await options.settings.load(), config);
+					await refreshSettings();
 					if (!grant.lan)
 						throw new Error("LAN hosting capability was not granted");
 					lan = await openLan({
@@ -847,10 +892,10 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 		}),
 		state,
 		settings: () => ({ ...config }),
+		settingsContribution,
 		configure,
 		async loadSettings() {
-			if (options.settings)
-				config = normalizeConfig(await options.settings.load(), config);
+			await refreshSettings();
 			publish();
 			return { ...config };
 		},

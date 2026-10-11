@@ -26,6 +26,7 @@ The approved 2026-10-09 refresh adopts selected behavior from `69f50cf70e8a7b05c
 | Sites | Structured ChatGPT Sites tools, committed-source saves and explicit deployments | [Offline Harness, Git, binding and recovery evidence](parity/sites.md) |
 | Guardian | Explicit tool rules and one-shot review of genuine pending Codex actions | [Provider completion and nested-admission evidence](parity/guardian.md) |
 | Grok and GipPity Voice | Separate native voice, dictation, browser control and authorized transfer integrations | [Pinned sources, native artifacts and offline lifecycle evidence](parity/voice.md) |
+| Settings | Native component-owned defaults, global and project overrides with explicit storage | [Settings contract and persistence guarantees](../packages/settings/README.md) |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 
@@ -49,6 +50,10 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-11, scoped component settings and the pending Pulses and Agents host controls passed one independent review and `bun run check`: all 28 retained workflows, twenty package builds, lint, strict TypeScript, Knip and dry-pack checks. Review found and removed a conversation-wide fallback in Pulses stop. A disposable real Durable probe confirmed that stopping a completed pulse leaves later external input running. Earlier disposable probes covered native receipt replay, conversation reuse, host-message deduplication and owned cancellation.
+
+Settings validation used real Node files and eight competing processes for revision conflicts, bounded persistence and cancellation. Disposable core checks covered invalid values, inheritance removal and persisted-but-failed application. Both voice contributors passed offline controls and persistence probes. No permanent tests were added. Active audio devices and live providers were not exercised. The npm registry still reported Durable 1.1.0 as latest, matching all dependency pins.
 
 On 2026-10-10, the native-boundary cleanup passed independent review and the final `bun run check`: all 28 retained workflows, lint, strict TypeScript, Knip, eighteen builds and dry-pack checks. Disposable Harness and SQLite probes verified shared reads, caller-only note writes, native completion through rollover, watch deduplication, cut recovery, cancellation and queued-input safety. No permanent tests were added. An earlier gate timed out in the unchanged Code output workflow; the unchanged full rerun passed. MCP peers remain necessary through pi-ai's transitive Google declarations.
 

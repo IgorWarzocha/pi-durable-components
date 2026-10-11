@@ -1,0 +1,33 @@
+{
+	"name": "@howaboua/pi-durable-settings",
+	"version": "0.1.0",
+	"description": "Component-owned settings with explicit scope and persistence",
+	"type": "module",
+	"license": "MIT",
+	"author": "Igor Warzocha",
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/packages/settings/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/packages/settings/src/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./node": {
+			"types": "./dist/packages/settings/src/node.d.ts",
+			"import": "./dist/node.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"NOTICE",
+		"LICENSE"
+	],
+	"sideEffects": false,
+	"publishConfig": {
+		"access": "public"
+	}
+}

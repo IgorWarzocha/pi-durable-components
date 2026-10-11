@@ -51,8 +51,9 @@ Each component's guide includes its install command and host configuration.
 | [Guardian](packages/guardian) | Enforce explicit tool rules and request one-shot Codex action review |
 | [Grok Voice](packages/grok-voice) | Use xAI realtime voice, dictation and browser audio controls |
 | [GipPity Voice](packages/gippity-voice) | Use Codex subscription voice, dictation and browser audio controls |
+| [Settings](packages/settings) | Persist component-owned global and project preferences with revision checks |
 
-Git, the UI SDK, Sites, Guardian, Pulses and both voice integrations are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
+Git, the UI SDK, Sites, Guardian, Pulses, Settings and both voice integrations are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
 
 The local-development tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
 

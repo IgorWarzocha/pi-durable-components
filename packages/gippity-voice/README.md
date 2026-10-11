@@ -47,6 +47,14 @@ Use `startDictation(context)` and `finishDictation()` for local dictation. The `
 
 Settings are instance-local unless you pass a `settings` store with `read` and `write`. `getConfig()` returns the current normalized settings. Saving does not modify an established call. Primary voice defaults to `cove`, alternate handoff voice to `ember`. Resume and post-compaction refresh default to off.
 
+For scoped preferences, pass `preferences: { storage, writeScope: "project" }` instead of `settings`. The explicit storage capability must use the ID `howaboua.gippity-voice`. `@howaboua/pi-durable-settings` supplies the shared contract and an optional JSON file adapter at its `/node` entry point. The app grants exact global and optional project roots. The component never discovers settings directories or stores credentials.
+
+`voice.settingsContribution` and `voice.controls.settingsContribution` expose the same contributor. Await `read()` for defaults, separate overrides, effective values, sources and a revision. Defaults are merged with global preferences, then project preferences, independently within `voice` and `lan`. The contribution accepts partial objects and rejects unknown keys, invalid types and unsupported choices. Optional device IDs, context model, custom app path and LAN port accept `null` to clear an inherited value. Required fields do not.
+
+Save a scope with `replaceOverride({ scope, value, expectedRevision })`. A `null` scope value restores inheritance for that whole scope. Invalid persisted settings, unavailable scopes, storage failures and stale revisions are reported rather than silently falling back. Save results report `next-use`: active calls retain their snapshots. Read the saved effective snapshot for the next call's settings.
+
+`configure(config)`, `configureVoice(patch)` and browser settings controls use this same storage and the selected `writeScope`. Only changed effective fields become overrides, so saving a displayed full config does not pin unchanged inherited fields. `configureVoice` accepts `undefined` for an optional field to clear it. `getConfig()` is synchronous and shows the instance's current settings, initially `config` until preferences have been loaded by service startup or a configure operation. Use the contribution's asynchronous `read()` to inspect persisted settings before startup.
+
 Use a stable, unique `instanceName` for each component when installing more than one GipPity instance in the same registry. Each instance binds to one conversation. `providerEnv` supplies explicit proxy settings such as `https_proxy` and `no_proxy`. Ambient process proxy variables are not consulted.
 
 ## Context, LAN and handoff

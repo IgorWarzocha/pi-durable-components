@@ -206,6 +206,10 @@
         "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
+    "packages/settings": {
+      "name": "@howaboua/pi-durable-settings",
+      "version": "0.1.0",
+    },
     "packages/sites": {
       "name": "@howaboua/pi-durable-sites",
       "version": "0.5.0",
@@ -468,6 +472,8 @@
     "@howaboua/pi-durable-openai-responses": ["@howaboua/pi-durable-openai-responses@workspace:packages/openai-responses"],
 
     "@howaboua/pi-durable-pulses": ["@howaboua/pi-durable-pulses@workspace:packages/pulses"],
+
+    "@howaboua/pi-durable-settings": ["@howaboua/pi-durable-settings@workspace:packages/settings"],
 
     "@howaboua/pi-durable-sites": ["@howaboua/pi-durable-sites@workspace:packages/sites"],
 

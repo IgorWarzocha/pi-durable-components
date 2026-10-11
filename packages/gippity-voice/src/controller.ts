@@ -17,6 +17,12 @@ import {
 	watchEvents,
 } from "@earendil-works/pi-durable";
 import {
+	createSettingsContribution,
+	type SettingsStorage,
+	settingsObject,
+} from "../../../internal/settings/index.ts";
+import {
+	DEFAULT_GIPPITY_CONTROL_CONFIG,
 	type GippityControlConfig,
 	normalizeGippityControlConfig,
 	REALTIME_V3_VOICES,
@@ -31,6 +37,11 @@ import type {
 	GippityPresentation,
 	GippitySettingsStore,
 } from "./host.ts";
+import {
+	changedGippityPreferences,
+	mergeGippityPreferences,
+	validateGippityPreferences,
+} from "./preferences.ts";
 import { resolveCodexVoiceAuth } from "./voice/auth.ts";
 import { initialVoiceItems, summarizeVoiceContext } from "./voice/context.ts";
 import { NativeCodexRealtimePeer } from "./voice/conversation/native-peer.ts";
@@ -68,14 +79,13 @@ type ServiceRuntime = TaskRuntime<
 	object
 >;
 
-export interface GippityVoiceOptions {
+interface GippityVoiceBaseOptions {
 	/** Stable unique name when installing multiple GipPity instances in one registry. */
 	instanceName?: string;
 	/** Capability namespace must equal the selected conversation ExecutionEnv.id. */
 	namespace: string;
 	audio: GippityAudioHost;
 	lease: AudioLease;
-	settings?: GippitySettingsStore;
 	config?: unknown;
 	/** Explicit instruction content, supplied by the app; no ambient prompt files. */
 	instructions: string;
@@ -101,8 +111,25 @@ export interface GippityVoiceOptions {
 	): Promise<{ release(): Promise<void> }>;
 }
 
+export type GippityVoiceOptions = GippityVoiceBaseOptions &
+	(
+		| { settings?: GippitySettingsStore; preferences?: never }
+		| {
+				settings?: never;
+				/** Explicit scoped persistence, mutually exclusive with the legacy settings store. */
+				preferences: {
+					storage: SettingsStorage;
+					writeScope: "global" | "project";
+				};
+		  }
+	);
+
 /** Each instance owns exactly one conversation. Create another instance for another target. */
 export function createGippityVoice(options: GippityVoiceOptions) {
+	if (options.settings && options.preferences)
+		throw new Error(
+			"Choose preferences or the legacy settings store, not both",
+		);
 	if (
 		options.instanceName !== undefined &&
 		!/^[a-z0-9][a-z0-9.-]{0,63}$/.test(options.instanceName)
@@ -169,6 +196,44 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 	};
 	const report = (error: unknown) =>
 		publish({ type: "error", message: asError(error).message });
+	const settingsContribution = options.preferences
+		? createSettingsContribution({
+				definition: {
+					id: "howaboua.gippity-voice",
+					defaults: DEFAULT_GIPPITY_CONTROL_CONFIG,
+					validateOverride: (value) =>
+						settingsObject(validateGippityPreferences(value)),
+					resolve: ({ global, project }) => {
+						const next = mergeGippityPreferences(
+							validateGippityPreferences(global ?? {}),
+							validateGippityPreferences(project ?? {}),
+						);
+						if (next.voice.contextModel && !options.allowContextSummary)
+							throw new Error("Context export is not authorized");
+						return next;
+					},
+				},
+				storage: options.preferences.storage,
+				async apply(effective) {
+					config = effective;
+					saved = true;
+					return {
+						status: "next-use",
+						message:
+							"Saved. Active calls keep their settings; changes apply on next use.",
+					};
+				},
+			})
+		: undefined;
+	const loadPreferences = async () => {
+		if (settingsContribution && !saved) {
+			const snapshot = await settingsContribution.read();
+			if (!saved) {
+				config = snapshot.effective;
+				saved = true;
+			}
+		}
+	};
 	const enqueue = <T>(work: () => Promise<T>): Promise<T> => {
 		const result = serial.then(work);
 		serial = result.then(
@@ -179,6 +244,28 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 	};
 	const changeConfig = (create: () => unknown) => {
 		const result = configSerial.then(async () => {
+			await loadPreferences();
+			if (settingsContribution && options.preferences) {
+				const next = mergeGippityPreferences(
+					validateGippityPreferences(create()),
+				);
+				const snapshot = await settingsContribution.read();
+				const scope = options.preferences.writeScope;
+				const change = await settingsContribution.replaceOverride({
+					scope,
+					value: settingsObject(
+						changedGippityPreferences(
+							config,
+							next,
+							validateGippityPreferences(snapshot.overrides[scope] ?? {}),
+						),
+					),
+					expectedRevision: snapshot.revision,
+				});
+				if (change.application.status === "failed")
+					throw new Error(change.application.message);
+				return structuredClone(config);
+			}
 			const next = normalizeGippityControlConfig(create());
 			if (next.voice.contextModel && !options.allowContextSummary)
 				throw new Error("Context export is not authorized");
@@ -297,6 +384,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					runtimeContext = context;
 					closing = false;
 					await configSerial;
+					await loadPreferences();
 					if (!saved && options.settings) {
 						config = normalizeGippityControlConfig(
 							await options.settings.read(),
@@ -755,6 +843,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 		}
 	}
 	const controls = {
+		settingsContribution,
 		bindHarness(value: Harness, target: ConversationId) {
 			if (taskId || runtime || serviceStart)
 				throw new Error("Stop voice before switching conversation");
@@ -889,7 +978,17 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 		async configureVoice(patch: Partial<GippityControlConfig["voice"]>) {
 			return changeConfig(() => ({
 				...config,
-				voice: { ...config.voice, ...patch },
+				voice: {
+					...config.voice,
+					...(options.preferences
+						? Object.fromEntries(
+								Object.entries(patch).map(([key, value]) => [
+									key,
+									value === undefined ? null : value,
+								]),
+							)
+						: patch),
+				},
 			}));
 		},
 		async settings(context: Context) {
@@ -909,9 +1008,11 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					provider: model.provider,
 					modelId: model.id,
 				})),
-				scope: options.settings
-					? "application settings store"
-					: "this component instance",
+				scope: options.preferences
+					? options.preferences.writeScope
+					: options.settings
+						? "application settings store"
+						: "this component instance",
 			};
 		},
 		async listDevices(context: Context) {
@@ -1260,7 +1361,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			}
 		},
 	};
-	return { extension, controls };
+	return { extension, controls, settingsContribution };
 }
 
 export type GippityVoiceControls = ReturnType<
