@@ -1,0 +1,44 @@
+{
+	"name": "@howaboua/pi-durable-dictation",
+	"version": "0.1.0",
+	"description": "Portable local Whisper dictation with the sherpa-onnx native runtime",
+	"type": "module",
+	"license": "MIT",
+	"author": "Igor Warzocha",
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/packages/dictation/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/packages/dictation/src/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./contracts": {
+			"types": "./dist/packages/dictation/src/contracts.d.ts",
+			"import": "./dist/contracts.js"
+		},
+		"./models": {
+			"types": "./dist/packages/dictation/src/models.d.ts",
+			"import": "./dist/models.js"
+		},
+		"./helpers": {
+			"types": "./dist/packages/dictation/src/helpers.d.ts",
+			"import": "./dist/helpers.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE",
+		"NOTICE"
+	],
+	"sideEffects": false,
+	"dependencies": {
+		"sherpa-onnx-node": "1.13.8"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

@@ -28,6 +28,10 @@
 			"entry": ["test/**/*.test.ts"],
 			"project": ["src/**/*.ts", "test/**/*.ts"]
 		},
+		"packages/dictation": {
+			"entry": [],
+			"project": ["src/**/*.ts"]
+		},
 		"packages/git": {
 			"entry": [],
 			"project": ["src/**/*.ts"],

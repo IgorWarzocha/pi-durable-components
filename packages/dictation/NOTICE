@@ -1,0 +1,4 @@
+Dictation implementation extracted from Howcode by Igor Warzocha (MIT).
+Source revision: 85db20ee1f156ad3543a8893d46c40e4a0bc5c65
+Source paths: components/dictation/service, shared/desktop-dictation-contracts.ts, shared/dictation-{models,helpers,settings}.ts.
+Native sherpa-onnx-node is an external Apache-2.0 dependency.

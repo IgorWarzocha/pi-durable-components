@@ -24,8 +24,8 @@ async function filesBelow(directory, matches) {
 	return found;
 }
 
-async function run(args, executable = process.execPath) {
-	const child = spawn(executable, args, { cwd: root, stdio: "inherit" });
+async function run(args, executable = process.execPath, env = process.env) {
+	const child = spawn(executable, args, { cwd: root, stdio: "inherit", env });
 	await new Promise((done, fail) => {
 		child.once("error", fail);
 		child.once("exit", (code, signal) => {
@@ -132,6 +132,7 @@ if (command === "test") {
 					`--outfile=${join(directory, entry.import)}`,
 				],
 				"bun",
+				{ ...process.env, NODE_ENV: "production" },
 			);
 		if (manifest.name === "@howaboua/pi-durable-worker-code") {
 			const dependency = createRequire(join(directory, "package.json"));
