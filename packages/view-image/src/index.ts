@@ -84,7 +84,7 @@ export function createViewImageTool(
 				);
 			}
 			const image = await loadImage(bytes, path, context.abortSignal);
-			if (vision) return { content: [image], details: { viewImage: true } };
+			if (vision) return { output: [image], details: { viewImage: true } };
 			const { description, usage } = await describeImage(
 				image,
 				options.models,
@@ -93,7 +93,7 @@ export function createViewImageTool(
 				context,
 			);
 			return {
-				content: [{ type: "text", text: description }],
+				output: [{ type: "text", text: description }],
 				details: {
 					viewImageDescription: { image, path: args.path, description },
 				},

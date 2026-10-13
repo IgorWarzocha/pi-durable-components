@@ -264,7 +264,7 @@ function createCustomCommandTool(
 					},
 					context.abortSignal,
 				);
-				return { content: [{ type: "text", text: output }], details: output };
+				return { output: [{ type: "text", text: output }], details: output };
 			} catch (error) {
 				throw new Error(
 					`${current.name}: ${error instanceof Error ? error.message : String(error)}`,

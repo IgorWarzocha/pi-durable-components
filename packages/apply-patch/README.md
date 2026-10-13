@@ -32,7 +32,7 @@ Calls from this component serialize overlapping resolved and canonical paths wit
 
 The registration is `replay: "unsafe"`. Reopening Durable does not replay an interrupted patch. Read the affected target before deciding what to retry.
 
-Requires Durable, pi-ai, and Chord 1.1.0. Derived engine code is Apache-2.0; adapter code is MIT. See [NOTICE](./NOTICE).
+Requires Durable, pi-ai, and Chord 1.2.0. Derived engine code is Apache-2.0; adapter code is MIT. See [NOTICE](./NOTICE).
 
 ## Headless presentations
 

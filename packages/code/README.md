@@ -2,7 +2,7 @@
 
 Run JavaScript that composes ordinary Durable tools. `exec` and `wait` are the model-facing surface. Shell execution and PTY sessions are included.
 
-Requires Node 22.19 or newer and Durable 1.1.0.
+Requires Node 22.19 or newer and Durable 1.2.0.
 
 ```sh
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-code-0.5.0.tgz

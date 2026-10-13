@@ -12,6 +12,7 @@ import {
 	storeResult,
 	truncation,
 } from "./invocation.ts";
+import { cleanupNativeCalls } from "./native-tools.ts";
 import type { Runtime } from "./nested-call.ts";
 
 /** An audit record, deliberately with no assistant or tool-result model contribution. */
@@ -26,6 +27,7 @@ export async function interrupted(
 	message: string,
 	context: Context,
 ): Promise<void> {
+	await cleanupNativeCalls(runtime, context);
 	const state = await runtime.snapshot(InvocationDoc, runtime.taskId, context);
 	const partial = state?.result ?? {};
 	const diagnostics = [...(partial.diagnostics ?? [])];

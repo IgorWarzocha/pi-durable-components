@@ -119,7 +119,7 @@ export function createBrowserTool(
 			const details: unknown = JSON.parse(text);
 			if (!isJson(details))
 				throw new Error("Browser returned a non-JSON result");
-			return { content: [{ type: "text", text }], details };
+			return { output: [{ type: "text", text }], details };
 		},
 	});
 }

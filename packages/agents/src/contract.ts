@@ -69,7 +69,7 @@ export const AgentsParameters = Type.Union([
 export type Request = Static<typeof AgentsParameters>;
 export type WorkRequest = Extract<Request, { action: "spawn" | "assign" }>;
 export const response = (details: JsonObject, isError = false) => ({
-	content: [{ type: "text" as const, text: JSON.stringify(details) }],
+	output: [{ type: "text" as const, text: JSON.stringify(details) }],
 	details,
 	isError,
 });

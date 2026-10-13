@@ -11,12 +11,12 @@ import {
 	type TaskId,
 	ToolTask,
 } from "@earendil-works/pi-durable";
-import { ToolOriginDoc } from "../../execution/src/tool-origin.ts";
 import {
 	type CompletionObservation,
 	captureParent,
 	type Parent,
 	prepareParentRequest,
+	resolveToolOrigin,
 } from "./parents.ts";
 import { reviewAction, serializeAction, serializeReview } from "./review.ts";
 
@@ -248,21 +248,14 @@ export function createGuardian(options: GuardianOptions = {}) {
 						if (!cwd)
 							throw new Error("Conversation execution directory unavailable");
 						const parent = parents.get(api.conversationId);
-						const inherited = (
-							await api.snapshot(ToolOriginDoc, api.taskId, context)
-						)?.origin;
-						const origin = inherited ?? {
-							conversationId: api.conversationId,
-							taskId: api.taskId,
-							callId: call.id,
-						};
-						if (origin.conversationId !== api.conversationId)
-							throw new Error("Origin belongs to another conversation");
 						const live = await api.snapshot(
 							LiveDoc,
 							api.conversationId,
 							context,
 						);
+						const origin = await resolveToolOrigin(api, call, live, context);
+						if (origin.conversationId !== api.conversationId)
+							throw new Error("Origin belongs to another conversation");
 						const slot = live?.tools?.find(
 							(slot) =>
 								slot.callId === origin.callId &&
@@ -326,9 +319,8 @@ export function createGuardian(options: GuardianOptions = {}) {
 							version !== revision ||
 							parents.get(api.conversationId) !== parent ||
 							!isDeepStrictEqual(
-								inherited,
-								(await api.snapshot(ToolOriginDoc, api.taskId, context))
-									?.origin,
+								origin,
+								await resolveToolOrigin(api, call, current, context),
 							) ||
 							!isDeepStrictEqual(
 								agent,

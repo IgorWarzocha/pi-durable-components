@@ -11,11 +11,13 @@ The shared implementation is internal to Code, Notebook and Worker Code. Ordinar
 
 ## Dispatch
 
-`createCellCoordinator` resolves the conversation's selected, filtered, wrapped registrations through the public `TaskRuntime.agent()` API. Tool names remain unchanged, including names requiring JavaScript bracket access. Drivers receive these registrations and callable functions automatically.
+`createCellCoordinator` resolves the conversation's selected, filtered, wrapped registrations through the public `TaskRuntime.agent()` API. Dispatch uses Durable 1.2.0's `Agent.callable`, so tools-only registrations are available and model-only registrations are excluded. Tool names remain unchanged, including names requiring JavaScript bracket access. Drivers receive these registrations and callable functions automatically.
 
 Every nested call creates an owned Durable task. Raw JSON values pass through the registration's `prepareArguments` before schema validation. The selected extensions' `ToolTask` hooks run in extension order. Before hooks can replace arguments or block a call. Replacement arguments are validated again before intent commits. The task commits the final arguments and replay policy before executing the registration.
 
 Tool execution and hooks receive the Harness's shared Models collection through Durable 1.1.0's public `models` field, preserving the host's catalog, credentials and request transforms.
+
+Durable 1.2.0 tool results use `output`. Invocation and cell documents migrate version-one `content` snapshots, and readers normalise old terminal task receipts. Transcript messages still use `content`. The execution API also supplies `retainedOutput()` and `executeTool()`. Calls through the latter use the public native `ToolTask` and `NestedCallDoc`, owned by the invoking task, with keyed reattachment and cleanup. This does not replace the cell scheduler or its output observations and ordered controls.
 
 Output, details and diagnostics commit while tools run. Final results preserve images, errors, usage and controls. The output retention limits, UTF-8 handling, sanitization and truncation diagnostics follow Durable. Usage updates the conversation's ordinary `UsageDoc` in the same transaction as the terminal result. Nested audit entries have no model contribution. No synthetic assistant calls or tool-result messages are appended.
 
@@ -51,7 +53,7 @@ Ordinary registrations can carry optional `executionHints` with usage, output de
 
 The TOML command factory and direct process backend are shared internal modules, exposed by both public products. Notebook does not depend on Code to load commands. Trusted roots and a namespace-bound backend are explicit host inputs. Loaded commands are ordinary unsafe-replay registrations with scalar argument repair and runtime hints. Live inventory changes publish through the ordinary registry. Invocation rereads the current definition, validates the conversation's environment namespace and executes directly without shell expansion.
 
-The shared JavaScript projection uses meaningful details as structured fields and preserves accompanying result content. Empty details fall back to parsed JSON text or plain text. String details matching the complete text result remain strings, including JSON-looking command output. Images retain data URLs usable by the drivers' image helpers. Errors expose diagnostics and retain the full result on `NestedToolError.result`.
+The shared JavaScript projection honours declared `structuredOutputSchema` values, including a schema tool's own value on an error result. Without a schema it preserves the existing projection: meaningful details become structured fields with accompanying output, while empty details fall back to parsed JSON text or plain text. String details matching the complete text result remain strings, including JSON-looking command output. Images retain data URLs usable by the drivers' image helpers. Errors without a structured value expose diagnostics and retain the full result on `NestedToolError.result`.
 
 ## Evidence
 

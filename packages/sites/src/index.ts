@@ -66,7 +66,7 @@ async function result(run: () => Promise<unknown>) {
 				);
 			}
 		}
-		return { content: [{ type: "text" as const, text }] };
+		return { output: [{ type: "text" as const, text }] };
 	} catch (error) {
 		const info = error instanceof Error ? error : new Error(String(error));
 		throw new Error(

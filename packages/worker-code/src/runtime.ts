@@ -62,11 +62,11 @@ export class WorkerRuntime implements CellEngine {
 			throw new Error("exec requires JavaScript source");
 		// Capture synchronously before interpreter admission can suspend or a workspace reload can occur.
 		const modules = this.modules();
-		const content: NonNullable<ToolExecutionResult["content"]> = [];
+		const content: NonNullable<ToolExecutionResult["output"]> = [];
 		let revision = 0;
 		let publishing = Promise.resolve();
 		const snapshot = (): ToolExecutionResult => ({
-			content: [...content],
+			output: [...content],
 			details: { workerCode: true, revision },
 		});
 		const enqueue = (operation: () => Promise<void>) => {

@@ -214,7 +214,7 @@ export function createNotebookEngine(
 function notebookResponseResult(
 	response: RuntimeResponse,
 ): ToolExecutionResult {
-	const content: NonNullable<ToolExecutionResult["content"]> = [];
+	const content: NonNullable<ToolExecutionResult["output"]> = [];
 	for (const item of response.contentItems) {
 		if (item.type === "input_text" && item.text)
 			content.push({ type: "text", text: item.text });
@@ -227,7 +227,7 @@ function notebookResponseResult(
 	if (response.kind === "result" && response.errorText)
 		content.push({ type: "text", text: response.errorText });
 	return {
-		content,
+		output: content,
 		...(response.kind === "result" && response.errorText
 			? { isError: true }
 			: {}),

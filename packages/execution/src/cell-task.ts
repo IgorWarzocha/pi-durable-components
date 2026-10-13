@@ -18,6 +18,7 @@ import {
 	InvocationDoc,
 	storeResult,
 } from "./invocation.ts";
+import { cleanupNativeCalls } from "./native-tools.ts";
 import { createNestedToolTask } from "./nested.ts";
 import { readToolContract } from "./tool-contract.ts";
 
@@ -84,7 +85,9 @@ export function createCellTask(
 				try {
 					if (closed) throw new Error("Execution host is closed");
 					invocation = createInvocation(runtime, {}, cellContext);
-					const registrations = (await runtime.agent(cellContext)).tools.filter(
+					const registrations = (
+						await runtime.agent(cellContext)
+					).callable.filter(
 						(tool) =>
 							!excluded.has(tool.name) && !readToolContract(tool).nativeOnly,
 					);
@@ -204,6 +207,7 @@ export function createCellTask(
 				}
 			},
 			execute: async (_record, runtime, context) => {
+				await cleanupNativeCalls(runtime, context);
 				await runtime.commit(async (tx) => {
 					const doc = await tx.doc(InvocationDoc, runtime.taskId);
 					const error = executionError(
@@ -240,6 +244,7 @@ export function createCellTask(
 			},
 		},
 		abort: async (_record, runtime, context) => {
+			await cleanupNativeCalls(runtime, context);
 			await runtime.commit(async (tx) => {
 				const doc = await tx.doc(InvocationDoc, runtime.taskId);
 				const error = executionError("aborted", "Cell was aborted");

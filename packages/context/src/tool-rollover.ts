@@ -36,6 +36,7 @@ export function createToolRollover(host: () => ContextHost, now: () => number) {
 			"Continue in a clean context window. Save notes first and call alone",
 		parameters: Type.Object({}, { additionalProperties: false }),
 		replay: "safe",
+		callers: ["model"],
 		executionMode: "sequential",
 		async execute(_args, api, context) {
 			const result = await api.commit(async (tx) => {
@@ -69,7 +70,7 @@ export function createToolRollover(host: () => ContextHost, now: () => number) {
 				};
 				return { status: "scheduled", window_id: receipt.request.window.id };
 			}, context);
-			return { content: [{ type: "text", text: JSON.stringify(result) }] };
+			return { output: [{ type: "text", text: JSON.stringify(result) }] };
 		},
 	});
 	const hooks = [

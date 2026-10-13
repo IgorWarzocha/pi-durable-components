@@ -10,6 +10,8 @@ Guardian correlates response, model, session, generation, selected agent and liv
 
 Generic execution metadata preserves the actual originating tool admission through child tasks. Nested hooks validate that original slot before and after review. Metadata is not independent authorization. A yielded cell whose original slot has completed cannot reuse it. There is no Guardian-specific Code or Notebook bridge.
 
+With Durable 1.2.0, Guardian resolves native `executeTool()` ancestry through `ToolHookCall.parent` and `LiveDoc.nestedTools`, using read-only hook APIs. Intermediate pass rules need no extra receipts. A disposable real Harness check verified two nested levels resolve to the original model task and a blocked child performs no side effect.
+
 ## Evidence
 
 Disposable real Harness checks exercised default-empty rules, block precedence, isolated regex matching, allow, deny, malformed review, missing provenance, reload during generation and review, opaque continuation and session mismatch. Actual generic cell dispatch admitted a nested action while its original slot remained pending. Missing origin, wrong call ID and a yielded cell after original-slot completion blocked without issuing a review request.

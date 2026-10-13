@@ -115,7 +115,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 		},
 		async execute(args, api, context) {
 			const parsed = parseExecSource(args.code);
-			const contracts = (await api.agent(context)).tools
+			const contracts = (await api.agent(context)).callable
 				.map(readToolContract)
 				.filter((contract) => !contract.nativeOnly);
 			const yieldTimeMs =
@@ -194,7 +194,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 		async execute(args, api, context) {
 			if (args.input === undefined || args.input === "help")
 				return {
-					content: [{ type: "text" as const, text: NOTEBOOK_HELP }],
+					output: [{ type: "text" as const, text: NOTEBOOK_HELP }],
 					details: { action: "help" },
 				};
 			let value: unknown;
@@ -208,7 +208,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 			const request = parseNotebookRequest(value);
 			const result = await engine.control(request, api, context);
 			return {
-				content: [{ type: "text" as const, text: result.message }],
+				output: [{ type: "text" as const, text: result.message }],
 				details: copyJson(result.details, { omitUndefinedProperties: true }),
 			};
 		},
@@ -220,7 +220,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 			section("notebook", (input) => {
 				const base =
 					"exec: TypeScript, top-level await and globals persist. Bare values are discarded. Use text(value), image(value), generatedImage(value), notify(value), store(key,value), load(key), exit() and yield_control(). ALL_TOOLS lists selected tool contracts. Inspect foo.description, foo.usage, bar.description and bar.usage before constructing reusable globals. Ask before new npm imports, then use exact-version npm: specifiers. Inside exec tools.notebook supports status without query, list and diagnostics. Run other notebook actions after exec returns.";
-				const promoted = input.agent.tools
+				const promoted = input.agent.callable
 					.filter((tool) => !["exec", "wait", "notebook"].includes(tool.name))
 					.map(readToolContract)
 					.filter((contract) => !contract.nativeOnly && !contract.deferLoading)

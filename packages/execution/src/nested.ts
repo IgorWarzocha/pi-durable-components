@@ -7,6 +7,7 @@ import {
 	type ToolExecutionResult,
 	type ToolRegistration,
 } from "@earendil-works/pi-durable";
+import { Compile } from "typebox/compile";
 import {
 	boundResult,
 	createInvocation,
@@ -39,7 +40,7 @@ export function createNestedToolTask(name: string) {
 			call: async (task, runtime, context) => {
 				const call = nestedCall(runtime, task.input);
 				const agent = await runtime.agent(context);
-				const tool = agent.tools.find((each) => each.name === call.name);
+				const tool = agent.callable.find((each) => each.name === call.name);
 				if (tool === undefined || readToolContract(tool).nativeOnly)
 					return settle(
 						runtime,
@@ -133,7 +134,7 @@ export function createNestedToolTask(name: string) {
 				)
 					call.arguments = task.state.checkpoint.arguments;
 				const agent = await runtime.agent(context);
-				const tool = agent.tools.find((each) => each.name === call.name);
+				const tool = agent.callable.find((each) => each.name === call.name);
 				if (
 					task.state.checkpoint.replay === "safe" &&
 					tool?.replay === "safe" &&
@@ -211,9 +212,9 @@ async function run(
 	});
 	if (
 		finished !== undefined &&
-		result.content === undefined &&
+		result.output === undefined &&
 		finished.retained.droppedBytes > 0 &&
-		final.content === finished.content
+		final.output === finished.content
 	) {
 		final = {
 			...final,
@@ -224,6 +225,37 @@ async function run(
 		};
 	}
 	if (invocation !== undefined) final = boundResult(final, invocation.limits);
+	try {
+		if (tool.structuredOutputSchema === undefined) {
+			if (final.structuredOutput !== undefined)
+				throw new Error(
+					`Tool ${tool.name} returned structuredOutput but declares no structuredOutputSchema`,
+				);
+		} else if (final.structuredOutput === undefined) {
+			if (!final.isError)
+				throw new Error(`Tool ${tool.name} returned no structuredOutput`);
+		} else if (
+			!Compile(tool.structuredOutputSchema).Check(final.structuredOutput)
+		) {
+			throw new Error(
+				`Tool ${tool.name} returned structuredOutput that does not match its schema`,
+			);
+		}
+	} catch (error) {
+		const { structuredOutput: _invalid, ...rest } = final;
+		final = {
+			...rest,
+			isError: true,
+			diagnostics: [
+				...(rest.diagnostics ?? []),
+				{
+					severity: "error",
+					code: "invalid_structured_output",
+					message: errorText(error),
+				},
+			],
+		};
+	}
 	try {
 		await settle(runtime, call, final, ending, context);
 		for (const waiter of finished?.pending ?? []) waiter.resolve();

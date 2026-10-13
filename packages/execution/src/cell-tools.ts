@@ -8,7 +8,7 @@ import type {
 	ToolRegistration,
 } from "@earendil-works/pi-durable";
 import type { CellCoordinatorOptions } from "./cell-contract.ts";
-import { executionError } from "./invocation.ts";
+import { executionError, readStoredResult } from "./invocation.ts";
 import { createNestedToolTask } from "./nested.ts";
 
 /** Preserve invocation order for controls even when nested tools settle out of order. */
@@ -35,8 +35,16 @@ export function cellTools(
 			controls.push(undefined);
 			const id = await toolApi.createTask(
 				nestedTask,
-				{ name: registration.name, arguments: copyJson(args) },
-				{ ownership: { kind: "task", taskId: runtime.taskId } },
+				{
+					name: registration.name,
+					arguments: copyJson(args),
+					parent: { taskId: runtime.taskId, callId: toolApi.callId },
+				},
+				// Cell recovery owns interruption; safe nested tools retain their recorded replay rule.
+				{
+					ownership: { kind: "task", taskId: runtime.taskId },
+					abandonOnRestart: false,
+				},
 				cellContext,
 			);
 			let cancelling:
@@ -53,12 +61,13 @@ export function cellTools(
 			if (signal?.aborted) cancel();
 			try {
 				const settled = await runtime.waitForTask(id, cellContext);
-				const result =
+				const result = readStoredResult(
 					settled.state.outcome.result ??
-					executionError(
-						settled.state.outcome.status,
-						"Nested tool did not return a result",
-					);
+						executionError(
+							settled.state.outcome.status,
+							"Nested tool did not return a result",
+						),
+				);
 				controls[position] = result.control;
 				return result;
 			} finally {

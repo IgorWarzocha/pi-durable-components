@@ -81,7 +81,11 @@ export class VoiceCall {
 		const { runtime, context, config } = this.options;
 		const agent = await runtime.agent(context);
 		for (const tool of agent.tools) {
-			if (readToolContract(tool).nativeOnly) continue;
+			if (
+				readToolContract(tool).nativeOnly ||
+				!agent.callable.some((candidate) => candidate.name === tool.name)
+			)
+				continue;
 			if (["send_task", "end_the_call", "work_landed"].includes(tool.name))
 				throw new Error(`Reserved voice tool: ${tool.name}`);
 			if (config.webSearch && tool.name === "web_search")

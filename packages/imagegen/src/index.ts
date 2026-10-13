@@ -34,7 +34,7 @@ export function createImageGenerationTool(options: ImageGenerationToolOptions) {
 				options,
 			);
 			return {
-				content: [
+				output: [
 					{ type: "text", text: formatImagegenOutput(result.output) },
 					...result.content,
 				],

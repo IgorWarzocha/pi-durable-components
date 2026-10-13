@@ -7,11 +7,16 @@ import {
 	type JsonObject,
 	type TaskRuntime,
 	type ToolExecutionResult,
+	type ToolHookCall,
 	type ToolHooks,
 	type ToolRegistration,
 	ToolTask,
 } from "@earendil-works/pi-durable";
-export type NestedInput = { name: string; arguments: JsonValue };
+export type NestedInput = {
+	name: string;
+	arguments: JsonValue;
+	parent?: NonNullable<ToolHookCall["parent"]>;
+};
 export type Checkpoint =
 	| { phase: "call" }
 	| { phase: "execute"; arguments: JsonObject; replay: "safe" | "unsafe" };
@@ -22,12 +27,13 @@ export type Runtime = TaskRuntime<
 	Record<string, never>
 >;
 
-export function nestedCall(runtime: Runtime, input: NestedInput): ToolCall {
+export function nestedCall(runtime: Runtime, input: NestedInput): ToolHookCall {
 	const args = input.arguments;
 	return {
 		type: "toolCall",
 		id: `nested-${runtime.taskId}`,
 		name: input.name,
+		...(input.parent === undefined ? {} : { parent: input.parent }),
 		arguments:
 			args !== null && typeof args === "object" && !Array.isArray(args)
 				? args

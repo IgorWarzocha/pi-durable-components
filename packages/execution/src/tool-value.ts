@@ -18,11 +18,13 @@ class NestedToolError extends Error {
 
 /** One JS value projection for every ordinary registration. Images remain usable with image(). */
 export function toolValue(result: ToolExecutionResult): unknown {
-	const texts = (result.content ?? [])
+	// Schema-declared values are the tool's program result, including domain errors.
+	if (result.structuredOutput !== undefined) return result.structuredOutput;
+	const texts = (result.output ?? [])
 		.filter((item) => item.type === "text")
 		.map((item) => item.text);
 	if (result.isError) throw new NestedToolError(result, texts.join("\n"));
-	const images = (result.content ?? [])
+	const images = (result.output ?? [])
 		.filter((item) => item.type === "image")
 		.map((item) => ({
 			image_url: `data:${item.mimeType};base64,${item.data}`,
@@ -42,24 +44,24 @@ export function toolValue(result: ToolExecutionResult): unknown {
 		} catch {
 			value = text;
 		}
-	} else if (objectDetails !== undefined && (result.content?.length ?? 0) > 0) {
+	} else if (objectDetails !== undefined && (result.output?.length ?? 0) > 0) {
 		// Ordinary tools often put displayable instructions/results in content and metadata in details.
 		// Preserve details' own fields, including a field already named content.
 		value = {
 			...objectDetails,
 			[Object.hasOwn(objectDetails, "content")
 				? "toolResultContent"
-				: "content"]: result.content,
+				: "content"]: result.output,
 		};
 	} else if (
-		(result.content?.length ?? 0) > 0 &&
+		(result.output?.length ?? 0) > 0 &&
 		!(
 			typeof value === "string" &&
 			images.length === 0 &&
 			texts.join("\n") === value
 		)
 	) {
-		value = { value, content: result.content };
+		value = { value, content: result.output };
 	}
 	if (images.length)
 		return {

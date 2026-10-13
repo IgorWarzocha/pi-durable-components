@@ -39,7 +39,7 @@ export function createWebSearchTool(
 		async execute(params, api, context) {
 			const output = await executeCodexWebSearch(params, api, context, options);
 			return {
-				content: [{ type: "text", text: output.text }],
+				output: [{ type: "text", text: output.text }],
 				details: { webRun: jsonValue(output.details) },
 			};
 		},

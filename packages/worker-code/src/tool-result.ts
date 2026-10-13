@@ -6,7 +6,7 @@ import { Check } from "typebox/value";
 const number = Type.Number({ minimum: 0 });
 const resultSchema = Type.Object(
 	{
-		content: Type.Optional(
+		output: Type.Optional(
 			Type.Array(
 				Type.Union([
 					Type.Object({ type: Type.Literal("text"), text: Type.String() }),
@@ -18,6 +18,7 @@ const resultSchema = Type.Object(
 				]),
 			),
 		),
+		structuredOutput: Type.Optional(Type.Unknown()),
 		isError: Type.Optional(Type.Boolean()),
 		details: Type.Optional(Type.Unknown()),
 		diagnostics: Type.Optional(

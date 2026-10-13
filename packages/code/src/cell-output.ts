@@ -173,9 +173,9 @@ export function observeCodeCell(
 		typeof revision !== "number" || acknowledge(observation.cellId, revision);
 	let remaining = maxTokens * 4;
 	let truncated = false;
-	const content: NonNullable<ToolExecutionResult["content"]> = [];
+	const content: NonNullable<ToolExecutionResult["output"]> = [];
 	for (const item of fresh || observation.status !== "running"
-		? (observation.result.content ?? [])
+		? (observation.result.output ?? [])
 		: []) {
 		if (item.type !== "text") {
 			content.push(item);
@@ -204,7 +204,7 @@ export function observeCodeCell(
 	if (!content.length) content.push({ type: "text", text: "OK" });
 	return {
 		...observation.result,
-		content,
+		output: content,
 		details: {
 			...(details !== null &&
 			typeof details === "object" &&

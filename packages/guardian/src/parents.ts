@@ -1,5 +1,15 @@
+import type { Context } from "@earendil-works/chord";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { TaskId } from "@earendil-works/pi-durable";
+import type {
+	HookApi,
+	LiveState,
+	TaskId,
+	ToolHookCall,
+} from "@earendil-works/pi-durable";
+import {
+	type ToolOrigin,
+	ToolOriginDoc,
+} from "../../execution/src/tool-origin.ts";
 import { isRecord, serializeReview } from "./review.ts";
 /** Structural host-composition contract. Guardian never imports a provider implementation. */
 export interface CompletionObservation {
@@ -20,6 +30,38 @@ export type Parent = {
 	runId: TaskId;
 	calls: Set<string>;
 };
+
+/** Hooks have read-only document access. Follow native parents to the cell or model admission. */
+export async function resolveToolOrigin(
+	api: HookApi,
+	call: ToolHookCall,
+	live: LiveState | undefined,
+	context: Context,
+): Promise<ToolOrigin> {
+	let origin: ToolOrigin = {
+		conversationId: api.conversationId,
+		taskId: api.taskId,
+		callId: call.id,
+	};
+	const seen = new Set<TaskId>();
+	while (!seen.has(origin.taskId)) {
+		seen.add(origin.taskId);
+		const inherited = (
+			await api.snapshot(ToolOriginDoc, origin.taskId, context)
+		)?.origin;
+		if (inherited) return inherited;
+		const slot = live?.nestedTools?.find(
+			(slot) => slot.taskId === origin.taskId && slot.callId === origin.callId,
+		);
+		const parent =
+			origin.taskId === api.taskId
+				? call.parent
+				: slot && { taskId: slot.parentTaskId, callId: slot.parentCallId };
+		if (!parent) return origin;
+		origin = { conversationId: api.conversationId, ...parent };
+	}
+	throw new Error("Cyclic tool parent provenance");
+}
 
 export const prepareParentRequest = (
 	body: unknown,

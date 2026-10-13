@@ -49,7 +49,7 @@ export function createHistoryTool(options: {
 				context,
 			);
 			return {
-				content: [{ type: "text", text: JSON.stringify(result) }],
+				output: [{ type: "text", text: JSON.stringify(result) }],
 				details: result,
 			};
 		},

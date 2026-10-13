@@ -74,7 +74,7 @@ export function createSkillsTool(options: SkillsOptions = {}) {
 				...(loadedSkills === undefined ? {} : { loadedSkills }),
 			};
 			const output = await runSkills(args.command ?? "", files, catalog);
-			return { content: [{ type: "text", text: output }], details: {} };
+			return { output: [{ type: "text", text: output }], details: {} };
 		},
 	});
 }

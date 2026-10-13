@@ -66,7 +66,7 @@ export function createGitDiffTool(options: GitToolOptions) {
 				context.abortSignal ? { signal: context.abortSignal } : {},
 			);
 			return {
-				content: [{ type: "text", text: result.diff || "No changes." }],
+				output: [{ type: "text", text: result.diff || "No changes." }],
 				details: { ...result },
 			};
 		},

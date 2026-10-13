@@ -5,7 +5,7 @@ import type { CellObservation } from "../../execution/src/cell-contract.ts";
 export function guestContent(
 	kind: "text" | "image",
 	value: JsonValue,
-): NonNullable<ToolExecutionResult["content"]>[number] {
+): NonNullable<ToolExecutionResult["output"]>[number] {
 	if (kind === "text")
 		return {
 			type: "text",
@@ -47,10 +47,10 @@ export function observeWorkerCell(
 		delivered.set(observation.cellId, revision);
 	if (observation.status !== "running") delivered.delete(observation.cellId);
 	let remaining = maxTokens * 4;
-	const content: NonNullable<ToolExecutionResult["content"]> = [];
+	const content: NonNullable<ToolExecutionResult["output"]> = [];
 	let truncated = false;
 	for (const item of fresh || observation.status !== "running"
-		? (observation.result.content ?? [])
+		? (observation.result.output ?? [])
 		: []) {
 		const cost = item.type === "text" ? item.text.length : item.data.length;
 		if (cost <= remaining) {
@@ -75,7 +75,7 @@ export function observeWorkerCell(
 		});
 	return {
 		...observation.result,
-		content,
+		output: content,
 		details: {
 			...fields,
 			cellId: observation.cellId,

@@ -6,16 +6,27 @@ import {
 	type ToolExecutionResult,
 } from "@earendil-works/pi-durable";
 import type { CellObservation } from "./cell-contract.ts";
-import { InvocationDoc, type InvocationState } from "./invocation.ts";
+import {
+	InvocationDoc,
+	type InvocationState,
+	readStoredResult,
+	storeResult,
+} from "./invocation.ts";
 /** Task documents retire on settlement. Completed cells retain driver snapshots here. */
 export const CellStateDoc = defineDocFamily<InvocationState, null>({
 	kind: "howaboua.execution.cells",
 	family: true,
-	version: 1,
+	version: 2,
 	scope: "conversation",
 	history: "latest",
 	fork: "initial",
 	initial: () => ({ result: {} }),
+	migrate: (value) => ({
+		...value,
+		result: storeResult(
+			readStoredResult(value["result"] as ToolExecutionResult),
+		),
+	}),
 });
 
 export async function observeCell(
@@ -36,7 +47,7 @@ export async function observeCell(
 		(await api.snapshot(CellStateDoc, api.conversationId, String(id), context));
 	const outcome =
 		record.state.status === "terminal" ? record.state.outcome : undefined;
-	const result = outcome?.result ?? doc?.result ?? {};
+	const result = readStoredResult(outcome?.result ?? doc?.result ?? {});
 	const interrupted =
 		result.diagnostics?.some((each) => each.code === "interrupted") ?? false;
 	const status = interrupted

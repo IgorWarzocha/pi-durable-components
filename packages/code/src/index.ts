@@ -107,7 +107,7 @@ export function createCodeMode(options: CodeModeOptions) {
 			typeof args === "string" ? { code: args } : execArguments(args),
 		async execute(args, api, context) {
 			const parsed = parseExecSource(args.code);
-			const contracts = (await api.agent(context)).tools
+			const contracts = (await api.agent(context)).callable
 				.filter((tool) => tool.name !== "exec" && tool.name !== "wait")
 				.map(readToolContract)
 				.filter((contract) => !contract.nativeOnly);
@@ -171,7 +171,7 @@ export function createCodeMode(options: CodeModeOptions) {
 			tools: [exec, wait, ...shell.tools],
 			sections: [
 				section("code", (input) => {
-					const usage = input.agent.tools
+					const usage = input.agent.callable
 						.filter((tool) => tool.name !== "exec" && tool.name !== "wait")
 						.map(readToolContract)
 						.filter(

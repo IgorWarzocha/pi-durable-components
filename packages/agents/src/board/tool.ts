@@ -74,7 +74,7 @@ export function createBoardTool(requireBinding: () => unknown) {
 					: result.value;
 			}, context);
 			return {
-				content: [{ type: "text", text: serializeBoardResult(value) }],
+				output: [{ type: "text", text: serializeBoardResult(value) }],
 				details: value,
 			};
 		},

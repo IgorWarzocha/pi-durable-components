@@ -63,7 +63,7 @@ export function createNotesTool(options: { now: () => number }) {
 				return readNotes(tx, target, args, hasCatalog);
 			}, context);
 			return {
-				content: [{ type: "text", text: JSON.stringify(result) }],
+				output: [{ type: "text", text: JSON.stringify(result) }],
 				details: result,
 			};
 		},

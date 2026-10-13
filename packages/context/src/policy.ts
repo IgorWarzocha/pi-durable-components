@@ -81,7 +81,7 @@ export function createContextPolicy(options: {
 			);
 			const result = { ...usage, windowId: state?.window?.id ?? null };
 			return {
-				content: [{ type: "text", text: JSON.stringify(result) }],
+				output: [{ type: "text", text: JSON.stringify(result) }],
 				details: result,
 			};
 		},

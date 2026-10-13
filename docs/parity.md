@@ -1,6 +1,6 @@
 # Functionality parity
 
-The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.1.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
+The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.2.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
 
 Tool arguments, outputs, errors, cancellation, state, and recovery are part of parity. Pi-specific TUI rendering and slash commands are not being shipped as a compatibility layer. Missing functionality must stay visible here until implemented and validated.
 
@@ -50,6 +50,12 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-13, the Durable 1.2.0 migration passed `bun run check`: all 28 retained workflows, twenty-one package builds and dry-pack checks, lint, strict TypeScript and Knip. Frozen installation with lifecycle scripts disabled passed. An independent source review examined native nested admission, ownership, replay and result migration. Disposable Harness checks verified native child cancellation, abandonment flags and Guardian ancestry. A SQLite reopen check preserved version-one cell and invocation output, images, details and checkpoints without replaying completed work. No permanent tests were added. Live providers and non-Linux runtimes were not revalidated.
+
+The 1.2.0 migration uses the published Durable, pi-ai and Chord packages. Tool implementations return `output`, while transcript messages retain `content`. Nested dispatch honours `Agent.callable` and structured output schemas. `new_context` is model-only. Guardian carries native nested-call provenance back to the original model-issued slot, including through pass rules. Grok excludes model-only tools from its nested tool inventory.
+
+Code and Notebook retain their owned cell scheduler because yielded execution, output and image observations, and ordered tool controls are not interchangeable with upstream Code Mode. Tools receive the new retained-output and native nested-call APIs without component-specific bridges. No upstream source is patched. Storage failures now close the Durable session, so hosts must reopen deliberately rather than retrying uncertain side effects. These components supply no custom Storage implementation.
 
 On 2026-10-11, scoped component settings and the pending Pulses and Agents host controls passed one independent review and `bun run check`: all 28 retained workflows, twenty package builds, lint, strict TypeScript, Knip and dry-pack checks. Review found and removed a conversation-wide fallback in Pulses stop. A disposable real Durable probe confirmed that stopping a completed pulse leaves later external input running. Earlier disposable probes covered native receipt replay, conversation reuse, host-message deduplication and owned cancellation.
 

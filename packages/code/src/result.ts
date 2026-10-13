@@ -53,7 +53,7 @@ export function runtimeResult(
 	if (response.kind === "terminated")
 		content.unshift({ type: "text", text: "Script terminated" });
 	return {
-		content,
+		output: content,
 		...(response.errorText ? { isError: true } : {}),
 		details: {
 			codeMode: true,

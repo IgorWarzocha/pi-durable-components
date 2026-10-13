@@ -118,7 +118,7 @@ export function createApplyPatchTool() {
 				const outcome = await executePatch(api.env, args.input, context);
 				const result = outcome.result;
 				return {
-					content: [
+					output: [
 						{
 							type: "text",
 							text: `Applied patch successfully\nChanged files: ${result.changedFiles.length}\nCreated files: ${result.createdFiles.length}\nDeleted files: ${result.deletedFiles.length}\nMoved files: ${result.movedFiles.length}\nFuzz: ${result.fuzz}`,
@@ -138,7 +138,7 @@ export function createApplyPatchTool() {
 					api.diagnostic({ severity: "warn", message: warning });
 				if (!partial) throw new Error(message, { cause: error });
 				return {
-					content: [{ type: "text", text: message }],
+					output: [{ type: "text", text: message }],
 					isError: true,
 					details: {
 						status: "partial_failure",

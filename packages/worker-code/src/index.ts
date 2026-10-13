@@ -133,7 +133,7 @@ export function createWorkerCode(options: WorkerCodeOptions) {
 				section("worker-code", (input) =>
 					[
 						"exec runs fresh bounded JavaScript. Await tools[name](args) and emit with text(value) or image({data,mimeType}). ALL_TOOLS lists callable contracts with original names. await yield_control() wakes the observer. Use wait for running cells. Guest globals and imports do not persist. No shell, ambient network or native globals.",
-						...input.agent.tools
+						...input.agent.callable
 							.filter((tool) => tool.name !== "exec" && tool.name !== "wait")
 							.map(readToolContract)
 							.filter(
@@ -168,7 +168,7 @@ export function createWorkerCode(options: WorkerCodeOptions) {
 		): Promise<ToolExecutionResult> {
 			const sources = moduleSnapshot(request.modules, limits);
 			const allowed = new Set(grants.allowedTools ?? []);
-			const registrations = (await api.agent(context)).tools.filter(
+			const registrations = (await api.agent(context)).callable.filter(
 				(tool) =>
 					allowed.has(tool.name) &&
 					tool.name !== "exec" &&
@@ -196,7 +196,7 @@ export function createWorkerCode(options: WorkerCodeOptions) {
 				options.cancelTask,
 				context,
 			);
-			const output: NonNullable<ToolExecutionResult["content"]> = [];
+			const output: NonNullable<ToolExecutionResult["output"]> = [];
 			const evaluated = await engine.evaluate(
 				moduleCode(request, limits, true),
 				sources,
@@ -212,9 +212,7 @@ export function createWorkerCode(options: WorkerCodeOptions) {
 			const control = combineControls([...controls, result.control]);
 			return {
 				...result,
-				...(result.content === undefined && output.length
-					? { content: output }
-					: {}),
+				...(result.output === undefined && output.length ? { output } : {}),
 				...(control === undefined ? {} : { control }),
 			};
 		},

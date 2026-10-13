@@ -1,6 +1,6 @@
 # Grok voice for Pi Durable
 
-Realtime xAI conversation, manual dictation and HTTPS browser controls, with Durable-owned lifecycle and ordinary Durable tools. Requires Node 22.19+, Durable/Models 1.1.0 and an existing xAI credential. Voice is a transport into the selected conversation, not a replacement chat model.
+Realtime xAI conversation, manual dictation and HTTPS browser controls, with Durable-owned lifecycle and ordinary Durable tools. Requires Node 22.19+, Durable/Models 1.2.0 and an existing xAI credential. Voice is a transport into the selected conversation, not a replacement chat model.
 
 ## Compose it
 

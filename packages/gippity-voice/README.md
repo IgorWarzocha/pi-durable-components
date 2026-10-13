@@ -6,7 +6,7 @@ The component includes local WebRTC audio, manual dictation, microphone mute, de
 
 ## Requirements
 
-- Node 22.19 or newer and Pi Durable, Models and Chord 1.1.0.
+- Node 22.19 or newer and Pi Durable, Models and Chord 1.2.0.
 - A canonical `openai-codex` OAuth login supplied by the host's Models instance. API keys, custom Codex endpoints and ordinary OpenAI realtime are not supported.
 - Explicit native process permission matching the conversation's execution environment. Six native helpers are shipped for Linux, macOS and Windows, on x64 and arm64. Linux needs its audio runtime dependencies.
 - One application-owned exclusive audio lease, shared with every voice component, including Grok voice. Acquisition must reject conflicting ownership atomically. Aborting a waiter must not release an existing owner's hardware. Release is idempotent and occurs only after confirmed audio teardown.

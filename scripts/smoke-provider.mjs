@@ -73,7 +73,7 @@ try {
 					replay: "unsafe",
 					async execute({ value }) {
 						effects++;
-						return { content: [{ type: "text", text: String(value * 2) }] };
+						return { output: [{ type: "text", text: String(value * 2) }] };
 					},
 				}),
 			],

@@ -10,7 +10,7 @@ Requires Node 22.19 or newer and a browser with remote debugging enabled. The ho
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-browser-0.5.0.tgz
 ```
 
-Use the package with Pi Durable, pi-ai and Chord 1.1.0:
+Use the package with Pi Durable, pi-ai and Chord 1.2.0:
 
 ```ts
 import { join } from "node:path";

@@ -6,7 +6,7 @@ Codex mode remains the default. Explicit direct mode targets OpenAI's ordinary R
 
 ## Install
 
-Requires pi-ai 1.1.0. Node.js 22.19 or newer is supported, with Linux tested. Cloudflare Workers with `nodejs_compat` use an explicit native Upgrade runtime, described below.
+Requires pi-ai 1.2.0. Node.js 22.19 or newer is supported, with Linux tested. Cloudflare Workers with `nodejs_compat` use an explicit native Upgrade runtime, described below.
 
 ```sh
 npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-openai-responses-0.5.0.tgz

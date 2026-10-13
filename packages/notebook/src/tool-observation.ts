@@ -33,7 +33,7 @@ export async function observeNotebookCell(
 	context: Context,
 ) {
 	const result = observation.result;
-	const allContent = result.content ?? [];
+	const allContent = result.output ?? [];
 	const previous = await api.commit(async (tx) => {
 		const cursor = await tx.doc(
 			ObservationCursor,
@@ -69,7 +69,7 @@ export async function observeNotebookCell(
 	if (emitted.length === 0) emitted.push({ type: "text", text: "OK" });
 	return {
 		...result,
-		content: emitted,
+		output: emitted,
 		details: {
 			cell_id: String(observation.cellId),
 			status: observation.status,

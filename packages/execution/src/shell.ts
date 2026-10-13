@@ -162,7 +162,7 @@ export function createShellRuntime(options: ShellRuntimeOptions): ShellRuntime {
 
 function toToolResult(result: UnifiedExecResult) {
 	return {
-		content: [{ type: "text" as const, text: formatUnifiedExecResult(result) }],
+		output: [{ type: "text" as const, text: formatUnifiedExecResult(result) }],
 		details: result,
 	};
 }

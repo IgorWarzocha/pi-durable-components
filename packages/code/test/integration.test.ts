@@ -55,16 +55,34 @@ test("ordinary Durable registration executes inside V8 through a conversation-ow
 			throw new Error("ordinary requires a number");
 		},
 		replay: "unsafe",
-		async execute(args) {
+		async execute(args, api, context) {
 			effects++;
 			await new Promise((resolve) => setTimeout(resolve, 50));
-			return { details: { doubled: args.n * 2 } };
+			const result = await api.executeTool("helper", args, context, {
+				key: "double",
+			});
+			const reattached = await api.executeTool("helper", args, context, {
+				key: "double",
+			});
+			assert.equal(result.taskId, reattached.taskId);
+			assert.ok(typeof result.structuredOutput === "number");
+			return { details: { doubled: result.structuredOutput } };
+		},
+	});
+	const helper = defineTool({
+		name: "helper",
+		description: "tools-only structured result",
+		callers: ["tools"],
+		parameters: Type.Object({ n: Type.Number() }),
+		structuredOutputSchema: Type.Number(),
+		async execute(args) {
+			return { structuredOutput: args.n * 2 };
 		},
 	});
 	const registry = createRegistry();
 	const ordinary = {
 		name: "ordinary",
-		tools: [tool],
+		tools: [tool, helper],
 	};
 	registry.install(component.extension);
 	registry.install(ordinary);
