@@ -17,7 +17,7 @@ The default compares tracked worktree files against HEAD, including staged and u
 
 ## Durable registration
 
-Install matching `@earendil-works/pi-durable`, `@earendil-works/pi-ai` and `@earendil-works/chord` 1.2.0 peers for the root registration entry.
+Install matching `@earendil-works/pi-durable`, `@earendil-works/pi-ai` and `@earendil-works/chord` 1.3.0 peers for the root registration entry.
 
 ```ts
 import { createGitDiffTool } from "@howaboua/pi-durable-git";

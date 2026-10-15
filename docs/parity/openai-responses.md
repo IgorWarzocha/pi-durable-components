@@ -6,6 +6,12 @@ This is a pi-ai 1.0.2 Provider consumed by Durable's Models collection. It is no
 
 ## Upstream refresh
 
+The 2026-10-15 refresh inspects `036dc876da5afc4ec27b64878ebb1cfb30c8211d` and carries interrupted-tool recovery from `9a669ac0` and `c337c9a8`, strict final argument parsing and cross-model thinking removal from `1985f069`, advisory routing from `1fd72ce4`, WebSocket timing requests from `93895b22`, and Sol's 500,000-token context window from `1fd63f8e`.
+
+Live tool-call events still stream, but an exposed function or custom-tool start forbids automatic retry or transport fallback. Failed final output drops incomplete call drafts. Final function arguments use pi-ai's strict parser; partial argument deltas remain incremental. Reasoning from a different model is discarded. Codex routing hints are printable ASCII, bounded to 512 characters, suppressed for Guardian review, and excluded from socket identity. The final request body remains authoritative. Existing raw-event and diagnostics hooks remain; Pi's expanded logger, fingerprinting and telemetry surface are not imported into this Worker-capable component.
+
+The three retained provider workflows passed. Disposable actual-provider SSE and WebSocket probes covered exposed calls followed by disconnect or oversize close under both fallback policies, abort, malformed final arguments, routing, model switches and catalog metadata. These were local protocol checks, not live account or billing validation. No permanent tests were added.
+
 The 2026-10-09 refresh adopts the SSE opening retry-budget correction from `5a109ed7` and `partial_answer` replay from `b7d92bd9`, inspected at source revision `69f50cf70e8a7b05c2349be6227f521b6504f80e`. Other extraction pins and deliberate transport corrections remain unchanged.
 
 Disposable actual-provider probes confirmed that `maxRetries: 0` makes one fetch attempt for both HTTP failure and a network exception. The pre-refresh implementation made a second attempt. Signature round-trip and request reconstruction preserve `partial_answer`. The three retained provider workflows passed, including observer failures without replay and owned transport cancellation. These checks used local fixtures, not a live account.

@@ -162,7 +162,7 @@ export async function runSkills(
 		files.check();
 		outputs.push(
 			command.action === "help"
-				? `Commands: list [category...] | read <skill> [skill-or-reference...] | help. Join commands with ;\n\n${formatSkillList(skills)}`
+				? `Commands: list [category...] | read <skill> [skill-or-reference...] | help. Join commands with ;\nJS: tools.skills("read <skill>")\n\n${formatSkillList(skills)}`
 				: command.action === "list"
 					? formatSkillList(skills, command.categories)
 					: await readSkillPackage(

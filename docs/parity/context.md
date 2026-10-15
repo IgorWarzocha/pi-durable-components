@@ -8,6 +8,8 @@ The source is `howaboua-pi-stuff` at `5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb`,
 
 The idle refresh follows `f5b0483e` and `9b2707ac`, inspected at source revision `69f50cf70e8a7b05c2349be6227f521b6504f80e`. `createContextManagement({ models, automaticIdleRollover: true })` opts in. The default is off. Without fresh notes from the latest completed run, automatic admission passes the original input through without a synthetic checkpoint. Host rollover retains its managed checkpoint, retry and cancellation behavior.
 
+The 2026-10-15 discovery refresh follows `5291bc6f` and `58935af5`, inspected at `036dc876da5afc4ec27b64878ebb1cfb30c8211d`. Empty notes/history calls and explicit `help` list actions and required arguments without reading storage. Note writes accept `content` as an alias for `text`; file listing accepts `max_files` as an alias for `max_results`. Canonical fields win. Unknown fields, foreign-write rejection, result defaults and rollover lifecycle are unchanged. Same-storage reads already work without a live family owner, so source saved-session fallback machinery is unnecessary here.
+
 The port deliberately excludes Codex accounts, encrypted compaction state, remote and tree backends, shared agent path namespaces, configurable continuity modes and Pi TUI commands. Notes use `/notes` within a selected conversation. The approved native cleanup adds optional numeric-string `target` to notes and history, defaulting to the caller. Any existing same-storage conversation is readable without board membership or a separate family registry. Foreign note writes reject. There is no backend selector or second transcript database. Forks inherit note bodies and metadata as of their fork entry, but start with independent window and admission state.
 
 ## Storage and lifecycle
@@ -35,6 +37,8 @@ The usage meter combines the latest applicable assistant counters with the publi
 At extraction, an equivalent first-turn capture with the same Harness, faux model, clock and `Hello` input measured 52 JSON UTF-8 bytes without the extension and 3,082 with it. The four emitted tool declarations occupied 2,565 bytes. The checkpoint-guidance refresh changes the section size. These historical wire-size measurements are not current token counts. The section still includes no note bodies or archived transcript.
 
 ## Evidence
+
+On 2026-10-15, both retained Context workflows passed. Disposable real SQLite/Harness checks exercised native help, aliases, canonical precedence and owned writes; real V8 Code checks exercised nested empty-call help and alias write/read. Direct no-I/O help checks and unknown-field rejection also passed. No permanent tests were added.
 
 The 2026-10-10 disposable real-Harness probe first reproduced delegation returning `done` with an empty reply while the worker later finished after rollover. With the native-boundary fix, the same workflow returned the actual final answer and retained exactly one worker input submission. SQLite reopen between the cut and Durable's handover preserved one window cut and settled the original submission with the final answer. Cancellation at that boundary settled it as aborted without another input. Shared-read probes exercised host-created peers, foreign-write rejection and inherited fork notes. Captured storage commits showed no target-document writes from foreign list, read or search operations. No permanent tests were added.
 

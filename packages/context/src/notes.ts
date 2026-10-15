@@ -15,8 +15,11 @@ import {
 } from "./note-store.ts";
 import {
 	boundedInteger,
+	contextToolHelp,
 	type NotesArguments,
+	normalizeNotesArguments,
 	notesParameters,
+	prepareNotesArguments,
 	requiredString,
 	targetConversationId,
 	validateNotesArguments,
@@ -26,10 +29,18 @@ export function createNotesTool(options: { now: () => number }) {
 	return defineTool({
 		name: "notes",
 		description:
-			"Cross-window checkpoints under /notes. Foreign targets are read-only",
+			"Persistent notes across context windows. Omit arguments for actions; foreign targets are read-only",
 		parameters: notesParameters,
+		prepareArguments: prepareNotesArguments,
 		replay: "safe",
-		async execute(args, api, context) {
+		async execute(args = {}, api, context) {
+			const help = contextToolHelp("notes", args);
+			if (help)
+				return {
+					output: [{ type: "text", text: JSON.stringify(help) }],
+					details: help,
+				};
+			args = normalizeNotesArguments(args);
 			validateNotesArguments(args);
 			context.abortSignal?.throwIfAborted();
 			const target = targetConversationId(args.target, api.conversationId);

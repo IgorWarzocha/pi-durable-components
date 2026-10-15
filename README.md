@@ -6,7 +6,7 @@ Install only the components you need. Use their tools directly, or call them tog
 
 ## Install
 
-The source tree requires Pi Durable 1.2.0. Most components require a Node.js host. Worker Code and the OpenAI Responses provider also support Cloudflare Workers. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
+The source tree requires Pi Durable 1.3.0. Most components require a Node.js host. Worker Code and the OpenAI Responses provider also support Cloudflare Workers. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
 
 [Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Release 0.5.0 targets Durable 1.1.0. For example, install Apply Patch:
 
@@ -72,5 +72,9 @@ Worker Code is a separate, bounded execution mode. It uses QuickJS WASM without 
 - Voice needs explicit audio permissions and one application-owned microphone lease shared by both integrations. LAN control requires host-supplied TLS and network permission. Native helpers ship for six platform targets, but device and live-provider acceptance remain separate checks.
 - A host restart ends live kernels and shell sessions. Interrupted work is reported rather than replayed. Notebook can restore checkpointed values without rerunning cells.
 - Context management uses the host's SQLite database. Automatic idle rollover is off by default. Opt in through the host and use managed submission to roll over only when fresh checkpoint notes already exist.
+
+## Local delivery
+
+Run `bun run check` to validate and build all packages, then `bun run pack` to write content-hashed archives under `dist/`. `dist/artifacts.json` records each package name, version, archive filename and full SHA-256. Consume the indexed filenames rather than selecting older archives by version alone.
 
 Ported from [Howaboua Pi Stuff](https://github.com/IgorWarzocha/howaboua-pi-stuff). [Parity notes](docs/parity.md) record the supported behavior and remaining platform limits.

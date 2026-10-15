@@ -189,6 +189,28 @@ function codexStreamMaxRetries(
 	return Math.min(Math.floor(configured), MAX_STREAM_MAX_RETRIES);
 }
 
+function startsToolOutput(event: unknown): boolean {
+	if (
+		!event ||
+		typeof event !== "object" ||
+		!("type" in event) ||
+		!("item" in event)
+	)
+		return false;
+	if (
+		event.type !== "response.output_item.added" &&
+		event.type !== "response.output_item.done"
+	)
+		return false;
+	const item = event.item;
+	return (
+		!!item &&
+		typeof item === "object" &&
+		"type" in item &&
+		(item.type === "function_call" || item.type === "custom_tool_call")
+	);
+}
+
 function retryAdviceRecoveryBudgetError(
 	error: unknown,
 ): NonRetryableProviderError {
@@ -417,6 +439,10 @@ export function createCodexTransportStream<TApi extends Api>(
 						apiKey,
 						websocketRequestId,
 						originator,
+						{
+							model: model.id,
+							service_tier: effectiveOptions.serviceTier ?? undefined,
+						},
 					),
 					effectiveOptions.sessionId,
 					accountId,
@@ -455,6 +481,7 @@ export function createCodexTransportStream<TApi extends Api>(
 					apiKey,
 					websocketRequestId,
 					originator,
+					body,
 				);
 				const failure = await preconnect.handoff(
 					websocketUrl,
@@ -520,6 +547,7 @@ export function createCodexTransportStream<TApi extends Api>(
 							effectiveOptions?.sessionId,
 							responsesLite,
 							originator,
+							body,
 						);
 			const websocketHeaders = responsesWebSocketHeaders(
 				mode,
@@ -529,6 +557,7 @@ export function createCodexTransportStream<TApi extends Api>(
 				apiKey,
 				websocketRequestId,
 				originator,
+				body,
 			);
 			const bodyJson = JSON.stringify(body);
 			const pricingModel = deps.usageModel(model, body.model);
@@ -646,10 +675,10 @@ export function createCodexTransportStream<TApi extends Api>(
 			if (transport !== "sse") {
 				validateWebSocketTimeoutOptions(effectiveOptions);
 				for (let attempt = 0; attempt <= streamMaxRetries; attempt++) {
-					// Event partials are authoritative snapshots; a fresh partial makes the
-					// next content-start replace failed-attempt output without a second message start.
+					// Live tool-call events must never be replayed by transport recovery.
 					if (attempt > 0) output = createInitialAssistantMessage(model);
 					let websocketStarted = false;
+					let toolOutputStarted = false;
 					try {
 						await processWebSocketStream(
 							deps.transportState,
@@ -667,7 +696,16 @@ export function createCodexTransportStream<TApi extends Api>(
 									stream.push({ type: "start", partial: output });
 								}
 							},
-							effectiveOptions,
+							{
+								...effectiveOptions,
+								onProviderStreamEvent: (event, selected) => {
+									toolOutputStarted ||= startsToolOutput(event);
+									return effectiveOptions.onProviderStreamEvent?.(
+										event,
+										selected,
+									);
+								},
+							},
 							deps.turnState,
 							diagnostics
 								? { lane, attempt: attempt + 1, record: diagnostics }
@@ -741,6 +779,20 @@ export function createCodexTransportStream<TApi extends Api>(
 							),
 						);
 						if (
+							toolOutputStarted &&
+							(retryableWebSocketError || immediateFallback)
+						) {
+							if (allowFallback)
+								recordWebSocketSseFallback(
+									deps.transportState,
+									effectiveOptions.sessionId,
+								);
+							recordFailure("websocket", error);
+							throw new NonRetryableProviderError(
+								"The response was interrupted while composing tool calls. Unfinished calls were discarded. Retry your request.",
+							);
+						}
+						if (
 							!immediateFallback &&
 							retryableWebSocketError &&
 							attempt < streamMaxRetries &&
@@ -811,6 +863,7 @@ export function createCodexTransportStream<TApi extends Api>(
 			);
 			for (let attempt = 0; attempt <= streamMaxRetries; attempt++) {
 				if (attempt > 0) output = createInitialAssistantMessage(model);
+				let toolOutputStarted = false;
 				const responseItems: unknown[] = [];
 				let completedId: string | undefined;
 				try {
@@ -862,6 +915,7 @@ export function createCodexTransportStream<TApi extends Api>(
 							...effectiveOptions,
 							serviceTier: readServiceTier(body.service_tier),
 							onProviderStreamEvent: async (event, selected) => {
+								toolOutputStarted ||= startsToolOutput(event);
 								const raw = event as {
 									type?: string;
 									response?: { status?: string; id?: string };
@@ -939,6 +993,12 @@ export function createCodexTransportStream<TApi extends Api>(
 							},
 						),
 					);
+					if (toolOutputStarted && retryable) {
+						recordFailure("sse", error);
+						throw new NonRetryableProviderError(
+							"The response was interrupted while composing tool calls. Unfinished calls were discarded. Retry your request.",
+						);
+					}
 					if (
 						retryable &&
 						attempt < streamMaxRetries &&
@@ -975,6 +1035,9 @@ export function createCodexTransportStream<TApi extends Api>(
 					effectiveTransport === "sse" ? "sse" : "websocket",
 					error,
 				);
+			output.content = output.content.filter(
+				(block) => block.type !== "toolCall",
+			);
 			stream.push({
 				type: "error",
 				reason: (effectiveOptions?.signal?.aborted ? "aborted" : "error") as

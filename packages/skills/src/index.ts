@@ -39,7 +39,9 @@ function prepareSkillsInput(input: unknown): { command?: string } {
 	if (input === undefined) return {};
 	if (typeof input === "string") return { command: input };
 	if (typeof input !== "object" || input === null || Array.isArray(input))
-		throw new Error("skills expects a string command or command envelope");
+		throw new Error(
+			'Expected a string command, e.g. tools.skills("read <skill>"), or a command envelope',
+		);
 	if ("command" in input && typeof input.command !== "string")
 		throw new Error("skills command must be a string");
 	return input;

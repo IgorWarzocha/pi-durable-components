@@ -17,8 +17,10 @@ import {
 } from "./history-items.ts";
 import {
 	boundedInteger,
+	contextToolHelp,
 	type HistoryArguments,
 	historyParameters,
+	prepareHistoryArguments,
 	targetConversationId,
 	validateHistoryArguments,
 } from "./tool-contract.ts";
@@ -30,10 +32,17 @@ export function createHistoryTool(options: {
 	return defineTool({
 		name: "history",
 		description:
-			"Conversation history, including prior windows. Pass IDs unchanged. Search, never browse.",
+			"Retained conversation history across context windows. Omit arguments for actions; pass returned IDs unchanged",
 		parameters: historyParameters,
+		prepareArguments: prepareHistoryArguments,
 		replay: "safe",
-		async execute(args, api, context) {
+		async execute(args = {}, api, context) {
+			const help = contextToolHelp("history", args);
+			if (help)
+				return {
+					output: [{ type: "text", text: JSON.stringify(help) }],
+					details: help,
+				};
 			validateHistoryArguments(args);
 			context.abortSignal?.throwIfAborted();
 			const target = targetConversationId(args.target, api.conversationId);

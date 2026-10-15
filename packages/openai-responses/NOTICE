@@ -12,6 +12,13 @@ snapshot 88c08f52bbf05be17525ec47a6f1d9958f07fdab, PR head 2a24e1d3.
 Modifications: provider-instance bounded identity cache, Web Crypto identity
 digest for Node and Workers, explicit opt-in settings, and final-body pricing.
 Pi configuration, UI and native compaction integration are not included.
+Selected provider refreshes from snapshot 036dc876da5afc4ec27b64878ebb1cfb30c8211d:
+interrupted tool-stream recovery (9a669ac0, c337c9a8), strict final tool arguments
+and model-switch thinking removal (1985f069), advisory Codex routing (1fd72ce4)
+and WebSocket timing-metric requests (93895b22), plus the GPT-6.1 Sol context
+window correction (1fd63f8e).
+Modifications: routing hints are bounded and Codex-only; explicit no-fallback
+policy is preserved. Pi diagnostics logging and integration are not included.
 
 Portions of the Responses conversion and streaming implementation derive
 from Pi, Copyright (c) 2025 Mario Zechner, MIT licensed.

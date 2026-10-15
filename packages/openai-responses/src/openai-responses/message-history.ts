@@ -100,12 +100,10 @@ export function normalizeResponsesMessageHistory(
 				if (isImageGenerationCallBlock(block)) return block;
 				if (isWebSearchCallBlock(block)) return block;
 				if (block.type === "thinking") {
-					if (block.redacted) return isSameModel ? block : [];
-					if (isSameModel && block.thinkingSignature) return block;
+					if (!isSameModel) return [];
+					if (block.redacted || block.thinkingSignature) return block;
 					if (!block.thinking || block.thinking.trim() === "") return [];
-					return isSameModel
-						? block
-						: { type: "text" as const, text: block.thinking };
+					return block;
 				}
 				if (block.type === "text")
 					return isSameModel

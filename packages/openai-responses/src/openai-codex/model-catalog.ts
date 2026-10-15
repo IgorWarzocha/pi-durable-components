@@ -71,7 +71,7 @@ const SUPPLEMENTAL_MODELS: Model<"openai-codex-responses">[] = [
 				},
 			],
 		},
-		contextWindow: 272_000,
+		contextWindow: 500_000,
 		maxTokens: 128_000,
 		thinkingLevelMap: { off: null, minimal: null, xhigh: "xhigh", max: "max" },
 		compat: {
@@ -201,6 +201,7 @@ export function openAICodexProviderModels(): Model<"openai-codex-responses">[] {
 		if (model.id === "gpt-6.1-sol") {
 			return {
 				...model,
+				contextWindow: 500_000,
 				thinkingLevelMap: {
 					...model.thinkingLevelMap,
 					off: null,

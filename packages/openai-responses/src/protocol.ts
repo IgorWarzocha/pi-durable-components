@@ -39,6 +39,7 @@ export function responsesWebSocketHeaders(
 	token: string,
 	sessionId: string,
 	originator?: string,
+	routingRequest?: Pick<ResponsesBody, "model" | "service_tier">,
 ): Headers {
 	if (mode === "codex")
 		return buildWebSocketHeaders(
@@ -48,6 +49,7 @@ export function responsesWebSocketHeaders(
 			token,
 			sessionId,
 			originator,
+			routingRequest,
 		);
 	const headers = new Headers(modelHeaders);
 	if (sessionId) {

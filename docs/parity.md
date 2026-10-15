@@ -1,10 +1,12 @@
 # Functionality parity
 
-The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.2.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
+The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.3.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
 
 Tool arguments, outputs, errors, cancellation, state, and recovery are part of parity. Pi-specific TUI rendering and slash commands are not being shipped as a compatibility layer. Missing functionality must stay visible here until implemented and validated.
 
 The approved 2026-10-09 refresh adopts selected behavior from `69f50cf70e8a7b05c2349be6227f521b6504f80e`, without claiming whole-tree parity at that revision. Component evidence records retry-budget and phase fixes, safe provider errors, foreground screenshots, empty-call discovery, opt-in fresh-note idle rollover, and board continuity. Original extraction pins and historical validation remain identified separately.
+
+The 2026-10-15 refresh inspects the read-only source at `036dc876da5afc4ec27b64878ebb1cfb30c8211d`. Selected changes cover Notebook output draining, interrupted provider streams, strict final tool arguments, model-switch reasoning, bounded routing hints, WebSocket timing requests, Sol's context window, Context discovery and aliases, and Skills string-call guidance. This is not whole-tree adoption: Pi-specific logging, model-picker and activation settings, remote context backends, GitHub Watch and new product bundles remain outside the accepted scope. Shell's bounded default and finalized-session handling already exist natively. Code discovers ordinary callable registrations without Pi's MCP readiness adapter. View Image delegates description transport to Models, so the provider owns its new routing hint. Existing context rollover and host opt-ins remain unchanged.
 
 | Component | Accepted scope | Evidence |
 |---|---|---|
@@ -50,6 +52,10 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-15, the Durable 1.3.0 migration and selected source refresh passed independent review and `bun run check`: all 28 retained workflows, twenty-one package builds and dry-pack checks, lint, strict TypeScript and Knip. Frozen installation with lifecycle scripts disabled passed. Disposable Deno, V8, SQLite and provider protocol checks are recorded in the component evidence. No permanent tests were added. Live accounts, audio devices and non-Linux runtimes were not revalidated.
+
+The published 1.3.0 release lists no breaking changes. Components use its native SQLite and operation coordination, corrected post-compaction baseline ordering and base64 handling without patching upstream. No custom Storage migration or component-specific Code/Notebook bridge is introduced. Local delivery now writes content-hashed archives and a full SHA-256 index at `dist/artifacts.json`; package versions alone do not distinguish these development builds.
 
 On 2026-10-13, the Durable 1.2.0 migration passed `bun run check`: all 28 retained workflows, twenty-one package builds and dry-pack checks, lint, strict TypeScript and Knip. Frozen installation with lifecycle scripts disabled passed. An independent source review examined native nested admission, ownership, replay and result migration. Disposable Harness checks verified native child cancellation, abandonment flags and Guardian ancestry. A SQLite reopen check preserved version-one cell and invocation output, images, details and checkpoints without replaying completed work. No permanent tests were added. Live providers and non-Linux runtimes were not revalidated.
 

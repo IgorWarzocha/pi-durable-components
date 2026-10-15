@@ -1,5 +1,14 @@
 import { spawn } from "node:child_process";
-import { copyFile, mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import {
+	copyFile,
+	mkdir,
+	readdir,
+	readFile,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -168,6 +177,7 @@ if (command === "test") {
 		await buildVoiceAssets(directory, manifest.name);
 	}
 } else {
+	const artifacts = [];
 	if (destination) await mkdir(resolve(root, destination), { recursive: true });
 	for (const { directory, manifest } of workspaces.values()) {
 		const child = spawn(
@@ -270,8 +280,30 @@ if (command === "test") {
 				`${manifest.name} must ship self-contained JavaScript entry points`,
 			);
 		await import(join(directory, manifest.main));
+		if (destination) {
+			const original = resolve(root, destination, pack.filename);
+			const sha256 = createHash("sha256")
+				.update(await readFile(original))
+				.digest("hex");
+			const filename = pack.filename.replace(
+				/\.tgz$/,
+				`-${sha256.slice(0, 8)}.tgz`,
+			);
+			await rename(original, resolve(root, destination, filename));
+			artifacts.push({
+				name: manifest.name,
+				version: manifest.version,
+				filename,
+				sha256,
+			});
+		}
 		console.log(
 			`${manifest.name}: ${pack.files.length} packed files, public entry imports successfully`,
 		);
 	}
+	if (destination)
+		await writeFile(
+			resolve(root, destination, "artifacts.json"),
+			`${JSON.stringify(artifacts, null, 2)}\n`,
+		);
 }

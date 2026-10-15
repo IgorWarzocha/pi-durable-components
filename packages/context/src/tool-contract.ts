@@ -2,14 +2,17 @@
 
 import type { ConversationId } from "@earendil-works/pi-durable";
 import { type Static, Type } from "typebox";
+import { Check } from "typebox/value";
 
 const HISTORY_ACTIONS = [
+	"help",
 	"list_windows",
 	"list_items",
 	"read_item",
 	"search_contents",
 ] as const;
 const NOTES_ACTIONS = [
+	"help",
 	"list_files_by_prefix",
 	"read_file",
 	"search_contents",
@@ -28,7 +31,9 @@ const target = Type.Optional(
 
 export const historyParameters = Type.Object(
 	{
-		action: Type.Union(HISTORY_ACTIONS.map((action) => Type.Literal(action))),
+		action: Type.Optional(
+			Type.Union(HISTORY_ACTIONS.map((action) => Type.Literal(action))),
+		),
 		target,
 		item_id: Type.Optional(Type.String()),
 		limit: Type.Optional(positiveInteger),
@@ -56,7 +61,10 @@ export const historyParameters = Type.Object(
 
 export const notesParameters = Type.Object(
 	{
-		action: Type.Union(NOTES_ACTIONS.map((action) => Type.Literal(action))),
+		action: Type.Optional(
+			Type.Union(NOTES_ACTIONS.map((action) => Type.Literal(action))),
+		),
+		content: Type.Optional(Type.String()),
 		target,
 		file_order: Type.Optional(
 			Type.Union([Type.Literal("ascending"), Type.Literal("descending")]),
@@ -86,7 +94,22 @@ export const notesParameters = Type.Object(
 export type NotesArguments = Static<typeof notesParameters>;
 export type HistoryArguments = Static<typeof historyParameters>;
 
+export function prepareNotesArguments(input: unknown): NotesArguments {
+	const args = input === undefined ? {} : input;
+	if (!Check(notesParameters, args))
+		throw new Error("Supply valid notes arguments; omit arguments for help");
+	return args;
+}
+
+export function prepareHistoryArguments(input: unknown): HistoryArguments {
+	const args = input === undefined ? {} : input;
+	if (!Check(historyParameters, args))
+		throw new Error("Supply valid history arguments; omit arguments for help");
+	return args;
+}
+
 const notesFields = {
+	help: [],
 	list_files_by_prefix: [
 		"file_order",
 		"file_order_by",
@@ -103,8 +126,9 @@ const notesFields = {
 	],
 	append_to_file: ["path", "text"],
 	write_file: ["path", "text"],
-} satisfies Record<NotesArguments["action"], readonly string[]>;
+} satisfies Record<NonNullable<NotesArguments["action"]>, readonly string[]>;
 const historyFields = {
+	help: [],
 	list_windows: ["limit", "recent_first"],
 	list_items: [
 		"limit",
@@ -125,10 +149,58 @@ const historyFields = {
 		"tool_namespace",
 		"window_id",
 	],
-} satisfies Record<HistoryArguments["action"], readonly string[]>;
+} satisfies Record<NonNullable<HistoryArguments["action"]>, readonly string[]>;
+
+export function normalizeNotesArguments(args: NotesArguments): NotesArguments {
+	const normalized = { ...args };
+	if (args.action === "write_file" || args.action === "append_to_file") {
+		if (normalized.text === undefined && normalized.content !== undefined)
+			normalized.text = normalized.content;
+		delete normalized.content;
+	}
+	if (args.action === "list_files_by_prefix") {
+		if (
+			normalized.max_results === undefined &&
+			normalized.max_files !== undefined
+		)
+			normalized.max_results = normalized.max_files;
+		delete normalized.max_files;
+	}
+	return normalized;
+}
+
+export function contextToolHelp(
+	namespace: "notes" | "history",
+	args: NotesArguments | HistoryArguments,
+) {
+	if (Object.keys(args).length && args.action !== "help") return undefined;
+	if (Object.keys(args).some((key) => key !== "action"))
+		throw new Error("Help accepts only action: help");
+	const fields = namespace === "notes" ? notesFields : historyFields;
+	return {
+		actions: Object.fromEntries(
+			Object.entries(fields).map(([action, names]) => [
+				action,
+				names
+					.map((name) =>
+						["path", "text", "query", "item_id"].includes(name) ||
+						(action === "read_item" && name === "window_id")
+							? name
+							: `${name}?`,
+					)
+					.join(" "),
+			]),
+		),
+		target: "Durable conversation ID; defaults to caller; read any, write own",
+	};
+}
 
 export function validateNotesArguments(args: NotesArguments): void {
-	validateFields("notes", args, notesFields[args.action]);
+	validateFields(
+		"notes",
+		args,
+		args.action === undefined ? [] : notesFields[args.action],
+	);
 	if (
 		args.action === "read_file" ||
 		args.action === "append_to_file" ||
@@ -142,7 +214,11 @@ export function validateNotesArguments(args: NotesArguments): void {
 }
 
 export function validateHistoryArguments(args: HistoryArguments): void {
-	validateFields("history", args, historyFields[args.action]);
+	validateFields(
+		"history",
+		args,
+		args.action === undefined ? [] : historyFields[args.action],
+	);
 	if (args.action === "read_item") {
 		requiredString(args.item_id, "history read_item requires item_id");
 		requiredString(args.window_id, "history read_item requires window_id");
@@ -153,9 +229,11 @@ export function validateHistoryArguments(args: HistoryArguments): void {
 
 function validateFields(
 	namespace: string,
-	args: { action: string },
+	args: { action?: string },
 	fields: readonly string[],
 ): void {
+	if (!fields || args.action === undefined)
+		throw new Error(`${namespace} requires a supported action`);
 	const unexpected = Object.keys(args).find(
 		(key) => key !== "action" && key !== "target" && !fields.includes(key),
 	);

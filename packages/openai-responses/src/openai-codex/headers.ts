@@ -5,6 +5,7 @@ import {
 } from "./constants.ts";
 import { osInfo } from "./node-runtime.ts";
 import { RESPONSES_LITE_HEADER } from "./responses-lite.ts";
+import type { ResponsesBody } from "./types.ts";
 
 export { headersToRecord } from "./header-record.ts";
 
@@ -91,6 +92,7 @@ function buildBaseCodexHeaders(
 	accountId: string,
 	token: string,
 	originator: string,
+	routingRequest?: Pick<ResponsesBody, "model" | "service_tier">,
 ): Headers {
 	const headers = new Headers(modelHeaders);
 	for (const [key, value] of Object.entries(additionalHeaders ?? {})) {
@@ -109,6 +111,15 @@ function buildBaseCodexHeaders(
 		"User-Agent",
 		os ? `pi (${os.platform()} ${os.release()}; ${os.arch()})` : "pi (browser)",
 	);
+	if (headers.get("x-codex-guardian") === "reviewer") {
+		headers.delete("x-codex-routing-hint");
+	} else if (routingRequest) {
+		// Upgrade hints are advisory; the final request body remains authoritative.
+		const hint = `model=${routingRequest.model}${routingRequest.service_tier === undefined ? "" : `;tier=${routingRequest.service_tier}`}`;
+		headers.delete("x-codex-routing-hint");
+		if (hint.length <= 512 && /^[\x20-\x7e]+$/.test(hint))
+			headers.set("x-codex-routing-hint", hint);
+	}
 	return headers;
 }
 
@@ -120,6 +131,7 @@ export function buildSSEHeaders(
 	sessionId: string | undefined,
 	responsesLite = false,
 	originator = "pi",
+	routingRequest?: Pick<ResponsesBody, "model" | "service_tier">,
 ): Headers {
 	const headers = buildBaseCodexHeaders(
 		modelHeaders,
@@ -127,6 +139,7 @@ export function buildSSEHeaders(
 		accountId,
 		token,
 		originator,
+		routingRequest,
 	);
 	headers.set("OpenAI-Beta", "responses=experimental");
 	headers.set("accept", "text/event-stream");
@@ -149,6 +162,7 @@ export function buildWebSocketHeaders(
 	token: string,
 	requestId: string,
 	originator = "pi",
+	routingRequest?: Pick<ResponsesBody, "model" | "service_tier">,
 ): Headers {
 	const headers = buildBaseCodexHeaders(
 		modelHeaders,
@@ -156,12 +170,14 @@ export function buildWebSocketHeaders(
 		accountId,
 		token,
 		originator,
+		routingRequest,
 	);
 	headers.delete("accept");
 	headers.delete("content-type");
 	headers.delete("OpenAI-Beta");
 	headers.delete("openai-beta");
 	headers.set("OpenAI-Beta", OPENAI_BETA_RESPONSES_WEBSOCKETS);
+	headers.set("x-responsesapi-include-timing-metrics", "true");
 	headers.set("x-client-request-id", requestId);
 	headers.set("session-id", requestId);
 	headers.set("thread-id", requestId);

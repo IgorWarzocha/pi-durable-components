@@ -7,6 +7,7 @@ const MAX_EXECUTION_OUTPUT_CHARS = 32 * 1024 * 1024;
 const MAX_EXECUTION_OUTPUT_ITEMS = 10_000;
 const MAX_ERROR_CHARS = 256 * 1024;
 const MAX_ERROR_FIELD_CHARS = 64 * 1024;
+export const OUTPUT_DRAIN_MESSAGE = "pi_notebook_output_drained";
 
 export interface KernelExecutionResult {
 	status: "ok" | "error" | "aborted";
@@ -18,6 +19,9 @@ export interface KernelExecutionResult {
 
 export interface ActiveKernelExecution {
 	requestId: string;
+	drain?:
+		| { requestId: string; marker: string; idle: boolean; seen: boolean }
+		| undefined;
 	items: RuntimeContentItem[];
 	outputChars: number;
 	outputTruncated: boolean;
@@ -26,7 +30,7 @@ export interface ActiveKernelExecution {
 	errorName?: string | undefined;
 	errorValue?: string | undefined;
 	onOutput?: ((item: RuntimeContentItem) => void) | undefined;
-	resolve(result: KernelExecutionResult): void;
+	resolve(): void;
 	reject(error: Error): void;
 }
 
@@ -35,6 +39,17 @@ export function applyKernelOutput(
 	execution: ActiveKernelExecution,
 ): "idle" | undefined {
 	const type = message.header.msg_type;
+	if (type === OUTPUT_DRAIN_MESSAGE) {
+		if (
+			execution.drain &&
+			message.parent_header["msg_id"] === execution.drain.requestId &&
+			message.content["marker"] === execution.drain.marker
+		) {
+			execution.drain.seen = true;
+			return execution.drain.idle ? "idle" : undefined;
+		}
+		return undefined;
+	}
 	if (type === "stream") {
 		const text = message.content["text"];
 		if (typeof text === "string" && text)
@@ -69,9 +84,13 @@ export function applyKernelOutput(
 		execution.errorText = error.errorText;
 		return undefined;
 	}
-	return type === "status" && message.content["execution_state"] === "idle"
-		? "idle"
-		: undefined;
+	if (type !== "status" || message.content["execution_state"] !== "idle")
+		return undefined;
+	if (!execution.drain) return "idle";
+	if (message.parent_header["msg_id"] !== execution.drain.requestId)
+		return undefined;
+	execution.drain.idle = true;
+	return execution.drain.seen ? "idle" : undefined;
 }
 
 export function finishKernelExecution(

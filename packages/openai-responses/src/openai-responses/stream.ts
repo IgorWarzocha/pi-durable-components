@@ -6,6 +6,7 @@ import {
 	type JsonObject,
 	type Model,
 	parseStreamingJson,
+	parseToolCallArguments,
 } from "@earendil-works/pi-ai";
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.js";
 import {
@@ -585,13 +586,15 @@ export async function processResponsesStream<TApi extends Api>(
 			} else if (item.type === "function_call") {
 				const state = outputStates.get(event.output_index);
 				const namespace = (item as unknown as { namespace?: string }).namespace;
-				const args =
-					state?.kind === "function_call" && state.block.partialJson
-						? parseStreamingJson<JsonObject>(state.block.partialJson)
-						: parseStreamingJson<JsonObject>(item.arguments || "{}");
+				const parsed = parseToolCallArguments(
+					item.arguments ||
+						(state?.kind === "function_call"
+							? state.block.partialJson
+							: undefined),
+				);
 				let toolCall: ToolCallBlock;
 				if (state?.kind === "function_call") {
-					state.block.arguments = args;
+					Object.assign(state.block, parsed);
 					if (namespace !== undefined) state.block.namespace = namespace;
 					delete state.block.partialJson;
 					toolCall = state.block;
@@ -600,7 +603,7 @@ export async function processResponsesStream<TApi extends Api>(
 						type: "toolCall",
 						id: `${item.call_id}|${item.id ?? ""}`,
 						name: item.name,
-						arguments: args,
+						...parsed,
 						...(namespace !== undefined ? { namespace } : {}),
 					};
 					output.content.push(toolCall);

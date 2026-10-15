@@ -6,6 +6,8 @@ The component registers `skills` as an ordinary Durable `ToolRegistration` with 
 
 Empty-call discovery follows source revision `69f50cf70e8a7b05c2349be6227f521b6504f80e`. Disposable real-Harness validation exercised omitted arguments, catalog-backed help, explicit list and unknown-field rejection. The retained output-boundary workflow and package typecheck passed. Earlier source differential results below describe the original extraction, before this help addition.
 
+The 2026-10-15 refresh follows `47f1e2afb689903f829b5ad43e6f07d27d1b7106`, inspected at `036dc876da5afc4ec27b64878ebb1cfb30c8211d`. Help and invalid-input guidance show `tools.skills("read <skill>")`. The existing string preparation and native `{command}` envelope remain supported; discovery and read behavior are unchanged.
+
 ## Preserved contracts
 
 | Source owner | Durable implementation | Evidence |

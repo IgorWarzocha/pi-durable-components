@@ -5,6 +5,10 @@ Source: packages/pi-codex-conversion/src/tools/notebook-mode and code-mode/
 notebook-tool.ts, command-output.ts, types.ts, custom-tools.ts,
 custom-tool-runner.ts
 
+FIFO Jupyter output draining follows revision
+fa9e42d577f9a2739a2cf14909b56bb3e8b89aea, inspected in snapshot
+036dc876da5afc4ec27b64878ebb1cfb30c8211d.
+
 Custom command discovery uses explicit trusted roots and an environment-bound
 process backend. Shared command factories publish ordinary Durable registrations.
 
