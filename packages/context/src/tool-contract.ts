@@ -192,6 +192,15 @@ export function contextToolHelp(
 			]),
 		),
 		target: "Durable conversation ID; defaults to caller; read any, write own",
+		...(namespace === "notes"
+			? {
+					usage: '{ "action": "read_file", "path": "checkpoint" }',
+					ranges:
+						"start_line/stop_line inclusive, 1-based; negative counts from end; 0/null/omitted uses first/last line; out-of-range clamps; reversed range returns empty content",
+					defaults:
+						"list max_results 20; search max_files/max_matches_per_file 20; positive limits capped at 100; list name ascending; search name ascending, recent_file_first sorts created_at descending",
+				}
+			: {}),
 	};
 }
 

@@ -27,8 +27,7 @@ import { createContextManagement, type InputResult } from "../src/index.ts";
 import { Admission } from "../src/lifecycle.ts";
 
 const context = BACKGROUND_CONTEXT;
-const checkpoint =
-	"Checkpoint this conversation before a clean context window.";
+const checkpoint = "Save the task state in notes, then finish your reply.";
 
 function textOf(message: Message | undefined): string {
 	if (!message) return "";

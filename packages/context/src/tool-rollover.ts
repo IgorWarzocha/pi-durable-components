@@ -33,7 +33,7 @@ export function createToolRollover(host: () => ContextHost, now: () => number) {
 	const tool = defineTool({
 		name: "new_context",
 		description:
-			"Continue in a clean context window. Save notes first and call alone",
+			"Start fresh from saved notes; recover earlier conversation through history. Save notes first and call alone",
 		parameters: Type.Object({}, { additionalProperties: false }),
 		replay: "safe",
 		callers: ["model"],
@@ -123,7 +123,7 @@ export function createToolRollover(host: () => ContextHost, now: () => number) {
 							{
 								role: "user",
 								content: safe
-									? "Continue from your saved notes."
+									? "Read your saved notes and resume the task."
 									: "Context rollover was skipped because the conversation changed or foreground work is still running. The window is unchanged. Save fresh notes and retry new_context after that work settles.",
 								timestamp: now(),
 							},

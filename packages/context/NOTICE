@@ -10,6 +10,8 @@ Host opt-in and task checkpoint guidance follow pi-notes-compaction revision
 9b2707ac4490e3997738531f7202d971018ddab6.
 Tool discovery and note argument aliases follow revisions 5291bc6f and
 58935af5, inspected in snapshot 036dc876da5afc4ec27b64878ebb1cfb30c8211d.
+Notes help, persistent-note guidance, compaction recovery guidance and concise
+checkpoint prompts also follow 83781a25, ef4af742, ab4afd46 and 58935af5.
 Modifications: Durable-native SQLite documents and tasks, one local notes
 policy, durable admission and cancellation, provider-independent model usage,
 and native-only rollover control through ordinary tool registrations.

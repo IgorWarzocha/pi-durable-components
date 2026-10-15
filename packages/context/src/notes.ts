@@ -29,7 +29,7 @@ export function createNotesTool(options: { now: () => number }) {
 	return defineTool({
 		name: "notes",
 		description:
-			"Persistent notes across context windows. Omit arguments for actions; foreign targets are read-only",
+			"Persistent notes. write_file replaces; append_to_file adds. Paths are relative to /notes; target selects a conversation, read-only unless your own. Omit arguments for help",
 		parameters: notesParameters,
 		prepareArguments: prepareNotesArguments,
 		replay: "safe",

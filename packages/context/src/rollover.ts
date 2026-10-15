@@ -37,7 +37,7 @@ type RolloverState =
 	| { phase: "continue"; window: WindowIdentity };
 
 const checkpointPrompt =
-	"Checkpoint this conversation before a clean context window. Update the task's stable checkpoint path with the request, constraints, decisions, progress, next steps and useful history IDs. Mark completed work in place. Link separate reusable findings and deferred ideas without treating them as permission to implement. Save changed state, then finish this turn. Do not call new_context.";
+	"Save the task state in notes, then finish your reply. A new window opens automatically after your reply; do not call new_context. If saving fails, report the error.";
 const key = (task: TaskId) => `context:checkpoint:${task}`;
 
 /** A successful note write in an aborted generation is not a completed checkpoint. */
@@ -252,7 +252,7 @@ export function createRollover(host: () => ContextHost) {
 				const submission = await conv.submit(
 					{
 						type: "input",
-						content: "Continue from your saved notes.",
+						content: "Read your saved notes and resume the task.",
 						requestId: `context:continue:${task.id}`,
 						whenBusy: "followUp",
 					},

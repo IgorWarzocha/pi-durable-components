@@ -123,7 +123,7 @@ test("native context rollover and mode switching preserve isolated V8 and Deno s
 					}
 					return fauxAssistantMessage("toolkit complete");
 				}
-				if (user === "Continue from your saved notes.") {
+				if (user === "Read your saved notes and resume the task.") {
 					assert.equal(
 						request.messages.some(
 							(message) =>

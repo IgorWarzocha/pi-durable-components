@@ -32,7 +32,7 @@ export function createHistoryTool(options: {
 	return defineTool({
 		name: "history",
 		description:
-			"Retained conversation history across context windows. Omit arguments for actions; pass returned IDs unchanged",
+			"Search earlier conversation, don't browse it. Pass returned IDs unchanged. Omit arguments for help",
 		parameters: historyParameters,
 		prepareArguments: prepareHistoryArguments,
 		replay: "safe",

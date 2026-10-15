@@ -21,7 +21,7 @@ import { contextUsage } from "./usage.ts";
 import { WindowState } from "./window-state.ts";
 
 const checkpoint =
-	"Keep one task checkpoint at a stable note path: request, constraints, decisions, progress, next steps and useful history IDs. Replace stale state and mark completion in place. Keep reusable findings and deferred ideas in separate topic notes, linked rather than copied. Recording is not permission to implement. Save changed state after substantial work, before replying, new_context or handoff. Skip routine or unchanged state. Include checkpoint paths in handoffs. After rollover, read the checkpoint and linked notes as needed; use history only for missing details.";
+	"Notes persist across windows. Keep one checkpoint per task at a stable path, covering the request, constraints, decisions, progress, next steps and history IDs so you can resume without rereading the conversation. Replace stale state; mark completion in place. Keep reusable findings and deferred ideas in separate topic notes; link, don't copy. Recording isn't permission to implement.\n\nSave changed state after substantial work, before replying, and before new_context or handoff. Skip routine or unchanged state. Include checkpoint paths in handoffs. After rollover, read the checkpoint, then linked notes as needed. History retrieves earlier conversation; use it only for missing details. If no checkpoint is available, use history to recover missing context.";
 
 // Durable's onYield continuation creates a successor GenerationTask. A task receipt
 // repeats the same answer's decision on recovery, not subsequent answers' decisions.
@@ -105,7 +105,8 @@ export function createContextPolicy(options: {
 					? 90
 					: 85;
 		if (level === 0) return;
-		const text = `Context usage is ${Math.round(usage.percentage ?? 0)}%${usage.estimated ? " (estimated tail included)" : " (last reported usage)"}. ${checkpoint}`;
+		const remaining = Math.max(0, 100 - Math.round(usage.percentage ?? 0));
+		const text = `${level === 90 ? "Urgent: " : ""}${remaining}% context remaining${usage.estimated ? " (estimated tail included)" : " (last reported usage)"}. Save the task state in notes, then call new_context ${level === 90 ? "now, before other work" : "before continuing work"}.`;
 		return current.commit(async (tx) => {
 			const receipt = answer
 				? await tx.doc(YieldAdvisory, api.taskId)
