@@ -1,0 +1,43 @@
+{
+	"name": "@howaboua/pi-durable-board",
+	"version": "0.1.0",
+	"description": "Persistent discussion boards for Durable conversations",
+	"type": "module",
+	"license": "MIT",
+	"author": "Igor Warzocha",
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"./presentation": {
+			"types": "./dist/presentation.d.ts",
+			"import": "./dist/presentation.js"
+		},
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"NOTICE",
+		"LICENSE"
+	],
+	"sideEffects": false,
+	"dependencies": {
+		"typebox": "1.3.27",
+		"unicode-case-folding": "1.1.2"
+	},
+	"peerDependencies": {
+		"@earendil-works/chord": "1.3.0",
+		"@earendil-works/pi-ai": "1.3.0",
+		"@earendil-works/pi-durable": "1.3.0",
+		"@modelcontextprotocol/sdk": "1.25.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

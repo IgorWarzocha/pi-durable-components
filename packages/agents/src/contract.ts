@@ -1,6 +1,11 @@
-import type { Static } from "@earendil-works/pi-ai";
 import { Type } from "@earendil-works/pi-ai";
-import type { AgentChange, JsonObject } from "@earendil-works/pi-durable";
+import type {
+	AgentChange,
+	ConversationId,
+	JsonObject,
+	Tx,
+} from "@earendil-works/pi-durable";
+import type { Static } from "typebox";
 
 export type AgentProfile = {
 	description: string;
@@ -10,6 +15,14 @@ export type AgentProfile = {
 };
 export type AgentsOptions = {
 	profiles: Readonly<Record<string, AgentProfile>>;
+	/** Optional Board component; validates explicit thread handoffs in the spawn commit. */
+	board?: {
+		threadReference(
+			tx: Tx,
+			caller: ConversationId,
+			threadId: string,
+		): Promise<string>;
+	};
 };
 
 const target = Type.String({ minLength: 1 });
@@ -63,8 +76,6 @@ export const AgentsParameters = Type.Union([
 	),
 	Type.Object({ ...action("watch"), target }, object),
 	Type.Object({ ...action("unwatch"), target }, object),
-	Type.Object({ ...action("attach"), target }, object),
-	Type.Object({ ...action("detach"), target }, object),
 ]);
 export type Request = Static<typeof AgentsParameters>;
 export type WorkRequest = Extract<Request, { action: "spawn" | "assign" }>;
@@ -85,8 +96,6 @@ export function help(profiles: AgentsOptions["profiles"]) {
 			assign: "target message blocking?",
 			watch: "target",
 			unwatch: "target",
-			attach: "target",
-			detach: "target",
 		},
 		profiles: Object.fromEntries(
 			Object.entries(profiles).map(([name, profile]) => [
@@ -106,8 +115,8 @@ export function help(profiles: AgentsOptions["profiles"]) {
 				"Defaults true; spawn profile policy overrides. False reports completion after you reply. No polling",
 			send: "Admits a message, wakes idle recipients, steers active work. No wait or implicit watch",
 			watch: "Persists until unwatch; delegation reports are task-scoped",
-			attach:
-				"Joins an idle root agent to your discussion board. Detach restores its previous board. Targets must have no board children. Context reads are independent of board membership; no task assignment",
+			board_thread_id:
+				"Requires the host's Board component. Validates a thread in your current board before spawning and adds its read reference to the task. Board membership and attach/detach belong to board",
 		},
 	});
 }

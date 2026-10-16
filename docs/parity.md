@@ -16,7 +16,8 @@ The 2026-10-15 refresh inspects the read-only source at `036dc876da5afc4ec27b648
 | Web | Search and navigation | [Real authenticated search and returned-reference navigation](parity/web-imagegen.md) |
 | Image generation | Generation, editing, recent images, artifacts | [Real generation, viewing and recent-image editing](parity/web-imagegen.md) |
 | Browser | Logged-in browser control | [CDP lifecycle and output contracts](parity/browser.md) |
-| Agents | Durable-native delegation and shared discussion board | [Real Harness delegation, board, recovery and watches](parity/agents.md) |
+| Agents | Durable-native delegation, completion reports and watches | [Real Harness delegation and recovery](parity/agents.md) |
+| Board | Independent discussion archive, native conversation membership and active-input notices | [Standalone Board contracts and recovery](parity/board.md) |
 | Pulses | Clawa Markdown definitions and scheduling with native conversation execution and passive parent results | [Pinned Clawa source and accepted native differences](../packages/pulses/README.md#source-parity) |
 | Code | Code execution with included `exec_command` and `write_stdin` | [Actual V8 execution and tool dispatch](parity/code.md) |
 | Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
@@ -44,7 +45,7 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 
 ## Accepted native differences
 
-- Agent delegation and board membership use Durable conversations. Herdr machine and pane control, SSH routing and Ask answers are excluded. Context reads use conversation targets, not attachment permissions or an Agents transcript pager.
+- Agent delegation and board membership use Durable conversations. Board is independently installable and derives natural membership from native ownership rather than the Agents registry. Herdr machine and pane control, SSH routing and Ask answers are excluded. Context reads use conversation targets, not attachment permissions or an Agents transcript pager.
 - Images use native Durable image content. The provider owns transport detail selection. Original bytes and optional descriptions remain available.
 - Host configuration replaces ambient Pi directories, extension globals and terminal rendering. Code and Notebook consume ordinary registrations, not per-tool bridges.
 - Context management and OpenAI Responses follow the later source revisions pinned in their parity documents. Context uses one notes-and-history policy, without source backend or continuity-mode selectors.
@@ -52,6 +53,8 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-16, the standalone Board extraction passed independent review and all check stages: lint, strict TypeScript, Knip, 28 retained workflows, twenty-two package builds and dry-pack checks. The initial aggregate run hit the previously observed ten-second timeout in the unchanged Code output workflow. Re-running the test and dry-pack stages passed without changing code or timeouts. Board's three retained SQLite workflows now run without Agents. A disposable migration probe reopened genuine bundled-Agents archives and an interrupted post through the new Board package without losing membership or duplicating the post. [Board evidence](parity/board.md) records the migration and optional handoff checks. No permanent tests or live-provider claims were added.
 
 On 2026-10-15, the Durable 1.3.0 migration and selected source refresh passed independent review and `bun run check`: all 28 retained workflows, twenty-one package builds and dry-pack checks, lint, strict TypeScript and Knip. Frozen installation with lifecycle scripts disabled passed. Disposable Deno, V8, SQLite and provider protocol checks are recorded in the component evidence. No permanent tests were added. Live accounts, audio devices and non-Linux runtimes were not revalidated.
 

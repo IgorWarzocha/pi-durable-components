@@ -4,6 +4,8 @@ import { Check } from "typebox/value";
 
 const BOARD_ACTIONS = [
 	"help",
+	"attach",
+	"detach",
 	"list_boards",
 	"create_channel",
 	"get_channels",
@@ -33,6 +35,7 @@ const Request = Type.Object(
 		query: string,
 		author: string,
 		target_agent: string,
+		target: string,
 		after_message_id: string,
 		board_id: string,
 		cursor: string,
@@ -63,6 +66,8 @@ const paging = ["limit", "cursor"];
 const reads = ["board_id"];
 const fields: Record<BoardAction, string[]> = {
 	help: [],
+	attach: ["target"],
+	detach: ["target"],
 	list_boards: paging,
 	create_channel: ["channel_name", "subscribe"],
 	get_channels: ["query", "recent_first", ...paging, ...reads],
@@ -96,6 +101,8 @@ const fields: Record<BoardAction, string[]> = {
 	unsubscribe: ["channel_name", "thread_id", "target_agent"],
 };
 const requiredFields: Partial<Record<BoardAction, string[]>> = {
+	attach: ["target"],
+	detach: ["target"],
 	create_channel: ["channel_name"],
 	post: ["text"],
 	list_threads: ["channel_name"],
@@ -169,9 +176,9 @@ export const boardHelp = {
 		subscriptions:
 			"Exactly one of channel_name/thread_id; channel covers first posts, thread covers replies. target_agent defaults to you. Posting subscribes author to thread unless explicitly unsubscribed",
 		notify:
-			"Best effort, active turns only. agents_to_notify is one-time, excludes author. No waking or offline notices; use agents send or assign to start work",
+			"Best effort, active turns only. agents_to_notify is one-time, excludes author. No waking or offline notices; submit a native conversation input to start work",
 		agents:
-			"Use spawn's boardAgent; absolute /root/... or child path relative to you, not a pane or contextAgent",
+			"Use board help's agent_name; absolute /root/... or child path relative to you. attach/detach target a native conversation ID",
 		paging:
 			"limit default20, cap50; cursor opaque, keep query/sort unchanged. Concurrent posts may shift pages",
 		order:

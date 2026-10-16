@@ -1,0 +1,51 @@
+# Board parity
+
+## Pinned references and native boundary
+
+Discussion contracts come from [`@howaboua/pi-shepherdr` 0.2.13](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb/packages/pi-shepherdr/src/board), revision `5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb`. Empty-call discovery, thread references and subscription catch-up use the selected refresh at `69f50cf70e8a7b05c2349be6227f521b6504f80e`.
+
+The approved 2026-10-16 split makes Board independent of Agents. Durable 1.3 supplies conversation identity, immutable ownership, discovery, storage transactions and generation hooks. Board supplies discussion policy. It imports neither Agents nor its Fleet registry and introduces no second scheduler.
+
+`board attach` and `board detach` replace the former Agents actions. Their targets are native conversation IDs, not component-owned names. Agents no longer returns board addresses or re-exports archive readers and presentations. Hosts install and select `howaboua.board`, including on existing stored conversations before resume. The optional Agents `board_thread_id` handoff accepts the Board component's `threadReference` capability. Its validation runs inside the spawn transaction before any owned work is created.
+
+Persisted `howaboua.agents.board.*` document kinds, versions, member addresses, archive IDs, subscription state and replay keys are retained. The old namespace identifies saved data, not a runtime dependency. Saved explicit membership overrides native ownership, so reopening cannot undo a prior attach or detach. History ancestry is never used as membership authority.
+
+## Preserved contracts
+
+| Source capability | Durable implementation and evidence |
+| --- | --- |
+| Board archive | The eleven archive actions retain their channel, thread, search, subscription and pagination contracts. Posts are capped at 64 KiB, channel names at 128 UTF-8 bytes, and serialized results at 8,000 bytes. Search uses full Unicode case folding. Text windows count code points and expose continuation offsets. Thread roots remain on every reply page. |
+| Board membership | Membership follows native conversation ownership, including children created without Agents. Existing saved bindings take precedence. Independent roots and ownerless forks get independent boards. `board help` returns the caller's address. Attach joins an idle root leaf; detach restores its former board or creates one for a detached spawned worker. Only a caller's descendants may be detached. Reattachment gets a new address rather than reviving old subscriptions. |
+| Board recovery | Channel creation, posts and subscription changes commit with task-scoped request receipts. Replay returns the original acknowledgement without posting or notifying twice, and cannot reverse a later subscription change. Membership changes also retain task receipts. |
+| Board notices | Channel subscriptions cover first posts, thread subscriptions cover replies, and one-time targets exclude the author. The post and its active-recipient notices commit together. Admission checks the native run and abort mark. Notices neither wake idle recipients nor reach a later unrelated run. |
+| Board catch-up | The first model request preparing a newly admitted input queries unseen subscribed posts from current board membership. It offers thread references to read if relevant, without waking idle agents or replaying stale notices. |
+
+## Board storage and delivery
+
+The board owns public Durable documents in the host's existing storage, not another SQLite connection or filesystem archive. `BoardCatalog` lists materialized boards. `BoardIndex` holds each board's channel, subscription and post metadata. `PostText` stores bodies separately. Empty reads do not materialize an archive. Indexed posts with missing text fail instead of appearing empty. No additional post-count cap is imposed.
+
+Saved history is confined to the current Durable Session rather than the source's folder-level archive across Pi sessions. `list_boards` returns `root_conversation_id` instead of `root_session_id`. The root's environment cwd identifies the owner folder, even when a worker posts first. Reads may choose another saved board ID; writes always use current membership. Attach and detach affect only board membership, not context access or native background ownership.
+
+Notices use a conversation document keyed to the active run's first input submission. A generation task ID alone is insufficient because tool rounds and continuations replace that task. Public `beforeRequest` and `onYield` hooks consume matching notices with task-scoped delivery receipts. Before-request delivery appends a native user entry and includes it in the already-captured request. Yield delivery requests a native continuation. Neither path places turn-bound work in Durable's ordinary inbox, whose failure policy would retain it for a later run.
+
+A resumed native run keeps its original input anchor and pending notices. Failed or aborted runs cannot deliver stale pending notices to a new input. Delivered notices remain ordinary conversation history. Delivery is best effort: a competing normal input or reset at the final native boundary can supersede a board continuation, dropping that notice. The post remains readable in the archive. This is not an exactly-once provider-observation guarantee. Board posts and notice delivery require the standalone Board component to be bound before scheduling.
+
+Fresh catch-up is separate from pending-notice delivery. At the public `beforeRequest` boundary it queries the archive once per latest admitted input, considers up to 50 unseen subscribed posts, and excludes the member's own posts. Seen IDs are scoped to board and membership. A task receipt and appended native user entry preserve delivery across replay. Delivered notices and explicit post or thread reads mark posts seen. A subscribed post may therefore be discovered on a later task even when its old active-run notice was discarded. The old notice itself never transfers to that task.
+
+The Board package's `/presentation` export supplies `boardCapability`, `boardSummaryPresentation` and `boardDetailPresentation`. It validates host-supplied thread pages and nullable selected-thread detail. The host owns authorization, data acquisition, continuation reads and rendering through the ordinary `board` registration. No server or UI runtime is introduced.
+
+## Executable evidence
+
+The three retained `packages/board/test/board.test.ts` workflows now install Board without Agents and create children through native Durable tasks and conversations. They protect archive isolation, active-input-only notices across failure and abort, and interrupted post replay without duplicate posts or notices. The extraction moves these checks rather than increasing the permanent test count.
+
+An extraction-time SQLite probe created archives with the genuine pre-split Agents 0.5.0 archive, then reopened them with standalone Board. It preserved root, child, attached, detached and ownerless-fork memberships, subscriptions, former-board archives and full post bodies. An interrupted old `board post` returned the same receipt after migration and appeared exactly once. Existing conversation selections were updated before resuming the input.
+
+The same disposable Harness probe verified that one-time notification addressing recognises a directly created native child before its first Board call, without any Agents registry entry. Valid optional Agents handoffs carried the thread reference. Invalid references admitted no child. Agents-only delegation created no Board state and rejected an unconfigured handoff explicitly. Real thread pages passed the moved presentation parser and summary selector. No permanent tests were added for these migration checks.
+
+Earlier bundled validation, including paging, Unicode search, exports, notification hooks and Code/Notebook discovery, is recorded in [Agents evidence](agents.md). It remains historical evidence rather than a claim of new live-provider validation.
+
+An isolated archive consumer exposed a declaration dependency that source builds could resolve through the workspace: Agents still needs TypeBox for its public tool types after the split. That direct dependency is retained. Unicode case folding moves entirely to Board. The corrected content-hashed archives passed isolated installation, strict public-declaration checking without `skipLibCheck`, and an actual standalone Board post and saved-archive read through Durable. Both presentation entries imported successfully, and the optional Agents handoff contract typechecked against the packed Board component.
+
+## Attribution
+
+The MIT source notices and pinned revisions are retained in `packages/board/NOTICE`. The extraction keeps the original board implementation's copyright and licence.

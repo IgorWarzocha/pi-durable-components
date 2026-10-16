@@ -1,12 +1,6 @@
 import type { Context } from "@earendil-works/chord";
 import type { ToolExecutionApi, Tx } from "@earendil-works/pi-durable";
 import { configure, LiveDoc } from "@earendil-works/pi-durable";
-import {
-	boardScope,
-	membership,
-	registerBoardChild,
-} from "./board/membership.ts";
-import { BoardCatalog, BoardIndex, findRoot } from "./board/store-model.ts";
 import type { AgentsOptions, Request, WorkRequest } from "./contract.ts";
 import { response } from "./contract.ts";
 import type { Delegation, WorkResult } from "./state.ts";
@@ -56,8 +50,7 @@ async function admitWork(
 	tx: Tx,
 	args: WorkRequest,
 	api: ToolExecutionApi,
-	profiles: AgentsOptions["profiles"],
-	ownerFolder: string,
+	options: AgentsOptions,
 ): Promise<Delegation> {
 	const fleet = await tx.doc(Fleet);
 	const existing = fleet.delegations[String(api.taskId)];
@@ -66,9 +59,6 @@ async function admitWork(
 		return {
 			target: existing.target,
 			name: existing.name,
-			...(existing.boardAgent === undefined
-				? {}
-				: { boardAgent: existing.boardAgent }),
 			blocking: existing.blocking,
 			dispatch: existing.dispatch,
 			reporter: existing.reporter,
@@ -76,12 +66,11 @@ async function admitWork(
 	if (!args.message.trim()) throw new Error("message must not be blank");
 	let targetId;
 	let name;
-	let boardAgent;
 	let blocking = args.blocking ?? true;
 	let message = args.message;
 	if (args.action === "spawn") {
-		const profile = Object.hasOwn(profiles, args.agent_type)
-			? profiles[args.agent_type]
+		const profile = Object.hasOwn(options.profiles, args.agent_type)
+			? options.profiles[args.agent_type]
 			: undefined;
 		if (profile === undefined)
 			throw new Error(`Unknown agent_type ${args.agent_type}; call help`);
@@ -92,28 +81,18 @@ async function admitWork(
 			args.label,
 			args.name,
 		);
-		const scope = await boardScope(tx, api.conversationId, ownerFolder);
 		if (args.board_thread_id !== undefined) {
-			const thread = args.board_thread_id.toLowerCase();
-			if (
-				!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
-					thread,
-				)
-			)
-				throw new Error("board_thread_id must be a UUID");
-			const catalog = await tx.doc(BoardCatalog);
-			if (!catalog.boards.some((board) => board.board_id === scope.boardId))
-				throw new Error("Thread not found in your current board");
-			findRoot(await tx.doc(BoardIndex, scope.boardId, null), thread);
-			message += `\n\nRead the assigned board thread before working: board ${JSON.stringify({ action: "read_thread", thread_id: thread })}`;
+			if (options.board === undefined)
+				throw new Error(
+					"Bind the Board component to Agents for thread handoffs",
+				);
+			message += `\n\n${await options.board.threadReference(tx, api.conversationId, args.board_thread_id)}`;
 		}
-		const directory = await membership(tx, api.conversationId);
 		const anchor = await tx.createTask(Anchor, null, background);
 		const child = await tx.createConversation({
 			ownership: { kind: "task", taskId: anchor },
 		});
 		targetId = child.id;
-		boardAgent = registerBoardChild(directory, api.conversationId, child.id);
 		await configure(tx, child.id, {
 			...profile.agent,
 			...(args.cwd === undefined ? {} : { cwd: args.cwd }),
@@ -158,7 +137,6 @@ async function admitWork(
 		blocking,
 		dispatch,
 		reporter,
-		...(boardAgent === undefined ? {} : { boardAgent }),
 	};
 	fleet.delegations[String(api.taskId)] = receipt;
 	return receipt;
@@ -193,11 +171,10 @@ export async function delegate(
 	args: WorkRequest,
 	api: ToolExecutionApi,
 	context: Context,
-	profiles: AgentsOptions["profiles"],
+	options: AgentsOptions,
 ) {
-	const agent = await api.agent(context);
 	const receipt = await api.commit(
-		(tx) => admitWork(tx, args, api, profiles, api.env?.cwd ?? agent.cwd ?? ""),
+		(tx) => admitWork(tx, args, api, options),
 		context,
 	);
 	await api.details(
@@ -225,9 +202,6 @@ export async function delegate(
 		{
 			[args.action === "spawn" ? "spawned" : "assigned"]: true,
 			name: receipt.name,
-			...(receipt.boardAgent === undefined
-				? {}
-				: { boardAgent: receipt.boardAgent }),
 			dispatch: receipt.dispatch,
 			reporter: receipt.reporter,
 			...(result ?? { status: "working" }),

@@ -3,12 +3,7 @@ Delegation contracts and name-normalization behavior adapted from
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-shepherdr
 Revision: b2006db9def12c373ae48e70044d30f7d6b7e34f
 
-Discussion board contracts, paging, subscriptions, and query behavior adapted
-from @howaboua/pi-shepherdr 0.2.13.
-Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb/packages/pi-shepherdr/src/board
-Revision: 5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb
-
-Empty-call discovery, spawn thread references, and subscribed-update wording
+Empty-call discovery and optional spawn thread handoff
 adapted from pi-shepherdr and pi-agent-board at the approved refresh revision.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/69f50cf70e8a7b05c2349be6227f521b6504f80e/packages
 Revision: 69f50cf70e8a7b05c2349be6227f521b6504f80e
@@ -20,9 +15,9 @@ Source: https://github.com/earendil-works/pi/tree/f5d20047b3ad43d068a8eb61bd4e1f
 Revision: f5d20047b3ad43d068a8eb61bd4e1f193bedbce6
 
 Modifications: Durable-native profile configuration, conversation identity,
-background delegation, real input-settlement watches, host binding, bounded
-transcript reads, native submission idempotence, and a transaction-backed
-discussion archive with conversation-tree membership. No Pi compatibility API
+background delegation, real input-settlement watches, host binding, and native
+submission idempotence. Discussion archives are a separate Board package.
+No Pi compatibility API
 or Herdr process integration is included.
 
 MIT License

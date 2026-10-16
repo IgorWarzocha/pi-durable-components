@@ -27,7 +27,6 @@ export type WorkResult = {
 export type Delegation = {
 	target: ConversationId;
 	name: string;
-	boardAgent?: string;
 	blocking: boolean;
 	dispatch: TaskId<WorkResult>;
 	reporter: TaskId<null>;

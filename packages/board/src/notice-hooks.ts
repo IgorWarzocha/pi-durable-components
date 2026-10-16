@@ -23,7 +23,7 @@ async function receive(
 		api.snapshot(BoardNotices, api.conversationId, context),
 		api.snapshot(BoardNoticeReceipt, api.taskId, context),
 	]);
-	// Selecting agents without a bound board must keep ordinary delegation working.
+	// An unbound component with no pending delivery has no host work to perform.
 	if (Object.keys(notices?.pending ?? {}).length === 0 && receipt?.[at] == null)
 		return undefined;
 	return binding().harness.commit(

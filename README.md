@@ -1,6 +1,6 @@
 # Pi Durable Components
 
-File tools, web search, image generation, browser control, worker agents with a shared board, context management and an optimised Codex provider for [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable).
+File tools, web search, image generation, browser control, worker delegation, shared discussion boards, context management and an optimised Codex provider for [Pi Durable](https://github.com/earendil-works/pi/tree/main/packages/durable).
 
 Install only the components you need. Use their tools directly, or call them together from JavaScript with Code Mode or persistent TypeScript with Notebook Mode.
 
@@ -38,7 +38,8 @@ Each component's guide includes its install command and host configuration.
 | [Web](packages/web) | Search the web and follow returned references through Codex |
 | [Image Generation](packages/imagegen) | Generate and edit images, saving results in the workspace |
 | [Browser](packages/browser) | Control Chrome through CDP using its existing login session |
-| [Agents](packages/agents) | Delegate work and share findings on a persistent discussion board |
+| [Agents](packages/agents) | Delegate work to persistent workers and receive their results |
+| [Board](packages/board) | Share persistent discussions between Durable conversations, independently of Agents |
 | [Pulses](packages/pulses) | Run scheduled Markdown prompts in owned conversations and deliver passive results |
 | [Context](packages/context) | Save notes, retrieve history and resume through clean context windows |
 | [OpenAI Responses](packages/openai-responses) | Use cached OpenAI or Codex WebSockets on Node and Workers, with Responses Lite in Codex mode |
@@ -53,7 +54,7 @@ Each component's guide includes its install command and host configuration.
 | [GipPity Voice](packages/gippity-voice) | Use Codex subscription voice, dictation and browser audio controls |
 | [Settings](packages/settings) | Persist component-owned global and project preferences with revision checks |
 
-Git, the UI SDK, Sites, Guardian, Pulses, Settings and both voice integrations are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
+Git, the UI SDK, Sites, Guardian, Pulses, Settings, standalone Board and both voice integrations are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
 
 The local-development tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
 

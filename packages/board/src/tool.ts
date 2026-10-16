@@ -1,7 +1,7 @@
 import { defineTool } from "@earendil-works/pi-durable";
 import { markBoardSeen } from "./awareness.ts";
 import { BoardParameters, parseBoardRequest } from "./contract.ts";
-import { boardScope } from "./membership.ts";
+import { boardScope, changeMembership } from "./membership.ts";
 import { queueBoardNotices } from "./notices.ts";
 import { serializeBoardResult } from "./response.ts";
 import { executeBoard } from "./store.ts";
@@ -17,6 +17,13 @@ export function createBoardTool(requireBinding: () => unknown) {
 		outputLimits: { maxBytes: 8000, maxLines: Number.MAX_SAFE_INTEGER },
 		execute: async (input, api, context) => {
 			const args = parseBoardRequest(input);
+			if (args.action === "attach" || args.action === "detach") {
+				const value = await changeMembership(args, api, context);
+				return {
+					output: [{ type: "text", text: serializeBoardResult(value) }],
+					details: value,
+				};
+			}
 			if (args.action === "post") requireBinding();
 			const agent = await api.agent(context);
 			const ownerFolder = api.env?.cwd ?? agent.cwd ?? "";

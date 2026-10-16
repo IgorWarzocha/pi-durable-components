@@ -1,8 +1,5 @@
 import type { Harness, Storage } from "@earendil-works/pi-durable";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
-import { changeMembership } from "./board/membership.ts";
-import { createBoardNoticeHooks } from "./board/notice-hooks.ts";
-import { createBoardTool } from "./board/tool.ts";
 import type { AgentsOptions } from "./contract.ts";
 import { AgentsParameters, help } from "./contract.ts";
 import { delegate, send } from "./delegation.ts";
@@ -13,11 +10,6 @@ import type { AgentsBinding } from "./watch.ts";
 import { createWatch } from "./watch.ts";
 import { updateSubscription } from "./watch-subscription.ts";
 
-export {
-	readSavedThreads,
-	type SavedPost,
-	type SavedThread,
-} from "./board/saved-threads.ts";
 export type { AgentProfile, AgentsOptions } from "./contract.ts";
 export { AgentsParameters } from "./contract.ts";
 export type { AgentMessage, AgentObservation } from "./host.ts";
@@ -28,7 +20,7 @@ export function createAgents(options: AgentsOptions) {
 	const binding = () => {
 		if (host === undefined)
 			throw new Error(
-				"Bind the Agents component before using host access, persistent watches or board posts. Delegation and tool send remain available",
+				"Bind the Agents component before using host access or persistent watches. Delegation and tool send remain available",
 			);
 		return host;
 	};
@@ -57,28 +49,22 @@ export function createAgents(options: AgentsOptions) {
 					return updateSubscription(args, api, context, Watch, binding);
 				case "send":
 					return send(args, api, context);
-				case "attach":
-				case "detach":
-					return changeMembership(args, api, context);
 				case "spawn":
 				case "assign":
-					return delegate(args, api, context, options.profiles);
+					return delegate(args, api, context, options);
 			}
 			throw new Error("Invalid agents request; call agents with {} for help");
 		},
 	});
-	const boardTool = createBoardTool(binding);
 	const extension = defineExtension({
 		name: "howaboua.agents",
-		tools: [tool, boardTool],
+		tools: [tool],
 		tasks: [Anchor, Dispatch, Completion, Watch],
-		hooks: createBoardNoticeHooks(binding, () => host),
 	});
 	return {
 		...createHostAccess(binding),
 		extension,
 		tool,
-		boardTool,
 		bind(harness: Harness, storage: Storage) {
 			if (
 				host !== undefined &&

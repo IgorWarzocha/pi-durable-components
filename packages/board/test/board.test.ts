@@ -6,6 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { isJsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import type { Message } from "@earendil-works/pi-ai";
 import { createModels } from "@earendil-works/pi-ai/models";
 import type { FauxResponseStep } from "@earendil-works/pi-ai/providers/faux";
 import {
@@ -19,17 +20,50 @@ import type {
 	TaskId,
 } from "@earendil-works/pi-durable";
 import {
+	configure,
 	createRegistry,
 	defineExtension,
+	defineTask,
 	Harness,
 	hook,
 	LiveDoc,
 	ToolTask,
 } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import { BoardNotices } from "../src/board/notices.ts";
-import { createAgents } from "../src/index.ts";
-import { Fleet, textOf } from "../src/state.ts";
+import { createBoard } from "../src/index.ts";
+import { BoardNotices } from "../src/notices.ts";
+
+function textOf(messages: readonly Message[]): string {
+	return messages
+		.flatMap((message) =>
+			typeof message.content === "string"
+				? [message.content]
+				: message.content.flatMap((part) =>
+						part.type === "text" ? [part.text] : [],
+					),
+		)
+		.join("\n");
+}
+const Owner = defineTask<null, { phase: "done" }, null>({
+	name: "test.board-owner",
+	version: 1,
+	initial: () => ({ phase: "done" }),
+	abort: (_task, runtime, ctx) =>
+		runtime.commit(
+			() => ({ status: "terminal", outcome: { status: "aborted" } }),
+			ctx,
+		),
+	phases: {
+		done: (_task, runtime, ctx) =>
+			runtime.commit(
+				() => ({
+					status: "terminal",
+					outcome: { status: "completed", result: null },
+				}),
+				ctx,
+			),
+	},
+});
 
 const context = BACKGROUND_CONTEXT;
 
@@ -113,14 +147,7 @@ async function fixture(path: string, controls: Controls = {}) {
 		);
 	};
 	faux.setResponses(Array.from({ length: 500 }, () => route));
-	const component = createAgents({
-		profiles: {
-			general: {
-				description: "Board worker",
-				agent: { instructions: "Worker" },
-			},
-		},
-	});
+	const component = createBoard();
 	const interruption = defineExtension({
 		name: "test.board-interruption",
 		hooks: [
@@ -138,6 +165,9 @@ async function fixture(path: string, controls: Controls = {}) {
 	const registry = createRegistry();
 	registry.install(component.extension);
 	registry.install(interruption);
+	registry.install(
+		defineExtension({ name: "test.board-owner", tasks: [Owner] }),
+	);
 	const failures: unknown[] = [];
 	const storage = await openNodeSqliteStorage(path);
 	const harness = await Harness.open(
@@ -232,22 +262,20 @@ async function spawn(
 	parent: Conversation,
 	label: string,
 ) {
-	const answer = await invoke(parent, "agents", {
-		action: "spawn",
-		agent_type: "general",
-		label,
-		message: "ready",
-	});
-	assert.equal(answer.isError, false, textOf([answer]));
-	const value = object(answer.details);
-	const fleet = await f.harness.snapshot(Fleet, context);
-	const delegation = Object.values(fleet?.delegations ?? {}).find(
-		(item) => String(item.target) === value["target"],
-	);
-	assert.ok(delegation);
-	await f.harness.waitForTask(delegation.reporter, context);
-	const child = await f.harness.conversation(delegation.target, context);
-	assert.ok(child);
+	const id = await f.harness.commit(async (tx) => {
+		const owner = await tx.createTask(Owner, null, {
+			conversationId: parent.id,
+			ownership: { kind: "conversation" },
+			background: true,
+		});
+		const record = await tx.createConversation({
+			ownership: { kind: "task", taskId: owner },
+		});
+		await configure(tx, record.id, f.agent);
+		return record.id;
+	}, context);
+	const child = await f.harness.conversation(id, context);
+	assert.ok(child, label);
 	return { child };
 }
 
@@ -275,7 +303,7 @@ test("joining a board leaves its former archive immutable and separate storage s
 			new_channel_name: "Private",
 			text: "old archive",
 		});
-		const attached = await invoke(f.root, "agents", {
+		const attached = await invoke(f.root, "board", {
 			action: "attach",
 			target: String(outsider.id),
 		});

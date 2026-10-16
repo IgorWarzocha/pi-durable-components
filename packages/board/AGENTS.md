@@ -1,0 +1,4 @@
+- Preserve existing `howaboua.agents.board.*` document kinds, versions, scope and family keys. Extraction is not a storage migration.
+- Native conversation ownership discovers membership. Persisted explicit bindings override it. History ancestry must never imply membership.
+- Board notices belong to the run's first input submission, not its replaceable generation task. Keep them out of the native inbox. Posts, notices and mutation receipts share one commit, while hook delivery has its own replay receipt.
+- Catch-up queries fresh subscribed posts once per newly admitted input at the public beforeRequest boundary. Scope seen posts to board and membership, receipt delivery before model invocation, and never revive a stale pending notice. Idle conversations remain idle.

@@ -2,13 +2,13 @@ import { randomUUID } from "node:crypto";
 import type { Context } from "@earendil-works/chord";
 import type {
 	ConversationId,
+	ConversationRecord,
+	Cursor,
 	ToolExecutionApi,
 	Tx,
 } from "@earendil-works/pi-durable";
 import { AgentDoc, defineDoc, LiveDoc } from "@earendil-works/pi-durable";
-import type { Request } from "../contract.ts";
-import { response } from "../contract.ts";
-import { Fleet, resolveTarget } from "../state.ts";
+import type { BoardParams } from "./contract.ts";
 
 type Binding = {
 	boardId: string;
@@ -55,42 +55,34 @@ function child(
 	};
 }
 
-/** Backfill pre-board workers from their durable controller links, never from forked history. */
-export async function membership(tx: Tx, caller: ConversationId) {
+/** Native ownership is independent of history forks. Saved explicit bindings win. */
+async function membership(tx: Tx, caller: ConversationId) {
+	const records = new Map<ConversationId, ConversationRecord>();
+	let cursor: Cursor | undefined;
+	do {
+		const page = await tx.scanConversations({}, 100, cursor);
+		for (const record of page.items) records.set(record.id, record);
+		cursor = page.next;
+	} while (cursor !== undefined);
 	const directory = await tx.doc(BoardMembers);
-	const fleet = await tx.doc(Fleet);
 	const visiting = new Set<ConversationId>();
-	function ensure(id: ConversationId): Member {
+	async function ensure(id: ConversationId): Promise<Member> {
 		const present = directory.members[String(id)];
 		if (present !== undefined) return present;
-		if (visiting.has(id)) throw new Error("Cyclic agent controller membership");
+		if (visiting.has(id)) throw new Error("Cyclic conversation ownership");
 		visiting.add(id);
-		const agent = fleet.agents[String(id)];
+		const record = records.get(id);
+		if (record === undefined) throw new Error(`No conversation ${id}`);
+		const owner = record.owner?.conversationId;
 		const value =
-			agent === undefined
-				? root(id)
-				: child(ensure(agent.controller), agent.controller, id);
+			owner === undefined ? root(id) : child(await ensure(owner), owner, id);
 		directory.members[String(id)] = value;
 		visiting.delete(id);
 		return value;
 	}
-	for (const agent of Object.values(fleet.agents)) ensure(agent.target);
-	ensure(caller);
+	for (const record of records.values()) await ensure(record.id);
+	await ensure(caller);
 	return directory;
-}
-
-/** Call before task creation, then add the new child to this already-loaded directory. */
-export function registerBoardChild(
-	directory: { members: Record<string, Member> },
-	parentId: ConversationId,
-	id: ConversationId,
-): string {
-	const parent = directory.members[String(parentId)];
-	if (parent === undefined)
-		throw new Error("Missing controller board membership");
-	const member = child(parent, parentId, id);
-	directory.members[String(id)] = member;
-	return member.agentName;
 }
 
 export async function boardScope(
@@ -124,7 +116,7 @@ export async function boardScope(
 }
 
 export async function changeMembership(
-	args: Extract<Request, { action: "attach" | "detach" }>,
+	args: BoardParams,
 	api: ToolExecutionApi,
 	context: Context,
 ) {
@@ -136,12 +128,20 @@ export async function changeMembership(
 				throw new Error("Membership task replay arguments changed");
 			return { ...receipt.saved };
 		}
-		const target = await resolveTarget(tx, args.target);
+		const numeric = Number(args.target);
+		if (
+			args.target === undefined ||
+			!/^\d+$/.test(args.target) ||
+			!Number.isSafeInteger(numeric) ||
+			numeric < 0
+		)
+			throw new Error("target must be a native conversation ID");
+		const target = numeric as ConversationId;
+		if ((await tx.conversation(target)) === undefined)
+			throw new Error(`No conversation ${target}`);
 		if (target === api.conversationId)
 			throw new Error("Cannot change your own board membership");
 		const directory = await membership(tx, api.conversationId);
-		// Host-created peers need not have called the board before.
-		directory.members[String(target)] ??= root(target);
 		const caller = directory.members[String(api.conversationId)];
 		const current = directory.members[String(target)];
 		if (caller === undefined || current === undefined)
@@ -188,10 +188,10 @@ export async function changeMembership(
 		receipt.saved = saved;
 		return saved;
 	}, context);
-	return response({
+	return {
 		[args.action === "attach" ? "attached" : "detached"]: true,
 		target: String(result.target),
 		board_id: result.boardId,
 		boardAgent: result.agentName,
-	});
+	};
 }

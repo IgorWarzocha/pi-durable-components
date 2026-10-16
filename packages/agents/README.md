@@ -1,14 +1,12 @@
 # Durable agents
 
-Delegate to persistent Durable conversations and share findings on their discussion board. A worker remembers earlier messages, can answer synchronously, or can keep working after its controller replies. Explicit watches report future worker answers until removed.
+Delegate to persistent Durable conversations. A worker remembers earlier messages, can answer synchronously, or can keep working after its controller replies. Explicit watches report future worker answers until removed. Add the independent [Board component](../board) when conversations need shared discussions.
 
 The host supplies named profiles as Durable `AgentChange` presets. This package does not launch terminals, route SSH, share context archives, or operate Ask interfaces.
 
 ## Install in a host
 
-```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-agents-0.5.0.tgz
-```
+Agents 0.6.0 is a local-development package. Run `bun run check` and `bun run pack` at the repository root, then install its archive from `dist/artifacts.json`. Published release 0.5.0 predates the standalone Board split.
 
 Use Durable 1.3.0 and a persistent storage backend for restart recovery. Create a fresh component for each Harness. Install the extension before opening the Harness, then bind it before enabling scheduling.
 
@@ -37,7 +35,7 @@ const root = await harness.root(context, {
 
 Profiles can select models, thinking levels, instructions, tools, extensions, and an environment-relative cwd. Unset fields inherit the controller's stored configuration and host defaults. Install any extensions referenced by profiles in the same registry. A profile's `blocking` setting overrides the spawn request.
 
-The extension registers `agents` and `board` together. Select `agents.extension` on controllers. Code and Notebook discover both tools without an adapter. Workers inherit the controller's selected extension unless their profile changes the selection. Restrict the profile's tools or extensions when workers should not delegate further.
+The extension registers only `agents`. Select `agents.extension` on controllers. Code and Notebook discover it without an adapter. Workers inherit the controller's selected extensions unless their profile changes the selection. Restrict the profile's tools or extensions when workers should not delegate further.
 
 ## Start delegating
 
@@ -55,35 +53,17 @@ Call `agents` with `{}` for the current profiles and action arguments. For examp
 
 An asynchronous call returns a stable conversation `target`, worker `name`, and durable `dispatch` and `reporter` task IDs. Completion arrives as an attributed user-input submission. Blocking calls return the worker's reply directly. Use `assign` for another task and `send` for a message without waiting or adding monitoring.
 
-Supply `board_thread_id` on spawn to hand off a thread from your current board. Admission validates the thread before creating the worker and adds a `board read_thread` reference to its task. This shares a discussion reference, not notes, conversation history or additional permissions.
+To enable `board_thread_id` on spawn, pass the Board component as `createAgents({ profiles, board })` and install, select and bind both extensions. Admission validates the thread before creating the worker and adds a `board read_thread` reference to its task. Without that explicit integration, a thread handoff fails before admitting work. Ordinary delegation does not need Board.
 
 `list` and `find` discover workers created by this component in the current Harness. Names are unique within that Harness. Numeric names are reserved for conversation IDs. An exact conversation ID can also address a host-created conversation, including a controller. Delegating to or watching yourself is rejected.
 
 Use the returned conversation ID to inspect a worker through the host's Durable conversation view or the Context component's targeted `history` tool. Agents does not register a transcript-reading action.
 
-## Discuss on the board
+## Migrating from bundled Board
 
-Call `board` with `{}` for the action arguments, current board ID and your board address. Explicit `action: "help"` also works for both tools. Spawned workers join their controller's board automatically. Use the `boardAgent` address returned by `agents spawn` or `agents list` for notifications and subscriptions.
+Install and select `board.extension` separately, including on saved conversations before resuming their work. Board's [migration guide](../board/README.md) covers host setup and retained storage. Move board archive imports to `@howaboua/pi-durable-board` and board presentation imports to `@howaboua/pi-durable-board/presentation`.
 
-```json
-{
-  "action": "post",
-  "new_channel_name": "findings",
-  "text": "The parser accepts the new format. Validation still needs review."
-}
-```
-
-Post to an existing `channel_name` to start another thread, or to a `thread_id` to reply. Search posts and channels, list threads, and read complete posts with the returned cursors and text offsets. Searches use Unicode case folding. Results fit within 8,000 serialized UTF-8 bytes and expose continuation fields rather than silently dropping text.
-
-Channel subscriptions notify agents about first posts. Thread subscriptions notify them about replies. Authors subscribe automatically unless they explicitly unsubscribed. `agents_to_notify` adds one-time recipients. Notices go only to running agents. They do not start idle workers or queue notifications for absent members. Use `agents send` or `agents assign` when a recipient should start working.
-
-Notices are best effort. Failure or cancellation drops undelivered notices rather than carrying them into another run. A normal input arriving at a final-answer boundary can also supersede a notice. The post stays in the archive. Reopening an interrupted native run preserves that same run's pending notices.
-
-At the first model request preparing a newly admitted input, the component queries fresh subscribed updates and offers thread references to read if relevant to that task. Catch-up never wakes an idle agent or replays a stale pending notice. It excludes your own posts and posts already offered, delivered or read, and considers at most 50 unseen posts per input boundary. Channel subscriptions cover first posts and thread subscriptions cover replies. Receipts preserve the same catch-up across retries and reopen. Board membership scopes awareness, so another board's updates cannot leak into the current one.
-
-`agents attach` joins an idle root agent to your board. `agents detach` removes one of your idle descendants and restores its earlier board. Both require a target without board children. Attachment shares board membership, not context or task ownership.
-
-Boards live in the host's Durable storage, not a separate database or process. `list_boards` discovers saved boards in that storage. Read actions accept `board_id` to browse an older board without joining it. Independent roots and forks get independent boards. Reopen the same storage to retain posts and subscriptions.
+Use `board attach` and `board detach` with native conversation IDs instead of the former Agents actions. `spawn` and `list` no longer return `boardAgent`. Call `board` with `{}` in the target conversation for its board address. Board derives natural membership from Durable ownership, including workers created without this package.
 
 ## Cancellation and recovery
 
@@ -119,4 +99,4 @@ The browser-safe `@howaboua/pi-durable-agents/presentation` entry provides valid
 
 Keep `detail: null` until the host acquires it. Detail must match an item in the supplied inventory. Refresh or clear detail when replacing that inventory. These snapshots are presentation data, not a replacement storage model or raw tool-result envelope. The host owns selection, freshness, binding, authorization and native controls. Summary requests identify a detail presentation but do not fetch data. Declared actions name the existing ordinary `agents` registration. Invoke it with its unchanged arguments and results through a host-authorized binding. No streams, transport adapters or additional lifecycle are introduced.
 
-The same entry exports `boardCapability`, `boardSummaryPresentation`, `boardDetailPresentation` and `parseBoardPresentationState`. Supply `board_id`, `channel_name`, `threads`, `has_more`, `next_cursor` and nullable `detail`. Map `list_threads.results` to `threads`, retaining each root preview, latest reply, reply count and activity time. Detail combines its selected `thread_id` with `read_thread`'s `root_post`, `results`, `has_more` and `next_cursor`. All detail posts must belong to that thread and channel, and the thread must appear in the supplied page. Refresh or clear detail when changing the page, channel or board. Preview truncation and continuation remain visible. Full post reads use the ordinary `board` tool through the host's authorized binding. The presentations acquire no data and provide no renderer or server.
+Board presentations now come from `@howaboua/pi-durable-board/presentation`.

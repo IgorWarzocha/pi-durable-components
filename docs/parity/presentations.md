@@ -14,7 +14,7 @@ Disposable probes exercised these owning paths and the public SDK. They were rem
 
 Notebook's speculative presentation contract and browser execution demo were removed. Its tool and runtime remain unchanged. The maintained component example now contains only Git review.
 
-On 2026-10-09, Agents added a Board capability through its existing `/presentation` export. Host-supplied thread pages project summaries and nullable selected-thread detail, with thread/channel validation and visible continuation metadata. A disposable SQLite-Harness probe supplied real board results to the UI SDK and exercised binding, host invocation and disposal. This adds no renderer, archive server, dependency or separate Board package.
+On 2026-10-09, Agents added a Board capability through its existing `/presentation` export. Host-supplied thread pages project summaries and nullable selected-thread detail, with thread/channel validation and visible continuation metadata. A disposable SQLite-Harness probe supplied real board results to the UI SDK and exercised binding, host invocation and disposal. On 2026-10-16, the standalone Board extraction moved these unchanged contracts to `@howaboua/pi-durable-board/presentation` and removed the Agents re-exports. No renderer or archive server is introduced.
 
 One independent review found that acquired singleton Browser output could contradict the summary's operation count. Parsing now requires one operation for singleton detail and exact array length for batch detail. A focused probe verified rejection while preserving independently projected counts before detail acquisition.
 
