@@ -7,6 +7,8 @@ export async function resolveBearer(
 	signal: AbortSignal,
 ): Promise<string> {
 	signal.throwIfAborted();
+	if (access !== "oauth" && access !== "api_key")
+		throw new Error("Grok dictation access must be oauth or api_key");
 	const resolved = await models.getAuth("xai", { signal });
 	signal.throwIfAborted();
 	if (!resolved?.auth.apiKey)

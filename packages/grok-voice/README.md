@@ -2,6 +2,16 @@
 
 Realtime xAI conversation, manual dictation and HTTPS browser controls, with Durable-owned lifecycle and ordinary Durable tools. Requires Node 22.19+, Durable/Models 1.3.0 and an existing xAI credential. Voice is a transport into the selected conversation, not a replacement chat model.
 
+## Transcribe browser audio
+
+Apps that already capture audio can instead call `transcribeGrokDictation({ models, audio, sampleRate, language?, access?, signal })` on the server. It returns the final text without creating a voice call, Harness task, native microphone or LAN server. The host owns capture permissions, upload limits, concurrent-request admission and the editable destination.
+
+`audio` is a `Uint8Array` of mono signed PCM16 little-endian without a WAV header. Supported rates are `16000` and `24000`. Recordings must be between 100 milliseconds and 600 seconds. The input is copied before authentication. 16 kHz passes directly to STT, while 24 kHz uses the existing converter. Omitted, empty or `auto` language uses automatic detection.
+
+`access` is `oauth` or `api_key` and defaults to `oauth`. It must match the credential selected by Models. There is no credential fallback. `checkGrokDictationReadiness({ models, signal, access? })` returns `{ ready: true }` or `{ ready: false, reason }` without opening capture or a provider socket. It may refresh credentials through Models. Readiness checks credentials and configuration, not network availability or account entitlement.
+
+Transcription starts only when explicitly called. A request has a 60-second deadline, propagates cancellation and closes its owned connection. Provider failures reject even when they arrive before `finish`. There are no retries or automatic conversation submissions. An empty successful transcript returns `""`.
+
 ## Compose it
 
 `createGrokVoice(options)` returns an extension and host controls. Install its `extension` in the registry and select it on the target conversation. Use a stable `instanceName` when composing multiple instances; keep the same name after restart.

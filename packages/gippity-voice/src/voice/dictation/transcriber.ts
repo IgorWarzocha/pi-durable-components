@@ -30,7 +30,9 @@ export class CodexDictationTranscriber {
 	private readonly connector: typeof connectWebSocket;
 	private state: TranscriberState = "idle";
 	private socket: WebSocketLike | undefined;
+	private closing: Promise<void> | undefined;
 	private audioBytes = 0;
+	private failure: Error | undefined;
 	private completion:
 		| ReturnType<typeof deferred<string | undefined>>
 		| undefined;
@@ -44,12 +46,14 @@ export class CodexDictationTranscriber {
 		this.connector = connector;
 	}
 
-	async start(auth: CodexVoiceAuth): Promise<void> {
+	async start(auth: CodexVoiceAuth, language?: string): Promise<void> {
 		if (!auth.officialCodex)
 			throw new Error(
 				"Codex dictation does not support custom provider base URLs",
 			);
 		this.state = "starting";
+		this.failure = undefined;
+		this.audioBytes = 0;
 		const setupAbortController = new AbortController();
 		this.setupAbortController = setupAbortController;
 		try {
@@ -62,6 +66,7 @@ export class CodexDictationTranscriber {
 			);
 			if (this.state !== "starting") {
 				closeWebSocketSilently(socket);
+				await socket.closed;
 				return;
 			}
 			this.socket = socket;
@@ -73,7 +78,7 @@ export class CodexDictationTranscriber {
 				if (this.state !== "closed" && this.state !== "failed")
 					this.fail(new Error(`Codex dictation closed${closeReason(event)}`));
 			});
-			socket.send(JSON.stringify(buildDictationSessionUpdate()));
+			socket.send(JSON.stringify(buildDictationSessionUpdate(language)));
 			this.state = "recording";
 			this.callbacks.onStatus("listening");
 		} catch (error) {
@@ -100,6 +105,7 @@ export class CodexDictationTranscriber {
 	}
 
 	append(pcm: Buffer): void {
+		if (this.failure) throw this.failure;
 		if (this.state !== "recording" || !this.socket || pcm.byteLength === 0)
 			return;
 		this.audioBytes += pcm.byteLength;
@@ -112,6 +118,11 @@ export class CodexDictationTranscriber {
 	}
 
 	async finish(): Promise<string | undefined> {
+		// A provider failure before finish must not become an empty successful transcript.
+		if (this.failure) {
+			await this.close();
+			throw this.failure;
+		}
 		if (this.state !== "recording" || !this.socket) {
 			await this.close();
 			return undefined;
@@ -124,9 +135,9 @@ export class CodexDictationTranscriber {
 		}
 		const completion = deferred<string | undefined>();
 		this.completion = completion;
-		this.socket.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
 		let timeout: ReturnType<typeof setTimeout> | undefined;
 		try {
+			this.socket.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
 			return await Promise.race([
 				completion.promise,
 				new Promise<never>((_resolve, reject) => {
@@ -144,13 +155,19 @@ export class CodexDictationTranscriber {
 	}
 
 	async close(): Promise<void> {
-		if (this.state === "closed") return;
 		this.state = "closed";
 		this.setupAbortController?.abort();
 		this.setupAbortController = undefined;
 		this.completion?.resolve(undefined);
 		this.completion = undefined;
-		if (this.socket) closeWebSocketSilently(this.socket);
+		this.closeSocket();
+		await this.closing;
+	}
+
+	private closeSocket(): void {
+		if (!this.socket) return;
+		closeWebSocketSilently(this.socket);
+		this.closing = this.socket.closed;
 		this.socket = undefined;
 	}
 
@@ -223,17 +240,19 @@ export class CodexDictationTranscriber {
 		)
 			return;
 		this.state = "failed";
+		this.failure = error;
 		this.setupAbortController?.abort();
 		this.setupAbortController = undefined;
 		this.completion?.reject(error);
 		this.completion = undefined;
-		if (this.socket) closeWebSocketSilently(this.socket);
-		this.socket = undefined;
+		this.closeSocket();
 		this.callbacks.onError(error);
 	}
 }
 
-function buildDictationSessionUpdate(): Record<string, unknown> {
+function buildDictationSessionUpdate(
+	language?: string,
+): Record<string, unknown> {
 	return {
 		type: "session.update",
 		session: {
@@ -242,7 +261,10 @@ function buildDictationSessionUpdate(): Record<string, unknown> {
 				input: {
 					format: { type: "audio/pcm", rate: 24_000 },
 					noise_reduction: { type: "near_field" },
-					transcription: { model: "gpt-4o-mini-transcribe" },
+					transcription: {
+						model: "gpt-4o-mini-transcribe",
+						...(language ? { language } : {}),
+					},
 					turn_detection: null,
 				},
 			},

@@ -36,6 +36,7 @@ export class GrokDictationController {
 	private current: Run | undefined;
 	private displayed: Run | undefined;
 	private result: { run: Run; text: string } | undefined;
+	private failure: Error | undefined;
 	private view: { status: string; text: string; error?: string } = {
 		status: "idle",
 		text: "",
@@ -52,10 +53,12 @@ export class GrokDictationController {
 
 	async start(
 		models: Models,
-		config: GrokRealtimeConfig,
+		config: Pick<GrokRealtimeConfig, "access" | "language">,
 		audio: RealtimeAudio,
 		signal: AbortSignal,
+		sampleRate: 16000 | 24000 = 24000,
 	): Promise<void> {
+		signal.throwIfAborted();
 		if (this.current) throw new Error("Dictation is already active");
 		return (async () => {
 			const ready = deferred<void>();
@@ -92,6 +95,7 @@ export class GrokDictationController {
 			this.current = run;
 			this.displayed = run;
 			this.result = undefined;
+			this.failure = undefined;
 			this.update("connecting", "");
 			try {
 				const bearer = await resolveBearer(
@@ -111,7 +115,7 @@ export class GrokDictationController {
 				const socket = this.createSocket(url.href, [], {
 					headers: { Authorization: `Bearer ${bearer}` },
 					handshakeTimeout: 15_000,
-					maxPayload: 0,
+					maxPayload: 72 * 1024,
 				});
 				run.socket = socket;
 				run.socketClosed = new Promise((resolve) =>
@@ -171,7 +175,7 @@ export class GrokDictationController {
 							return;
 						}
 						try {
-							const converted = input.convert(pcm);
+							const converted = sampleRate === 16000 ? pcm : input.convert(pcm);
 							if (converted.length) socket.send(converted);
 						} catch {
 							this.fail(run, new Error("Could not send dictation audio"));
@@ -213,15 +217,19 @@ export class GrokDictationController {
 				typeof event.speech_final !== "boolean"
 			)
 				throw new Error("Invalid partial");
-			if (event.is_final) run.finalized.push(event.text);
+			if (event.is_final && event.text) run.finalized.push(event.text);
 			const text = [...run.finalized, ...(event.is_final ? [] : [event.text])]
 				.filter(Boolean)
 				.join(" ");
+			if (Buffer.byteLength(text) > 64 * 1024)
+				throw new Error("Dictation returned an oversized transcript");
 			this.update(this.view.status, text);
 		} else if (event.type === "transcript.done") {
 			if (!("text" in event) || typeof event.text !== "string")
 				throw new Error("Invalid transcript");
 			const text = event.text.trim() ? event.text : this.view.text;
+			if (Buffer.byteLength(text) > 64 * 1024)
+				throw new Error("Dictation returned an oversized transcript");
 			this.result = { run, text };
 			this.update("done", text);
 			run.resolveDone(text);
@@ -247,6 +255,7 @@ export class GrokDictationController {
 
 	private fail(run: Run, error: Error): void {
 		if (run.closed) return;
+		this.failure = error;
 		this.update("error", this.view.text, error.message);
 		run.rejectReady(error);
 		run.rejectDone(error);
@@ -278,6 +287,10 @@ export class GrokDictationController {
 	}
 
 	async finish(): Promise<string> {
+		if (this.failure) {
+			await this.shutdown();
+			throw this.failure;
+		}
 		const run = this.current;
 		if (!run) return this.takeResult();
 		if (this.view.status === "connecting") {
@@ -331,6 +344,7 @@ export class GrokDictationController {
 	async cancel(): Promise<void> {
 		const run = this.current;
 		this.result = undefined;
+		this.failure = undefined;
 		this.update("idle", "");
 		if (!run) return;
 		const error = new Error("Dictation cancelled");

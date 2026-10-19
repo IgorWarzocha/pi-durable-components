@@ -21,6 +21,9 @@ if (!["test", "build", "pack", "pack:dry"].includes(command))
 const destination = command === "pack" ? process.argv[3] : undefined;
 if (command === "pack" && !destination)
 	throw new Error("pack requires an output directory");
+const selectedNames = process.argv.slice(command === "pack" ? 4 : 3);
+if (command === "test" && selectedNames.length)
+	throw new Error("The test gate does not accept package filters");
 
 async function filesBelow(directory, matches) {
 	const found = [];
@@ -79,6 +82,14 @@ for (const { manifest } of workspaces.values()) {
 	}
 }
 
+// Optional exact package names scope delivery without changing the default gate.
+for (const name of selectedNames)
+	if (!workspaces.has(name)) throw new Error(`Unknown package: ${name}`);
+const selected = [...workspaces.values()].filter(
+	({ manifest }) =>
+		selectedNames.length === 0 || selectedNames.includes(manifest.name),
+);
+
 if (command === "test") {
 	const tests = await filesBelow(join(root, "packages"), (name) =>
 		/\.test\.(ts|mjs)$/.test(name),
@@ -96,7 +107,7 @@ if (command === "test") {
 	await run(["--experimental-strip-types", "--test", ...tests.sort()]);
 } else if (command === "build") {
 	// Git contracts must be built before the UI declarations consume their public export.
-	for (const { directory, manifest } of [...workspaces.values()].sort((a, b) =>
+	for (const { directory, manifest } of selected.sort((a, b) =>
 		a.manifest.name.localeCompare(b.manifest.name),
 	)) {
 		await rm(join(directory, "dist"), {
@@ -179,7 +190,7 @@ if (command === "test") {
 } else {
 	const artifacts = [];
 	if (destination) await mkdir(resolve(root, destination), { recursive: true });
-	for (const { directory, manifest } of workspaces.values()) {
+	for (const { directory, manifest } of selected) {
 		const child = spawn(
 			"npm",
 			[

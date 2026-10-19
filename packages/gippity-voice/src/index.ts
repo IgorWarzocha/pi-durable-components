@@ -1,4 +1,13 @@
 export type {
+	BufferedDictationRequest,
+	DictationCredentials,
+	DictationReadiness,
+} from "../../../internal/buffered-dictation.ts";
+export {
+	checkGippityDictationReadiness,
+	transcribeGippityDictation,
+} from "./buffered-dictation.ts";
+export type {
 	GippityControlConfig,
 	RealtimeV3Voice,
 	VoiceContextModel,

@@ -42,10 +42,17 @@ import { grokSettingsDefinition } from "./preferences.ts";
 import { appendVoiceInstructions } from "./prompt.ts";
 import { SwitchableAudio } from "./switchable-audio.ts";
 
+export type { DictationReadiness } from "../../../internal/buffered-dictation.ts";
 export { listAudioDevices } from "./audio/devices.ts";
 export { audioHelperUrl, type NativeAudioProcess } from "./audio/helper.ts";
 export { NativeAudio } from "./audio/native.ts";
 export type { RealtimeAudio } from "./audio.ts";
+export {
+	checkGrokDictationReadiness,
+	type GrokBufferedDictationRequest,
+	type GrokDictationCredentials,
+	transcribeGrokDictation,
+} from "./buffered-dictation.ts";
 export {
 	CONTEXT_REASONING,
 	DEFAULT_CONFIG,

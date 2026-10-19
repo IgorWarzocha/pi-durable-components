@@ -12,6 +12,14 @@ Both packages receive the same application-owned exclusive microphone lease. Voi
 
 Transfers require an authenticated, ordered host channel authorized for the target conversation and compatible media transport. Grok uses PCM24 and GipPity uses WebRTC. The source retains its physical audio ownership while forwarding media. The destination receives channel permission, not implied native hardware access. Alternating voice selection survives reconnect and context refresh. Cross-provider media conversion is not supplied.
 
+## Buffered server dictation
+
+The 2026-10-19 Howcode integration adds public `transcribeGippityDictation` and `transcribeGrokDictation` APIs for caller-supplied PCM16 mono audio, plus credential-only readiness checks. These reuse the existing Codex transcriber, Grok STT controller and Models credential resolvers. The accepted input is 100 milliseconds to 600 seconds at 16 or 24 kHz. Only the explicit transcription call opens a provider connection. The wrappers have a 60-second request deadline, do not retry, and require no native capture, context export, voice call, LAN listener or Durable conversation.
+
+Codex adds 16-to-24-kHz interpolation and optional language selection. Grok accepts 16 kHz directly while retaining its native 24-to-16-kHz converter. Early provider failures remain errors when finalisation is requested. The Codex connector owns its upgraded socket through Undici's public dispatcher boundary, joins teardown and forces closure after a two-second grace. Grok retains native WebSocket termination and bounds provider events and transcript text. Readiness may refresh Models credentials but does not establish entitlement or network reachability.
+
+Scoped delivery accepts exact package names after the build command or pack destination, for example `node scripts/workspaces.mjs build @howaboua/pi-durable-gippity-voice @howaboua/pi-durable-grok-voice`. The unfiltered gate is unchanged. No tests or live-service calls were requested for this addition. Validation is limited to static checks, emitted public entries, asset checks and packaging. Howcode owns integration review and authorised running-app acceptance.
+
 ## Artifact evidence
 
 All six Grok binaries and their six dependency notices match the carried SHA256 manifest. Every manifest value matches the immutable source pin, with local formatting applied. All six GipPity helpers were compared byte-for-byte with `git show` at the extraction pin. Native Rust source, lockfiles, build scripts and relevant notices remain available for deliberate rebuilding.

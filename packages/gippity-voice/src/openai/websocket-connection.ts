@@ -1,4 +1,5 @@
-import { ProxyAgent, WebSocket } from "undici";
+import type { Duplex } from "node:stream";
+import { Agent, ProxyAgent, WebSocket } from "undici";
 import type { WebSocketLike } from "./types.ts";
 
 /** Only explicit provider environment is consulted. No process.env mutation. */
@@ -76,16 +77,70 @@ export async function connectWebSocket(
 ): Promise<WebSocketLike> {
 	signal.throwIfAborted();
 	const proxy = await resolveWebSocketProxyForTarget(url, env);
-	const dispatcher = proxy ? new ProxyAgent(proxy) : undefined;
-	const socket = new WebSocket(url, {
-		headers: Object.fromEntries(headers),
-		...(dispatcher ? { dispatcher } : {}),
+	signal.throwIfAborted();
+	const owner = proxy ? new ProxyAgent(proxy) : new Agent();
+	let transport: Duplex | undefined;
+	// Public Undici interception retains ownership of the upgraded socket. A
+	// remote peer that ignores Close must not outlive a cancelled dictation.
+	const dispatcher = owner.compose(
+		(dispatch) => (request, handler) =>
+			dispatch(request, {
+				onRequestStart: (...args) => handler.onRequestStart?.(...args),
+				onRequestUpgrade: (...args) => {
+					transport = args[3];
+					return handler.onRequestUpgrade?.(...args);
+				},
+				onResponseStart: (...args) => handler.onResponseStart?.(...args),
+				onResponseData: (...args) => handler.onResponseData?.(...args),
+				onResponseEnd: (...args) => handler.onResponseEnd?.(...args),
+				onResponseError: (...args) => handler.onResponseError?.(...args),
+				onResponseStarted: () => handler.onResponseStarted?.(),
+				onBodySent: (...args) => handler.onBodySent?.(...args),
+				onRequestSent: () => handler.onRequestSent?.(),
+			}),
+	);
+	let socket: WebSocket;
+	try {
+		socket = new WebSocket(url, {
+			headers: Object.fromEntries(headers),
+			dispatcher,
+		});
+	} catch (error) {
+		await owner.destroy();
+		throw error;
+	}
+	let closeTimer: ReturnType<typeof setTimeout> | undefined;
+	const closed = new Promise<void>((resolve, reject) => {
+		socket.addEventListener(
+			"close",
+			() => {
+				clearTimeout(closeTimer);
+				void owner.close().then(resolve, reject);
+			},
+			{ once: true },
+		);
 	});
-	const closeDispatcher = () => {
-		void dispatcher?.close();
+	void closed.catch(() => {});
+	const terminate = () => {
+		if (transport) transport.destroy();
+		else void owner.destroy().catch(() => {});
 	};
-	socket.addEventListener("close", closeDispatcher, { once: true });
-	socket.addEventListener("error", closeDispatcher, { once: true });
+	const owned: WebSocketLike = {
+		get readyState() {
+			return socket.readyState;
+		},
+		closed,
+		send: (data) => socket.send(data),
+		addEventListener: (type, listener) =>
+			socket.addEventListener(type, listener),
+		removeEventListener: (type, listener) =>
+			socket.removeEventListener(type, listener),
+		close(code, reason) {
+			socket.close(code, reason);
+			if (socket.readyState !== WebSocket.CLOSED && !closeTimer)
+				closeTimer = setTimeout(terminate, 2_000);
+		},
+	};
 	try {
 		await new Promise<void>((resolve, reject) => {
 			const finish = (error?: Error) => {
@@ -109,10 +164,11 @@ export async function connectWebSocket(
 			signal.addEventListener("abort", abort, { once: true });
 			if (signal.aborted) abort();
 		});
-		return socket;
+		return owned;
 	} catch (error) {
 		socket.close();
-		await dispatcher?.close();
+		terminate();
+		await closed;
 		throw error;
 	}
 }

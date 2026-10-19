@@ -13,6 +13,16 @@ The component includes local WebRTC audio, manual dictation, microphone mute, de
 
 Credentials stay in Models. The native helper and browser never receive provider credentials. Native devices, microphone permissions, provider entitlement and acoustic behavior need separate real-device acceptance.
 
+## Transcribe browser audio
+
+For an app that already captures audio, use `transcribeGippityDictation({ models, audio, sampleRate, language?, signal })` on the server. It returns the final text and opens only a transcription connection. It requires no Harness, audio lease, native helper, microphone or LAN server. Nothing is submitted to a conversation.
+
+`audio` is a `Uint8Array` containing mono signed PCM16 little-endian without a WAV header. `sampleRate` must be `16000` or `24000`. Recordings must be between 100 milliseconds and 600 seconds. The component copies the input and converts 16 kHz audio to the provider's 24 kHz format. Omitted, empty or `auto` language uses automatic detection.
+
+Call `checkGippityDictationReadiness({ models, signal })` to check credentials before offering this engine. It returns `{ ready: true }` or `{ ready: false, reason }`. This uses the canonical Codex OAuth resolver and may refresh credentials through Models. It opens no transcription socket and does not prove network availability or account entitlement. Credentials never leave the server.
+
+Transcription runs only when explicitly called. There are no automatic retries. Cancellation and provider errors reject the promise, including failures before audio finishes uploading. The whole request has a 60-second deadline and retains the provider's 10-second final-transcript timeout. Teardown allows up to two seconds for a close handshake before forcing the owned connection closed. An empty successful transcript returns `""`. The host owns capture permissions, upload limits, concurrent-request admission and the editable destination.
+
 ## Connect the component
 
 Install `@howaboua/pi-durable-gippity-voice` alongside its pinned peers. In an existing Durable app:
