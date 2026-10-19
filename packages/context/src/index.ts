@@ -81,6 +81,10 @@ export function createContextManagement(options: {
 				throw new Error("Create a separate context component for each Harness");
 			binding = { harness, storage };
 		},
+		/** Release only after draining host calls and closing this Harness and its task invocations. */
+		unbind(harness: Harness): void {
+			if (binding?.harness === harness) binding = undefined;
+		},
 		async submit(
 			id: ConversationId,
 			draft: InputSubmissionDraft,

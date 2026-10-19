@@ -60,6 +60,8 @@ Normal threshold and manual compaction are declined. Overflow compaction remains
 
 Reopen the same database with the same extensions, bind the new component, then call `harness.resume()`. Persisted managed task IDs remain usable with `harness.getTask` and `harness.waitForTask`. Do not reinstall a different context policy over unfinished work.
 
+Hosts that retain the component across Harness startup retries can call `management.unbind(harness)` before binding a replacement. First stop new host calls, drain in-flight calls and await closure of that Harness and its task invocations. Unbinding releases only the matching binding. It does not close the Harness, cancel work or change persisted state. Repeated or stale cleanup cannot clear a different Harness's binding. Keep the original Models collection valid across rebinding, or create a new component if that collection must be replaced. Install the extension before opening each replacement Harness and bind its exact storage before resuming.
+
 If a checkpoint fails or finishes without saving fresh notes, the old window stays intact and pending input remains held. `management.status(id, ctx)` exposes the blocked reason. Call `management.retry(id, ctx)` or send a new user message to retry. Merely reopening the database or resubmitting an existing request ID does not retry it.
 
 Use `harness.abortTask(task, ctx)` to cancel a managed request, including its pending rollover. Cancelling an idle checkpoint cancels the messages held behind it. Use `conversation.abort(ctx)` to stop all foreground work. Resubmit cancelled messages explicitly if you still want them processed.
