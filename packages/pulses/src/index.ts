@@ -123,13 +123,18 @@ async function reconcileSchedules(
 		};
 		const checkpoint = state.pulses[key];
 		if (!checkpoint) throw new Error("Missing initialized pulse checkpoint");
-		if (!checkpoint.scheduledEligible) {
+		const scheduleKey = JSON.stringify(definition.schedule);
+		if (
+			!checkpoint.scheduledEligible ||
+			checkpoint.scheduleKey !== scheduleKey
+		) {
 			checkpoint.firstSeenAt = now;
 			delete checkpoint.lastRunAt;
 			delete checkpoint.lastDueKey;
 			const dueKey = pulseDueKey(definition.schedule, now);
 			if (dueKey !== null) checkpoint.lastDueKey = dueKey;
 			checkpoint.scheduledEligible = true;
+			checkpoint.scheduleKey = scheduleKey;
 		}
 	}
 	for (const [key, checkpoint] of Object.entries(state.pulses)) {

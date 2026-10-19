@@ -2,6 +2,8 @@ Code Mode TypeScript protocol, process, session, installer, grammar, custom
 command configuration and process execution code
 adapted from @howaboua/pi-codex-conversion, revision
 b2006db9def12c373ae48e70044d30f7d6b7e34f.
+Official host assets, cancellation and help-backed discovery refreshed against
+7f3295e67a8e6146b2a6922b56a06fa4db5c3a32, including local source commits.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff
 Modifications: Durable-native lifecycle, ordinary-tool dispatch, original-name
 projection, Node proxy transport, explicit host paths and cache location,
@@ -29,8 +31,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Standalone runtime dependency: OpenAI Codex rust-v0.145.0,
-commit 25af12f7e61572b0bc18ddb1008be543b91519b0.
+Standalone runtime dependency: OpenAI Codex rust-v0.163.0,
+commit 83086188ae0614bd882818ff1aa23f3194962012.
 Source: https://github.com/openai/codex
 The native host is provisioned separately. Its original notices follow.
 

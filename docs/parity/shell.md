@@ -6,6 +6,8 @@ The shared implementation lives in `packages/execution/src/shell.ts` and `packag
 
 Pinned source: `howaboua-pi-stuff` revision `b2006db9def12c373ae48e70044d30f7d6b7e34f`, package `pi-codex-conversion`.
 
+Post-exit draining was aligned against `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including local commits. The Node pipe backend retains late output for a fixed one-second grace after parent exit, matching source `rust/local_process.rs`. Ordinary EOF still closes immediately. Descendant output cannot extend the deadline. A disposable real Bash probe retained output arriving after 300 ms and closed at 1005 ms despite continued descendant activity. No native helper or host process-survival claim was introduced.
+
 The port carries the host algorithms from `src/tools/exec/{session-manager,wait,output,results,format,shell}.ts` and shell argv policy from `src/adapter/prompt/runtime-shell.ts`. The reference checkout was read-only. Pi tool rendering, trackers and extension registration are not carried into Durable. `child_process` and `node-pty@1.1.0` replace the Rust bridge cleanly.
 
 ## Contracts and evidence

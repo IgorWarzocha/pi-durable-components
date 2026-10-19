@@ -59,3 +59,13 @@ Refresh-time disposable SQLite/Harness probes checked default-off admission desp
 Earlier suite validation also exercised full saved-note bodies and fork snapshots, inherited history references, held attachments across idle checkpoint recovery, final answers after native rollover, linked rollover cancellation, and mixed-round rejection followed by standalone success. Those cases were removed during the contract-spine cull and are historical evidence rather than current suite coverage.
 
 Earlier focused real-Harness probes additionally exercised fork note isolation, meter counters and unknown usage, estimated tails, usage invalidation after an actual compaction marker, 85% then 90% advisory continuations without looping, fresh-note suppression, and actual compaction tasks. Manual and threshold compactions made no summary request. Overflow placed a real summary through the configured provider. Those probes do not claim exhaustive crash-cut coverage or validate any external provider's token accounting.
+
+## 2026-10-19 source alignment
+
+Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32` against `036dc876da5afc4ec27b64878ebb1cfb30c8211d`.
+
+The ordinary Notes guidance now treats notes as concise recovery state, batches saves at meaningful milestones, waits for a successful save before rollover or handoff, and avoids rereading unchanged notes already in context. Notes and History descriptions are concise; their empty-call help retains write semantics, Durable-owned paths and returned-ID guidance. Help-backed discovery is declared on the ordinary registrations.
+
+Source Pi V2 branch projection, custom kickoff messages and attachment storage are not this component's storage model. Native owned writes, same-storage shared reads, atomic rollover receipts and retained Durable history remain unchanged. The source experimental GPT guidance is alternate Pi prompt policy, not a second Durable mode. No prompt event bus, model-name detection or silent activation is installed.
+
+Validation: both retained real SQLite/Harness workflows passed. A disposable real Harness captured the provider-bound recovery guidance and exercised empty Notes and History calls, including write/path and returned-ID instructions. No permanent tests were added.

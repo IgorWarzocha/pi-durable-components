@@ -73,10 +73,20 @@ export class CodeHostRuntime {
 		const initial = this.session.expectInitial(id);
 		void initial.catch(() => undefined);
 		let cellId: string | undefined;
+		let termination: Promise<RuntimeResponse> | undefined;
 		const yieldMarker = `durable-yield-${randomUUID()}`;
 		const abort = () => {
-			if (cellId) void this.terminate(cellId).catch(() => undefined);
-			else void this.close(); // Unknown admission is never replayed.
+			// Preserve the admission acknowledgement so an early abort can terminate
+			// exactly this cell without destroying the conversation's stored values.
+			try {
+				this.session.send({ type: "operation/cancel", id });
+			} catch {
+				// Host failure also rejects the pending acknowledgement. Never replay it.
+			}
+			if (cellId) {
+				termination ??= this.terminate(cellId);
+				void termination.catch(() => undefined);
+			}
 		};
 		signal?.addEventListener("abort", abort, { once: true });
 		try {
@@ -110,18 +120,23 @@ export class CodeHostRuntime {
 						yieldMarker,
 					});
 					onStarted?.(cellId);
+					if (signal?.aborted) abort();
 				},
 			);
 			signal?.throwIfAborted();
-			return parseRuntimeResponse(await initial);
+			const response = parseRuntimeResponse(await initial);
+			signal?.throwIfAborted();
+			return response;
 		} catch (error) {
 			this.session.rejectOperation(
 				id,
 				error instanceof Error ? error : new Error(String(error)),
 			);
+			signal?.throwIfAborted();
 			throw error;
 		} finally {
 			signal?.removeEventListener("abort", abort);
+			await termination?.catch(() => undefined);
 		}
 	}
 
@@ -132,6 +147,7 @@ export class CodeHostRuntime {
 	): Promise<RuntimeResponse> {
 		signal?.throwIfAborted();
 		const id = this.session.nextRequestId();
+		let termination: Promise<RuntimeResponse> | undefined;
 		const abort = () => {
 			try {
 				this.session.send({ type: "operation/cancel", id });
@@ -139,6 +155,8 @@ export class CodeHostRuntime {
 				/* Already closed. */
 			}
 			this.session.rejectOperation(id, new Error("Code wait aborted"));
+			termination ??= this.terminate(cellId);
+			void termination.catch(() => undefined);
 		};
 		signal?.addEventListener("abort", abort, { once: true });
 		try {
@@ -150,9 +168,12 @@ export class CodeHostRuntime {
 			const outcome = runtimeOutcome(value);
 			if (!outcome)
 				throw new Error("Code host returned an invalid wait outcome");
-			return parseRuntimeResponse(outcome);
+			const response = parseRuntimeResponse(outcome);
+			signal?.throwIfAborted();
+			return response;
 		} finally {
 			signal?.removeEventListener("abort", abort);
+			await termination?.catch(() => undefined);
 		}
 	}
 

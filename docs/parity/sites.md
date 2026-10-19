@@ -15,3 +15,11 @@ Disposable offline checks used a real SQLite Harness, Models OAuth fixtures, a t
 Package declaration compilation, formatting, bundled import and dry packing passed. No permanent tests were added.
 
 Live Sites entitlement, HTTPS Git service compatibility and deployment success remain unverified. Abrupt process death can leave a binding lock. Resolve the uncertain operation before removing that lock. Source schema checks validate unknown and required fields, not complete JSON Schema semantics. The source's remote-build fallback remains unchanged. No archive uploader or unattended schedule writer is supplied.
+
+## 2026-10-19 source alignment
+
+Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32` against `036dc876da5afc4ec27b64878ebb1cfb30c8211d`.
+
+Sites and Sites documentation now declare help-backed deferred discovery on their ordinary registrations. Sites uses the concise source description. Empty-call help and live resource/action documentation remain tool-owned, with no Code/Notebook bridge. The source experimental GPT description switch is excluded as Pi prompt policy; it does not alter the native Sites API, namespace-owned project capability or lifecycle.
+
+A disposable real Harness exercised empty Browser, Sites and Sites documentation calls without CDP discovery, OAuth, project access or network traffic. Safety and resource guidance survived the native output boundary. The generic execution contract reader rendered all three as help-backed capability entries. No permanent tests were added.

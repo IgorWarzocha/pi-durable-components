@@ -54,12 +54,23 @@ export function createNestedToolTask(name: string) {
 					);
 				let args: JsonObject;
 				try {
+					// The V8 host encodes omitted input as null. Do not replace schema-valid nulls.
+					const supplied =
+						task.input.arguments === null &&
+						!Compile(tool.parameters).Check(null) &&
+						Compile(tool.parameters).Check({})
+							? undefined
+							: task.input.arguments;
+					const prepared =
+						tool.prepareArguments === undefined
+							? supplied
+							: tool.prepareArguments(supplied);
 					args = checked(
 						tool,
 						call,
-						tool.prepareArguments === undefined
-							? task.input.arguments
-							: tool.prepareArguments(task.input.arguments),
+						prepared === undefined && Compile(tool.parameters).Check({})
+							? {}
+							: prepared,
 					);
 					if (
 						task.input.arguments === null ||

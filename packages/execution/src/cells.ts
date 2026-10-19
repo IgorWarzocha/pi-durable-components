@@ -101,6 +101,16 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 				throw new Error("yieldTimeMs must be non-negative and finite");
 			const initial = await observeCell(task.definition.name, id, api, context);
 			if (initial.status !== "running" || yieldTimeMs === 0) return initial;
+			// A resumed cell's new nested calls belong to this live observer admission,
+			// not the retired exec slot. createInvocation snapshots this at child creation.
+			await api.commit(async (tx) => {
+				const inherited = (await tx.doc(ToolOriginDoc, api.taskId)).origin;
+				(await tx.doc(ToolOriginDoc, id)).origin = inherited ?? {
+					conversationId: api.conversationId,
+					taskId: api.taskId,
+					callId: api.callId,
+				};
+			}, context);
 			const yielding = driver.observeYield(id);
 			if (yielding.consume()) {
 				return initial;

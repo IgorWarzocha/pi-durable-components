@@ -1,16 +1,27 @@
-import { defineTool } from "@earendil-works/pi-durable";
+import {
+	defineTool,
+	type Harness,
+	type JsonObject,
+	type Storage,
+	type TaskId,
+} from "@earendil-works/pi-durable";
 import { markBoardSeen } from "./awareness.ts";
 import { BoardParameters, parseBoardRequest } from "./contract.ts";
 import { boardScope, changeMembership } from "./membership.ts";
 import { queueBoardNotices } from "./notices.ts";
 import { serializeBoardResult } from "./response.ts";
 import { executeBoard } from "./store.ts";
+import { ThreadStates } from "./store-model.ts";
+import { createSummaryTask, scheduleSummary } from "./summarizer.ts";
 
-export function createBoardTool(requireBinding: () => unknown) {
-	return defineTool({
+export function createBoardTool(
+	requireBinding: () => { harness: Harness; storage: Storage },
+	summaryTask: ReturnType<typeof createSummaryTask> | undefined,
+	summaryPolicy: JsonObject,
+) {
+	const tool = defineTool({
 		name: "board",
-		description:
-			"Shared discussion archive, not task assignment; call help first",
+		description: "Shared discussion archive, not task assignment",
 		parameters: BoardParameters,
 		replay: "safe",
 		executionMode: "sequential",
@@ -24,7 +35,9 @@ export function createBoardTool(requireBinding: () => unknown) {
 					details: value,
 				};
 			}
-			if (args.action === "post") requireBinding();
+			if (args.action === "post" || args.action === "set_status")
+				requireBinding();
+			let cancel: TaskId | undefined;
 			const agent = await api.agent(context);
 			const ownerFolder = api.env?.cwd ?? agent.cwd ?? "";
 			const value = await api.commit(async (tx) => {
@@ -56,6 +69,22 @@ export function createBoardTool(requireBinding: () => unknown) {
 					);
 				}
 				if (result.notice !== undefined) {
+					if (args.action === "set_status") {
+						const state = (await tx.doc(ThreadStates, scope.boardId, null))
+							.threads[args.thread_id!];
+						if (!state) throw new Error("Missing thread status");
+						cancel = state.task_id ?? undefined;
+						if (args.status !== "open" && summaryTask) {
+							await scheduleSummary(
+								tx,
+								summaryTask,
+								scope.boardId,
+								args.thread_id!,
+								scope.rootConversationId,
+								`close:${state.status_message_id}`,
+							);
+						} else state.task_id = null;
+					}
 					const targets = result.recipients.flatMap((agentName) => {
 						const conversationId = scope.members[agentName];
 						return conversationId === undefined ||
@@ -75,15 +104,19 @@ export function createBoardTool(requireBinding: () => unknown) {
 					? {
 							...result.value,
 							enabled: true,
+							summarization: summaryPolicy,
 							board_id: scope.boardId,
 							agent_name: scope.agentName,
 						}
 					: result.value;
 			}, context);
+			if (cancel !== undefined)
+				await requireBinding().harness.abortTask(cancel, context);
 			return {
 				output: [{ type: "text", text: serializeBoardResult(value) }],
 				details: value,
 			};
 		},
 	});
+	return { ...tool, executionHints: { discovery: "help" as const } };
 }

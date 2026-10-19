@@ -8,6 +8,12 @@ The approved 2026-10-09 refresh adopts selected behavior from `69f50cf70e8a7b05c
 
 The 2026-10-15 refresh inspects the read-only source at `036dc876da5afc4ec27b64878ebb1cfb30c8211d`. Selected changes cover Notebook output draining, interrupted provider streams, strict final tool arguments, model-switch reasoning, bounded routing hints, WebSocket timing requests, Sol's context window, Context discovery and aliases, and Skills string-call guidance. This is not whole-tree adoption: Pi-specific logging, model-picker and activation settings, remote context backends, GitHub Watch and new product bundles remain outside the accepted scope. Shell's bounded default and finalized-session handling already exist natively. Code discovers ordinary callable registrations without Pi's MCP readiness adapter. View Image delegates description transport to Models, so the provider owns its new routing hint. Existing context rollover and host opt-ins remain unchanged.
 
+The 2026-10-19 alignment compares that pin with `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including the approved local Skills-reference and Chill Actions commits. Accepted changes cover bounded provider recovery and request serialization, routing affinity without shared session lanes, Board closure and summaries, native runtime cancellation and resumed-call provenance, help-backed discovery, Context and Skills guidance, and Pulses schedule edits and result guidance. Component evidence separates carried behavior, existing native equivalents and exclusions. The reference checkout remains read-only.
+
+The experimental PCC GPT prose switch remains Pi prompt policy, not a new component-wide mode. Components retain one concise discovery contract and the applicable behavioral guidance. Pi V2 session projection, usage ledgers, terminal viewers, Chill Actions, GitHub Watch, remote process control and destructive global Notebook retention remain outside these accepted packages. The official Code host advances to the source's pinned `rust-v0.163.0`; Durable, pi-ai and Chord remain unchanged at 1.3.0. This alignment neither activates components in Howcode nor changes host profiles.
+
+The source advanced during validation to `9cc01aa0d9c99d8121a1dfe77a3bf933952559bf`. That follow-up fixes Shepherdr SSH pipe failures and terminal reconnect notices only; inspection found no applicable component delta. The carried-code pin remains `7f3295e6`.
+
 | Component | Accepted scope | Evidence |
 |---|---|---|
 | Patch | TypeScript implementation of `apply_patch` | [Native-helper differential and actual tool use](parity/apply-patch.md) |
@@ -18,7 +24,7 @@ The 2026-10-15 refresh inspects the read-only source at `036dc876da5afc4ec27b648
 | Browser | Logged-in browser control | [CDP lifecycle and output contracts](parity/browser.md) |
 | Agents | Durable-native delegation, completion reports and watches | [Real Harness delegation and recovery](parity/agents.md) |
 | Board | Independent discussion archive, native conversation membership and active-input notices | [Standalone Board contracts and recovery](parity/board.md) |
-| Pulses | Clawa Markdown definitions and scheduling with native conversation execution and passive parent results | [Pinned Clawa source and accepted native differences](../packages/pulses/README.md#source-parity) |
+| Pulses | Folder-owned Markdown definitions and scheduling with native conversation execution and passive parent results | [Pinned sources, schedule edits and native responsibility](parity/pulses.md) |
 | Code | Code execution with included `exec_command` and `write_stdin` | [Actual V8 execution and tool dispatch](parity/code.md) |
 | Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
 | Context | Shared same-storage notes and history reads, own-note writes, explicit checkpoint rollover and opt-in fresh-note idle rollover | [SQLite recovery and real execution-mode rollover](parity/context.md) |
@@ -53,6 +59,10 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-19, the alignment passed one independent review with no material findings and all delivery-gate stages: lint, twenty-two package builds, strict TypeScript, Knip, all 28 retained workflows and dry-pack checks. The initial build caught an excess-property placement in Agents' discovery metadata; attaching it to the ordinary registration after `defineTool` resolved the error, and the remaining stages passed. No permanent tests were added.
+
+Content-hashed archives and `dist/artifacts.json` were regenerated. All twenty-two archives installed into a fresh external consumer with lifecycle scripts disabled, and their public declarations passed strict checking without `skipLibCheck`. The installed Code/Notebook/Context workflow exercised real V8 and Deno state across native rollover. An installed Board probe exercised closure, native summary execution, summary/full views and reopen. Component evidence records additional disposable SQLite, runtime and actual-transport probes. Live providers, audio devices, custom proxies and non-Linux runtimes were not revalidated.
 
 On 2026-10-16, the standalone Board extraction passed independent review and all check stages: lint, strict TypeScript, Knip, 28 retained workflows, twenty-two package builds and dry-pack checks. The initial aggregate run hit the previously observed ten-second timeout in the unchanged Code output workflow. Re-running the test and dry-pack stages passed without changing code or timeouts. Board's three retained SQLite workflows now run without Agents. A disposable migration probe reopened genuine bundled-Agents archives and an interrupted post through the new Board package without losing membership or duplicating the post. [Board evidence](parity/board.md) records the migration and optional handoff checks. No permanent tests or live-provider claims were added.
 

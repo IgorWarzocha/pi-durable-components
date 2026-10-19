@@ -27,6 +27,8 @@ SOFTWARE.
 Ported exec contracts, tool-source scanning, TOML custom-command configuration
 and direct process algorithms from @howaboua/pi-codex-conversion, revision
 b2006db9def12c373ae48e70044d30f7d6b7e34f.
+Help-backed discovery, omitted nested input and bounded post-exit output draining
+refreshed against 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff
 Modifications: Durable-native dispatch, original tool names, explicit trusted-root
 configuration and namespace-bound process capabilities.

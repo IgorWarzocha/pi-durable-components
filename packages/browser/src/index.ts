@@ -62,9 +62,9 @@ export function createBrowserTool(
 	runtime: BrowserRuntime,
 	options: BrowserToolOptions = {},
 ) {
-	return defineTool({
+	const tool = defineTool({
 		name: "browser",
-		description: "Control logged-in browser; call help before other actions",
+		description: "Control logged-in browser",
 		parameters: Type.Object(
 			{
 				command: Type.Optional(
@@ -122,6 +122,7 @@ export function createBrowserTool(
 			return { output: [{ type: "text", text }], details };
 		},
 	});
+	return { ...tool, executionHints: { discovery: "help" as const } };
 }
 
 /** The host explicitly authorizes native CDP, launch, SSH and private state IO.

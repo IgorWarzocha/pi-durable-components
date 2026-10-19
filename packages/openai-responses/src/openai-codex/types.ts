@@ -1,4 +1,11 @@
 import type {
+	WebSocketContinuationDecision,
+	WebSocketContinuationMismatch,
+} from "./continuation-diagnostics.ts";
+
+export type { WebSocketContinuationDecision } from "./continuation-diagnostics.ts";
+
+import type {
 	Api,
 	AssistantMessage,
 	Model,
@@ -26,6 +33,7 @@ interface CodexCompactionDiagnostic {
 	checkpointModel?: string | undefined;
 	transport?: "websocket" | "sse" | undefined;
 	continuation?: WebSocketContinuationDecision | undefined;
+	continuationMismatch?: WebSocketContinuationMismatch | undefined;
 	previousResponseId?: boolean | undefined;
 	fullInputItems?: number | undefined;
 	sentInputItems?: number | undefined;
@@ -75,16 +83,6 @@ export interface CachedWebSocketContinuationState {
 	lastResponseItems: unknown[];
 }
 
-export type WebSocketContinuationDecision =
-	| "disabled"
-	| "no_session_cache_entry"
-	| "no_continuation"
-	| "body_mismatch"
-	| "input_shorter_than_baseline"
-	| "input_prefix_mismatch"
-	| "missing_previous_response_id"
-	| "delta";
-
 export type CanonicalHistoryDecision =
 	| "compaction"
 	| "identity_mismatch"
@@ -128,10 +126,12 @@ export type CodexDiagnosticsEvent =
 			fullInputItems: number;
 			sentInputItems: number;
 			model?: string | undefined;
+			socketRequestOrdinal?: number | undefined;
 			socketReused?: boolean | undefined;
 			socketAgeMs?: number | undefined;
 			socketLane?: "main" | "keepalive" | undefined;
 			continuation?: WebSocketContinuationDecision | undefined;
+			continuationMismatch?: WebSocketContinuationMismatch | undefined;
 			continuationBaselineInputItems?: number | undefined;
 			continuationBaselineResponseItems?: number | undefined;
 			canonicalHistory?: CanonicalHistoryDecision | undefined;
@@ -202,6 +202,7 @@ export type CodexUsageRecorder = (
 export interface CachedWebSocketRequestBodyResult {
 	body: ResponsesBody;
 	decision: WebSocketContinuationDecision;
+	mismatch?: WebSocketContinuationMismatch | undefined;
 }
 
 export type ServiceTier =

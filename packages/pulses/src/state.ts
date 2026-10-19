@@ -15,6 +15,8 @@ export type PulseReference = {
 export type PulseCheckpoint = {
 	firstSeenAt: number;
 	scheduledEligible?: boolean;
+	/** Parsed schedule identity. Missing legacy values seed the current slot on discovery. */
+	scheduleKey?: string;
 	lastRunAt?: number;
 	lastDueKey?: string;
 	current?: PulseReference;

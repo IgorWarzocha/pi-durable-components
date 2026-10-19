@@ -32,6 +32,29 @@ Subscriptions deliver notices only to active inputs. They never wake an idle con
 
 For delegation handoffs, `board.threadReference(tx, callerConversationId, threadId)` validates a thread in the caller's current board and returns a read-reference sentence. Agents can accept this component through their optional `board` option. Board itself has no Agents dependency.
 
+## Closing and summarising threads
+
+Only the board's native root conversation may call `set_status`. Supply `thread_id`, `status` (`open`, `completed` or `abandoned`) and a `comment`. Close a thread when the user confirms completion or abandons it, not merely when agents finish. The comment is an ordinary reply committed with the status and replay receipt. Closed threads reject new replies until reopened.
+
+Closing automatically schedules one tool-free summary request through Durable Models. The default is the source Luna preset, `openai-codex/gpt-6-luna` with `high` reasoning. This model must be registered and authenticated in the host. Board never silently selects another model. Override it at construction:
+
+```ts
+const board = createBoard({
+  summary: {
+    model: { provider: "your-provider", modelId: "your-model" },
+    reasoning: "high",
+  },
+});
+```
+
+Use `createBoard({ summary: false })` to disable summary requests. `board help` reports the host's selection. Board does not read Pi settings files or provide a settings UI.
+
+A saved summary replaces the original thread in `list_threads`, `read_thread` and `search_posts`. Pass `full: true` to `read_thread` or `search_posts` for originals. `read_post` always returns the original post. Author filters on summaries match any original participant. Summary reads expose a character cursor. Continue with the same arguments and returned `next_cursor`.
+
+`read_thread` and `list_threads` expose `summary_task` with its native task ID, status and any error. Failure leaves the status and original posts intact. The host may explicitly retry with `board.summarize(rootConversationId, threadId, requestId, context)`. It returns a native `TaskId`. Reusing `requestId` returns that same task, including a failed task. Use a new ID to request another attempt, and inspect or wait through the Harness's public task APIs.
+
+Reopening deletes the summary atomically and cancels in-flight work. A late result cannot restore it. Closing the Harness cancels model invocations. Interrupted requests are abandoned on restart, never automatically repeated because billing or completion may be uncertain. Retry explicitly after inspecting the task outcome.
+
 ## Migrating from bundled Board
 
 Install Board separately and add `board.extension` to existing roots' and workers' stored agent selections before resuming them. Selecting only `howaboua.agents` no longer enables Board. Existing saved boards, membership overrides and receipts retain their original storage addresses. No archive conversion or database reset is needed.
@@ -44,7 +67,7 @@ Create a fresh Board component for a reopened Harness and bind it before schedul
 
 The browser-safe `@howaboua/pi-durable-board/presentation` export provides `boardCapability`, `boardSummaryPresentation`, `boardDetailPresentation` and `parseBoardPresentationState` without importing the UI runtime.
 
-Supply `board_id`, `channel_name`, `threads`, `has_more`, `next_cursor` and nullable `detail`. Map `list_threads.results` to `threads`, retaining root previews, latest replies, reply counts and activity times. Detail combines the selected `thread_id` with `read_thread`'s `root_post`, `results`, `has_more` and `next_cursor`. Detail must belong to a thread on the supplied page. Refresh or clear it when changing the page, channel or board.
+Supply `board_id`, `channel_name`, `threads`, `has_more`, `next_cursor` and nullable `detail`. Map `list_threads.results` to `threads`, retaining statuses, summary previews or original root previews, reply counts and activity times. Detail combines the selected `thread_id` with the whole `read_thread` result. Its `view` is `summary` or `full`. Summary detail carries root metadata and a summary preview instead of original reply results. Detail must belong to a thread on the supplied page. Refresh or clear it when changing the page, channel or board.
 
 The host owns authorisation, data acquisition, freshness, continuation reads and rendering. Invoke the ordinary `board` registration through the host's authorised binding. These presentations provide no renderer or server.
 

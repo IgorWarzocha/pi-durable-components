@@ -10,6 +10,7 @@ const BOARD_ACTIONS = [
 	"create_channel",
 	"get_channels",
 	"post",
+	"set_status",
 	"list_threads",
 	"read_thread",
 	"read_post",
@@ -32,6 +33,11 @@ const Request = Type.Object(
 		thread_id: string,
 		message_id: string,
 		text: string,
+		status: Type.Optional(
+			StringEnum(["open", "completed", "abandoned"] as const),
+		),
+		comment: string,
+		full: Type.Optional(Type.Boolean()),
 		query: string,
 		author: string,
 		target_agent: string,
@@ -59,6 +65,7 @@ export type BoardAction = BoardParams["action"];
 export const MUTATIONS = new Set<BoardAction>([
 	"create_channel",
 	"post",
+	"set_status",
 	"subscribe",
 	"unsubscribe",
 ]);
@@ -78,6 +85,7 @@ const fields: Record<BoardAction, string[]> = {
 		"thread_id",
 		"agents_to_notify",
 	],
+	set_status: ["thread_id", "status", "comment"],
 	list_threads: [
 		"channel_name",
 		"sort",
@@ -86,9 +94,10 @@ const fields: Record<BoardAction, string[]> = {
 		...paging,
 		...reads,
 	],
-	read_thread: ["thread_id", "max_chars_per_post", ...paging, ...reads],
+	read_thread: ["thread_id", "full", "max_chars_per_post", ...paging, ...reads],
 	read_post: ["message_id", "offset_chars", "limit_chars", ...reads],
 	search_posts: [
+		"full",
 		"channel_name",
 		"query",
 		"author",
@@ -105,6 +114,7 @@ const requiredFields: Partial<Record<BoardAction, string[]>> = {
 	detach: ["target"],
 	create_channel: ["channel_name"],
 	post: ["text"],
+	set_status: ["thread_id", "status", "comment"],
 	list_threads: ["channel_name"],
 	read_thread: ["thread_id"],
 	read_post: ["message_id"],
@@ -164,7 +174,7 @@ export const boardHelp = {
 			values
 				.map(
 					(field) =>
-						`${field}${requiredFields[action as BoardAction]?.includes(field) ? "" : "?"}`,
+						`${field === "status" ? "status=open|completed|abandoned" : field}${requiredFields[action as BoardAction]?.includes(field) ? "" : "?"}`,
 				)
 				.join(" "),
 		]),
@@ -173,6 +183,10 @@ export const boardHelp = {
 		scope:
 			"Defaults to your tree; board_id browses history, never writes. list_boards discovers saved boards",
 		post: "text required; exactly one of channel_name, new_channel_name, thread_id. Thread ID is the first post ID. New channel subscribes author to first posts",
+		set_status:
+			"Root conversation only. Mark completed when the user confirms it is done, or abandoned when they drop it—not merely when agents finish. Closed threads reject replies; reopen first",
+		summaries:
+			"When enabled, closing starts summarization. Summarized threads return/search only summaries; full=true reads/searches originals. Summary author filters match participants; read_post always reads originals",
 		subscriptions:
 			"Exactly one of channel_name/thread_id; channel covers first posts, thread covers replies. target_agent defaults to you. Posting subscribes author to thread unless explicitly unsubscribed",
 		notify:
@@ -180,7 +194,7 @@ export const boardHelp = {
 		agents:
 			"Use board help's agent_name; absolute /root/... or child path relative to you. attach/detach target a native conversation ID",
 		paging:
-			"limit default20, cap50; cursor opaque, keep query/sort unchanged. Concurrent posts may shift pages",
+			"limit default20, cap50; cursor opaque, keep query/sort/full unchanged. Concurrent posts may shift pages",
 		order:
 			"Newest first; get_channels by activity, list_threads sort=created|activity. read_thread pages newest replies with root on every page",
 		text: "Case-insensitive substring search; max_chars_per_post default1000. read_post offsets count Unicode characters, limit_chars default20000. Continue at next_offset_chars<n_chars",

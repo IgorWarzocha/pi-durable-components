@@ -61,3 +61,9 @@ The earlier workerd workflow also verified separate service cookies across later
 - Backend model availability, custom endpoint support and Cloudflare clearance remain account-dependent. The successful live smoke does not establish transparency pixel quality. The source's earlier transparency results are not new validation evidence.
 - No pricing table is inferred from response token counts. Reported usage remains available in image metadata. Durable billing aggregation needs an application-owned pricing policy if the backend does not supply normalized cost data.
 - A crash or cancelled response is not permission to replay a remote image generation. Unsafe replay preserves Durable's interrupted outcome. Successful remote response followed by decode or artifact failure is reported as uncertain local completion, with no automatic repeat.
+
+## 2026-10-19 source alignment
+
+Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32` against `036dc876da5afc4ec27b64878ebb1cfb30c8211d`.
+
+The source adds experimental GPT-mode web/imagegen descriptions and shorter Code usage wording. The native tools retain one concise contract: returned references are for calls, final citations use result URLs, image requests preserve generation/edit selectors and explicit transparency/aspect/quality guidance. The source prompt-mode event bus and alternate prose switch are excluded as Pi prompt policy, not claimed as functional equivalence. The deleted vendored upstream snapshots are source-maintenance changes, not removal of accepted tool functionality. No transport, argument, result or cancellation change was required in these packages.

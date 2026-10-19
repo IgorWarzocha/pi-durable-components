@@ -1,3 +1,6 @@
+Source alignment inspected at Pi Stuff revision 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32.
+See docs/parity for carried changes and explicit native-environment exclusions.
+
 Context notes, history contracts and lifecycle policy adapted from
 @howaboua/pi-codex-conversion, revision
 5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb.

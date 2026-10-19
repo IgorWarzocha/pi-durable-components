@@ -1,3 +1,6 @@
+Source alignment inspected at Pi Stuff revision 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32.
+See docs/parity for carried changes and explicit native-environment exclusions.
+
 Adapted from IgorWarzocha/howaboua-pi-stuff at b2006db9def12c373ae48e70044d30f7d6b7e34f.
 Selected error classification refresh from 6924420b9ae14789efbad9dbecd48c5b8d6de0a6,
 verified at snapshot 69f50cf70e8a7b05c2349be6227f521b6504f80e.

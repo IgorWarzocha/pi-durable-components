@@ -1,5 +1,9 @@
 import { copyJson } from "@earendil-works/chord";
-import type { ConversationId, JsonObject } from "@earendil-works/pi-durable";
+import type {
+	ConversationId,
+	JsonObject,
+	TaskId,
+} from "@earendil-works/pi-durable";
 import { defineDoc, defineDocFamily } from "@earendil-works/pi-durable";
 import type { PostRecord } from "./paging.ts";
 
@@ -20,6 +24,7 @@ type ChannelRecord = {
 };
 export type PostIndex = Omit<PostRecord, "text"> & { seq: number };
 export type BoardIndexValue = {
+	has_thread_states?: boolean;
 	channels: ChannelRecord[];
 	posts: PostIndex[];
 	subscriptions: { target: string; agent: string; enabled: boolean }[];
@@ -110,5 +115,55 @@ export function channelValue(index: BoardIndexValue, name: string) {
 		created_by: channel.author,
 		message_count: posts.length,
 		last_message_id: last?.message_id ?? null,
+	};
+}
+
+export type ThreadStatus = "open" | "completed" | "abandoned";
+export type ThreadSummary = {
+	thread_id: string;
+	status_message_id: string;
+	through_message_id: string;
+	created_at: string;
+	provider: string;
+	model: string;
+	reasoning: string;
+	text: string;
+};
+/** Additive derived state: existing document identities and original posts remain. */
+export type ThreadStatesValue = {
+	threads: Record<
+		string,
+		{
+			status: ThreadStatus;
+			status_message_id: string;
+			summary: ThreadSummary | null;
+			task_id: TaskId | null;
+		}
+	>;
+};
+export const ThreadStates = defineDocFamily<ThreadStatesValue, null>({
+	kind: "howaboua.board.thread-states",
+	version: 1,
+	scope: "session",
+	family: true,
+	initial: () => ({ threads: {} }),
+});
+export function threadStatus(
+	state: { status: ThreadStatus; status_message_id: string } | undefined,
+) {
+	return {
+		status: state?.status ?? "open",
+		status_message_id: state?.status_message_id ?? null,
+	};
+}
+export function summaryPreview(summary: ThreadSummary, chars: number) {
+	const { text, ...value } = summary;
+	const points = Array.from(text);
+	return {
+		...value,
+		has_newer_posts: false,
+		text_preview: points.slice(0, chars).join(""),
+		n_chars: points.length,
+		truncated: points.length > chars,
 	};
 }

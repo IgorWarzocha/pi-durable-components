@@ -127,7 +127,7 @@ export function createNotebookEngine(
 							: {}),
 						async invoke(input, _context, signal) {
 							signal.throwIfAborted();
-							const args = copyJson(input ?? {}, {
+							const args = copyJson(input === undefined ? null : input, {
 								omitUndefinedProperties: true,
 							});
 							const invoke = api.tools[registration.name];
@@ -144,7 +144,7 @@ export function createNotebookEngine(
 			tools.push({
 				name: "notebook",
 				description: NOTEBOOK_DESCRIPTION,
-				usage: "await tools.notebook({action, query?, name?, names?, hook?})",
+				usage: "await tools.notebook()",
 				async invoke(input, _context, signal) {
 					signal.throwIfAborted();
 					if (isEmptyNotebookRequest(input))

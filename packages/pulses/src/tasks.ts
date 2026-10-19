@@ -21,6 +21,8 @@ const completed = {
 	outcome: { status: "completed", result: null },
 } as const;
 const aborted = { status: "terminal", outcome: { status: "aborted" } } as const;
+const resultGuidance =
+	"Use appropriate available tools or destinations for substantive task results and logs. Your final assistant message to the main agent should briefly confirm completion and point to the outcome, without repeating it. Report failures, ambiguities or suggested improvements to the pulse procedure only in that final assistant message, separately from the completion summary. Do not put this procedural feedback in task logs, notes or boards. Do not edit the pulse definition unless its instructions explicitly authorise it.";
 export const Anchor = defineTask<null, { phase: "done" }, null>({
 	name: "howaboua.pulses.anchor",
 	version: 1,
@@ -61,7 +63,7 @@ export function createRunTask(host: () => Harness, options: PulsesOptions) {
 							type: "input",
 							requestId: `pulse-input:${task.id}`,
 							whenBusy: "reject",
-							content: `[Pulse: ${definition.title}; ${trigger}]\nWorkspace: ${definition.root}\nPulse home: ${definition.pulseHome}\nDefinition: ${definition.path}\nBefore work, read applicable instructions including ${definition.pulseHome}/AGENTS.md if present. Preserve the pulse folder and use its existing journal/artifact conventions.\n\n${definition.body}`,
+							content: `[Pulse: ${definition.title}; ${trigger}]\nWorkspace: ${definition.root}\nPulse home: ${definition.pulseHome}\nDefinition: ${definition.path}\nBefore work, read applicable instructions including ${definition.pulseHome}/AGENTS.md if present. Preserve the pulse folder and use its existing journal/artifact conventions.\n\n${definition.body}\n\n${resultGuidance}`,
 						},
 						context,
 					)

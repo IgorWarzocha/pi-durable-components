@@ -63,3 +63,9 @@ The napi build omits GIF support. Sharp remains the explicit GIF first-frame dec
 Earlier registration validation used `node:test`, the real Durable Harness with MemoryStorage, and pi-ai's faux provider. The optional `packages/view-image/test/differential.ts` probe is outside the default `*.test.ts` gate. It requires `VIEW_IMAGE_REFERENCE_BINARY` and visibly skips if the helper is unavailable. The codec probe needs no billed provider request.
 
 The coordinating agent also completed the live image workflow in `scripts/smoke-live.mjs`: generate an image, view it through Durable, assert byte equality with the saved file, then edit the recent image. The earlier all-tool toolkit workflow passed with both Code and Notebook, invoking ordinary `view_image` and verifying delivery of the unchanged PNG to the model. That image-delivery tour is not retained.
+
+## 2026-10-19 source alignment
+
+Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32` against `036dc876da5afc4ec27b64878ebb1cfb30c8211d`.
+
+The source helper asset refresh carries the Codex 0.163 path-helper changes. This component still reads bytes through the selected Durable environment and uses its explicit codec capability, not the source native path CLI. Windows UNC inference, cwd independence and macOS aliases are environment-owned; there is no host fallback or private path-URI implementation. No image-decoding or description-tool semantic delta was found in the inspected range.

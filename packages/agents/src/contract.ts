@@ -111,6 +111,9 @@ export function help(profiles: AgentsOptions["profiles"]) {
 		rules: {
 			target:
 				"Use the conversation ID from spawn/find, or an exact unique name",
+			label: "Short agent label; prefer two words when useful",
+			prompt:
+				"Give each worker a distinct scope, desired outcome, relevant project context and issue references. Describe success rather than lists of forbidden investigations",
 			blocking:
 				"Defaults true; spawn profile policy overrides. False reports completion after you reply. No polling",
 			send: "Admits a message, wakes idle recipients, steers active work. No wait or implicit watch",

@@ -25,9 +25,9 @@ export function createAgents(options: AgentsOptions) {
 		return host;
 	};
 	const Watch = createWatch(binding);
-	const tool = defineTool({
+	const registration = defineTool({
 		name: "agents",
-		description: "Delegate to persistent agents; call help first",
+		description: "Delegate to persistent agents",
 		parameters: AgentsParameters,
 		replay: "safe",
 		executionMode: "sequential",
@@ -56,6 +56,10 @@ export function createAgents(options: AgentsOptions) {
 			throw new Error("Invalid agents request; call agents with {} for help");
 		},
 	});
+	const tool = {
+		...registration,
+		executionHints: { discovery: "help" as const },
+	};
 	const extension = defineExtension({
 		name: "howaboua.agents",
 		tools: [tool],

@@ -73,7 +73,7 @@ Definitions are reread before execution. The live loader refreshes ordinary regi
 
 ## Runtime boundaries
 
-The component automatically downloads the standalone OpenAI Codex V8 host pinned to `rust-v0.145.0`. Downloads are checksum verified. Supported platforms are Linux, macOS, and Windows on x64 and ARM64. `hostPath` selects an explicitly provisioned compatible host. `cacheDirectory` changes the download cache. Unix automatic installation needs `tar`.
+The component automatically downloads the standalone OpenAI Codex V8 host pinned to `rust-v0.163.0`. Downloads are checksum verified. Supported platforms are Linux, macOS, and Windows on x64 and ARM64. `hostPath` selects an explicitly provisioned compatible host. `cacheDirectory` changes the download cache. Unix automatic installation needs `tar`.
 
 Each cell has a fresh isolated V8 context with text, image, notification, timer, yield, and exit helpers. It has no filesystem, network, Node globals, or arbitrary imports. Use ordinary tools for those capabilities. `store(key, value)` and `load(key)` retain serializable data within one conversation's live host session. Lexical bindings do not survive between Code cells. Use the separate Notebook package when you need persistent bindings and imports.
 

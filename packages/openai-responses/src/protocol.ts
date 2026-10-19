@@ -4,6 +4,7 @@ import {
 	extractAccountId,
 	resolveCodexWebSocketUrl,
 } from "./openai-codex/headers.ts";
+import { serializeCodexRequest } from "./openai-codex/request-serialization.ts";
 import type { ResponsesBody } from "./openai-codex/types.ts";
 
 export type ResponsesMode = "codex" | "direct";
@@ -70,15 +71,15 @@ export function responsesWebSocketEvent(
 	body: ResponsesBody,
 	generate = true,
 ): string {
-	const payload =
+	const payload: ResponsesBody =
 		mode === "direct"
-			? Object.fromEntries(
+			? (Object.fromEntries(
 					Object.entries(body).filter(
 						([key]) => key !== "stream" && key !== "background",
 					),
-				)
+				) as ResponsesBody)
 			: body;
-	return JSON.stringify({
+	return serializeCodexRequest({
 		type: "response.create",
 		...payload,
 		...(generate ? {} : { generate: false }),

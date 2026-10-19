@@ -26,10 +26,9 @@ import {
 } from "./tool-contract.ts";
 
 export function createNotesTool(options: { now: () => number }) {
-	return defineTool({
+	const tool = defineTool({
 		name: "notes",
-		description:
-			"Persistent notes. write_file replaces; append_to_file adds. Paths are relative to /notes; target selects a conversation, read-only unless your own. Omit arguments for help",
+		description: "Persistent notes",
 		parameters: notesParameters,
 		prepareArguments: prepareNotesArguments,
 		replay: "safe",
@@ -79,6 +78,7 @@ export function createNotesTool(options: { now: () => number }) {
 			};
 		},
 	});
+	return { ...tool, executionHints: { discovery: "help" as const } };
 }
 
 async function readNotes(

@@ -2,8 +2,8 @@
 
 ## Pinned sources
 
-- `IgorWarzocha/howaboua-pi-stuff` at `b2006db9def12c373ae48e70044d30f7d6b7e34f`, package `pi-codex-conversion`.
-- Its vendored `openai/codex` apply-patch engine at `c4017a87aacc7558002b7cb510025e967c1d765e`, verified against `src/tools/rust/UPSTREAM.apply-patch` and the bundled helper's provenance file.
+- `IgorWarzocha/howaboua-pi-stuff` at `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, package `pi-codex-conversion`.
+- Its vendored `openai/codex` apply-patch engine at `83086188ae0614bd882818ff1aa23f3194962012`, verified against `src/tools/rust/UPSTREAM.apply-patch` and the bundled helper's provenance file.
 - Durable, pi-ai, and Chord 1.0.2 installed locally. `Type` is imported from pi-ai. No additional runtime dependency or native executable is required.
 
 `packages/apply-patch/NOTICE` carries the Apache-2.0 engine license, OpenAI attribution, MIT adapter license, revisions, and modification notice. Reference checkouts were not edited.
@@ -53,3 +53,13 @@ The reference suite skips unless `APPLY_PATCH_REFERENCE` names an existing execu
 - Pi-only rendering, prompt snippets, and display events are intentionally absent from the Durable component. Model-facing content, parameters, sampling metadata, errors, and partial outcomes remain the integration boundary.
 
 The 196-case differential result is evidence for the exercised inputs, not proof over every patch or filesystem race.
+
+## 2026-10-19 source alignment
+
+Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32` against `036dc876da5afc4ec27b64878ebb1cfb30c8211d`.
+
+The source now pins Codex 0.163 apply-patch revision `83086188ae0614bd882818ff1aa23f3194962012`. The engine removes the legacy LF-normalisation mode. This TypeScript implementation already uses the remaining source behaviour: preserve existing context text and terminators, choose the first existing ending for inserted lines, terminate resulting lines, append insertion-only chunks after real source lines, and never search EOF before the current forward cursor. No runtime algorithm change was necessary.
+
+The refreshed path helpers infer double leading separators as Windows UNC, avoid reading cwd for absolute paths, add macOS system-alias support, and expose platform identity without substituting the resolving host for unknown metadata. Here path parsing, absolute resolution and canonical aliases remain owned by the selected Durable environment. No host-platform or host-filesystem inference was copied. Windows UNC parsing and macOS aliases therefore depend on that environment's capabilities, rather than claiming parity through a private path-URI layer.
+
+Validation: the existing differential suite compared all 196 outcomes, deltas, parser errors and final bytes successfully against the pinned Linux x64 helper, whose provenance records the revision above. Source checkout status was clean. No helper was rebuilt and no permanent tests were added.

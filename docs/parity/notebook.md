@@ -8,6 +8,10 @@ The 2026-10-15 refresh carries the output-drain correction from `fa9e42d577f9a27
 
 ## Carried implementation
 
+The 2026-10-19 alignment inspected source revision `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including local commits. Explicit help-backed ordinary registrations now omit promoted signatures and retain no-argument discovery guidance. The inside-exec Notebook proxy advertises its existing empty-call help. Shared argument preparation preserves schema-valid nulls and translates the V8 host's omitted-input null only when an empty object is valid. Native Deno and checkpoint formats are unchanged.
+
+Source `storage-retention.ts` reads Pi-global preferences at write boundaries, defaults journals to one week, deletes all journals when disabled, and optionally expires session checkpoints by activity leases. Those host policies are deliberately excluded. Durable does not read Pi configuration or silently delete historical journals and checkpoints. Existing size bounds, explicit lifecycle operations and conversation-family checkpoint collection remain authoritative. A future host-selected retention API would require explicit namespace, cutoff and active-session policy. No speculative maintenance API or destructive default was added for parity. Source GPT prose switching is also excluded as Pi prompt policy.
+
 The port carries the source Deno provisioning, authenticated HTTP kernel bridge, custom ZMTP sockets and signed Jupyter messages, injected TypeScript kernel helpers, checkpoint serialization, lifecycle state machine, project merge and conflict rules, cross-process leases, journal materialization and rotation, profile persistence, exact npm inventory scanner, historical diagnostics, and one-shot LSP transport. No ZeroMQ or MessagePack dependency replaces the proven source transport.
 
 | Source behavior | Durable owner and evidence |

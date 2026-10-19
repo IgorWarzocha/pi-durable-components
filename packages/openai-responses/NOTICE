@@ -20,6 +20,17 @@ window correction (1fd63f8e).
 Modifications: routing hints are bounded and Codex-only; explicit no-fallback
 policy is preserved. Pi diagnostics logging and integration are not included.
 
+Selected provider refreshes from exact snapshot
+7f3295e67a8e6146b2a6922b56a06fa4db5c3a32, including its local commits:
+bounded fresh WebSocket retries and independent SSE recovery, raw socket errors,
+bounded continuation diagnostics and socket request ordinals, gateway-first
+request serialisation, explicit routing affinity and developer-input instructions.
+Modifications: instance-owned recovery and cancellation; speculative handshake
+failures count against retry admission; terminal observer failures never replay;
+case-insensitive request affinity reconnects without merging native socket lanes.
+Pi usage ledgers, UI, V2 session compaction and experimental GPT prompt-policy
+brokers are excluded. Durable owns native session identity and lifecycle.
+
 Portions of the Responses conversion and streaming implementation derive
 from Pi, Copyright (c) 2025 Mario Zechner, MIT licensed.
 

@@ -1,10 +1,13 @@
+Source alignment inspected at Pi Stuff revision 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32.
+See docs/parity for carried changes and explicit native-environment exclusions.
+
 This package includes TypeScript translations of OpenAI Codex's apply-patch
 parser.rs, streaming_parser.rs, seek_sequence.rs, file_update.rs, text_file.rs,
 and mutation/delta logic from lib.rs. Original code is Copyright 2025 OpenAI and
 licensed under the Apache License, Version 2.0.
 
 Upstream: https://github.com/openai/codex
-Revision: c4017a87aacc7558002b7cb510025e967c1d765e
+Revision: 83086188ae0614bd882818ff1aa23f3194962012 (Codex 0.163)
 Pinned adaptation: https://github.com/IgorWarzocha/howaboua-pi-stuff
 Revision: b2006db9def12c373ae48e70044d30f7d6b7e34f (abbreviated b2006db9)
 

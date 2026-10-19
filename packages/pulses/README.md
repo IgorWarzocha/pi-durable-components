@@ -12,7 +12,7 @@ quietHours: 22:00-08:00
 Review this workspace. Follow the instructions in this pulse folder and update its existing journal.
 ```
 
-Schedules support `manual`, `every 30m`, `every 3h`, `every 2d`, `daily 9:00`, `weekly mon 9:00` and `at <datetime>`. Times use the runtime's local timezone. Scans run every five minutes. Newly discovered or newly reenabled scheduled definitions seed the current slot rather than replaying stale work; quiet hours hold due work. Disabled definitions cannot run manually. A manual invocation bypasses quiet hours without consuming its recurrence checkpoint. Established `trigger: manual` and `trigger: time` headers are accepted; other triggers are diagnosed. Unknown metadata is left untouched.
+Schedules support `manual`, `every 30m`, `every 3h`, `every 2d`, `daily 9:00`, `weekly mon 9:00` and `at <datetime>`. Times use the runtime's local timezone. Scans run every five minutes. New, reenabled or semantically changed schedules seed the current slot rather than replaying stale work; cosmetic spellings and body edits preserve recurrence state. Quiet hours hold due work. Disabled definitions cannot run manually. A manual invocation bypasses quiet hours without consuming its recurrence checkpoint. Established `trigger: manual` and `trigger: time` headers are accepted; other triggers are diagnosed. Unknown metadata is left untouched.
 
 ## Integration
 

@@ -33,6 +33,7 @@ import {
 	findRoot,
 	MutationReceipt,
 	PostText,
+	ThreadStates,
 	textKey,
 } from "./store-model.ts";
 
@@ -178,7 +179,12 @@ async function mutate(
 		board = catalog.boards.find((item) => item.board_id === scope.boardId);
 	}
 	let result: BoardResult;
-	if (params.action === "post") {
+	if (params.action === "post" || params.action === "set_status") {
+		if (
+			params.action === "set_status" &&
+			scope.callerConversationId !== scope.rootConversationId
+		)
+			throw new Error("Only the root conversation can change thread status");
 		result = await publish(tx, index, scope, params, created);
 	} else if (params.action === "create_channel") {
 		const name = required(params.channel_name, "channel_name");
@@ -264,6 +270,15 @@ async function publish(
 	let root: string = id;
 	if (params.thread_id !== undefined) {
 		const post = findRoot(index, params.thread_id);
+		const state = index.has_thread_states
+			? (await tx.doc(ThreadStates, scope.boardId, null)).threads[
+					post.thread_id
+				]
+			: undefined;
+		if (params.action === "post" && state && state.status !== "open")
+			throw new Error(
+				"Thread is closed. The root conversation must reopen it before replies.",
+			);
 		channel = post.channel_name;
 		root = post.thread_id;
 	} else if (params.new_channel_name !== undefined) {
@@ -286,16 +301,32 @@ async function publish(
 		author: scope.agentName,
 		thread_id: root,
 		created_at: created,
-		text: required(params.text, "text"),
+		text:
+			params.action === "set_status"
+				? required(params.comment, "comment")
+				: required(params.text, "text"),
 	};
 	await tx.doc(PostText, textKey(scope.boardId, id), {
 		text: post.text,
 		body_search: caseFold(post.text),
 	});
 	index.posts.push({ ...metadata(post), seq: index.posts.length + 1 });
+	if (params.action === "set_status") {
+		index.has_thread_states = true;
+		const state = await tx.doc(ThreadStates, scope.boardId, null);
+		state.threads[root] = {
+			status: params.status!,
+			status_message_id: id,
+			summary: null,
+			task_id: state.threads[root]?.task_id ?? null,
+		};
+	}
 	subscription(index, `thread:${root}`, scope.agentName, true, true);
 	return {
-		value: metadata(post),
+		value: {
+			...metadata(post),
+			...(params.action === "set_status" ? { status: params.status! } : {}),
+		},
 		notice: preview(post, 150),
 		recipients: [...recipients],
 	};
@@ -321,8 +352,11 @@ function validateMutation(params: BoardParams) {
 				"Channel must be 1-128 UTF-8 bytes without edge whitespace/control characters",
 			);
 	}
-	if (params.action === "post") {
-		const text = required(params.text, "text");
+	if (params.action === "post" || params.action === "set_status") {
+		const text =
+			params.action === "set_status"
+				? required(params.comment, "comment")
+				: required(params.text, "text");
 		if (!text || !wellFormed(text) || Buffer.byteLength(text) > 65536)
 			throw new Error("Post must be 1-65536 UTF-8 bytes");
 	}

@@ -90,7 +90,7 @@ function spawnPipe(
 		child.once("exit", (code, signal) => {
 			if (closed) return;
 			// Grandchildren may retain pipe descriptors after the shell exits. Match the source drain grace.
-			drainTimer = setTimeout(() => finish(exitCode(code, signal)), 100);
+			drainTimer = setTimeout(() => finish(exitCode(code, signal)), 1_000);
 		});
 		child.once("close", (code, signal) => finish(exitCode(code, signal)));
 		child.once("spawn", () =>

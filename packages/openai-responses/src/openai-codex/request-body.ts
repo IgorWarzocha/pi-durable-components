@@ -122,6 +122,14 @@ export function buildRequestBody<TApi extends Api>(
 		? getSystemMessageText(initialSystemMessage)
 		: "";
 
+	if (mode === "codex" && instructions.length > 0) {
+		messages.unshift({
+			type: "message",
+			role: "developer",
+			content: [{ type: "input_text", text: instructions }],
+		});
+	}
+
 	const cacheRetention =
 		options?.cacheRetention ??
 		(options?.env?.["PI_CACHE_RETENTION"] === "long" ? "long" : "short");
@@ -141,7 +149,6 @@ export function buildRequestBody<TApi extends Api>(
 					model: model.id,
 					store: false,
 					stream: true,
-					instructions: instructions || "You are a helpful assistant.",
 					input: messages,
 					text: {
 						verbosity: ((

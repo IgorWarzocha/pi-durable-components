@@ -21,7 +21,7 @@ export function runtimeTools(
 			const invoke = api.tools[registration.name];
 			if (!invoke) throw new Error(`Tool ${registration.name} is unavailable`);
 			// Preserve raw input so ordinary argument preparation runs before schema validation.
-			const argumentsValue = copyJson(input ?? {});
+			const argumentsValue = copyJson(input === undefined ? null : input);
 			const trace = observation.trace(
 				callId,
 				registration.name,

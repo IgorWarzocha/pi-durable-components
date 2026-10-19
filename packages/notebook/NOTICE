@@ -8,6 +8,9 @@ custom-tool-runner.ts
 FIFO Jupyter output draining follows revision
 fa9e42d577f9a2739a2cf14909b56bb3e8b89aea, inspected in snapshot
 036dc876da5afc4ec27b64878ebb1cfb30c8211d.
+Help-backed discovery and nested argument preparation refreshed against
+7f3295e67a8e6146b2a6922b56a06fa4db5c3a32, including local source commits.
+Pi-global destructive storage retention is not carried into this component.
 
 Custom command discovery uses explicit trusted roots and an environment-bound
 process backend. Shared command factories publish ordinary Durable registrations.

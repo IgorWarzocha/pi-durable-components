@@ -86,10 +86,9 @@ async function result(run: () => Promise<unknown>) {
 }
 
 export function createSitesTool(options: SitesOptions) {
-	return defineTool({
+	const tool = defineTool({
 		name: "sites",
-		description:
-			"Manage ChatGPT Sites. No arguments or action:help returns help",
+		description: "Manage ChatGPT Sites",
 		parameters: SITES_PARAMETERS,
 		replay: "unsafe",
 		outputLimits: { maxBytes: 32_000, maxLines: Number.MAX_SAFE_INTEGER },
@@ -121,12 +120,16 @@ export function createSitesTool(options: SitesOptions) {
 			});
 		},
 	});
+	return {
+		...tool,
+		executionHints: { discovery: "help" as const, deferLoading: true },
+	};
 }
 
 export function createSitesDocumentationTool(
 	options: Pick<SitesOptions, "models" | "providerId" | "fetch">,
 ) {
-	return defineTool({
+	const tool = defineTool({
 		name: "sites_documentation",
 		description: "Sites guide or current resource.action parameter schema",
 		parameters: SITES_DOCUMENTATION_PARAMETERS,
@@ -150,6 +153,10 @@ export function createSitesDocumentationTool(
 			);
 		},
 	});
+	return {
+		...tool,
+		executionHints: { discovery: "help" as const, deferLoading: true },
+	};
 }
 
 export function createSitesExtension(options: SitesOptions) {

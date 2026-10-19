@@ -30,7 +30,7 @@ export interface SkillsOptions extends SkillsCatalogOptions {
 
 const SkillsParameters = Type.Object(
 	{
-		command: Type.Optional(Type.String({ description: "Omit for discovery" })),
+		command: Type.Optional(Type.String({ description: "help, list or read" })),
 	},
 	{ additionalProperties: false },
 );
@@ -48,7 +48,7 @@ function prepareSkillsInput(input: unknown): { command?: string } {
 }
 
 export function createSkillsTool(options: SkillsOptions = {}) {
-	return defineTool({
+	const tool = defineTool({
 		name: "skills",
 		description: "Load skill instructions and references",
 		parameters: SkillsParameters,
@@ -79,6 +79,7 @@ export function createSkillsTool(options: SkillsOptions = {}) {
 			return { output: [{ type: "text", text: output }], details: {} };
 		},
 	});
+	return { ...tool, executionHints: { discovery: "help" as const } };
 }
 
 export function skills(options: SkillsOptions = {}) {

@@ -51,3 +51,9 @@ export function budget(params: BoardParams, count: number) {
 		Math.floor(20000 / Math.max(1, count)),
 	);
 }
+
+export function cursor(offset: number): string {
+	const bytes = Buffer.alloc(4);
+	bytes.writeUInt32BE(offset);
+	return bytes.toString("base64url");
+}

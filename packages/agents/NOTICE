@@ -8,6 +8,11 @@ adapted from pi-shepherdr and pi-agent-board at the approved refresh revision.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/69f50cf70e8a7b05c2349be6227f521b6504f80e/packages
 Revision: 69f50cf70e8a7b05c2349be6227f521b6504f80e
 
+Help-backed discovery, concise label and delegation-prompt guidance inspected
+and aligned to Pi Stuff revision 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32,
+including local commits. Herdr process controls and PCC prose-mode switching
+remain excluded.
+
 Background ownership and idempotent report submission patterns adapted from
 Durable examples 22 and 23. Implementation targets the public
 @earendil-works/pi-durable 1.0.2 API.

@@ -47,6 +47,7 @@ import {
 	parseWebSocket,
 	startWebSocketOutputOnFirstEvent,
 } from "./websocket.ts";
+import { nextWebSocketRequestOrdinal } from "./websocket-connection.ts";
 import { buildCachedWebSocketRequestBody } from "./websocket-continuation.ts";
 
 export function codexCacheKeepaliveSocketSessionId(sessionId: string): string {
@@ -115,7 +116,7 @@ export async function processWebSocketStream<TApi extends Api>(
 	// ChatGPT Codex Responses rejects `store: true` ("Store must be set to false").
 	// WebSocket continuation still works via connection-scoped previous_response_id state.
 	const fullBody = body;
-	const cachedRequest =
+	const cachedRequest: CachedWebSocketRequestBodyResult =
 		useCachedContext && entry
 			? buildCachedWebSocketRequestBody(entry.continuation, fullBody)
 			: ({
@@ -128,6 +129,15 @@ export async function processWebSocketStream<TApi extends Api>(
 		Object.assign(options.compactionDiagnostics, {
 			transport: "websocket",
 			continuation: cachedRequest.decision,
+			continuationMismatch: cachedRequest.mismatch,
+			...(entry?.continuation
+				? {
+						continuationBaselineInputItems:
+							entry.continuation.lastRequestBody.input.length,
+						continuationBaselineResponseItems:
+							entry.continuation.lastResponseItems.length,
+					}
+				: {}),
 			previousResponseId: Boolean(requestBody.previous_response_id),
 			fullInputItems: fullBody.input.length,
 			sentInputItems: requestBody.input.length,
@@ -141,6 +151,7 @@ export async function processWebSocketStream<TApi extends Api>(
 	};
 
 	try {
+		const socketRequestOrdinal = nextWebSocketRequestOrdinal(socket);
 		if (diagnostics && recordDiagnostics) {
 			recordDiagnostics({
 				type: "request",
@@ -153,7 +164,9 @@ export async function processWebSocketStream<TApi extends Api>(
 				socketReused: reused,
 				socketAgeMs,
 				socketLane: "main",
+				socketRequestOrdinal,
 				continuation: cachedRequest.decision,
+				continuationMismatch: cachedRequest.mismatch,
 				...(entry?.continuation
 					? {
 							continuationBaselineInputItems:
@@ -306,7 +319,7 @@ export async function prewarmWebSocket<TApi extends Api>(
 	);
 	try {
 		if (options.signal?.aborted) throw new Error("Request was aborted");
-		const cachedRequest =
+		const cachedRequest: CachedWebSocketRequestBodyResult =
 			prewarm.kind === "compaction" &&
 			!preserveContinuation &&
 			!generate &&
@@ -337,6 +350,7 @@ export async function prewarmWebSocket<TApi extends Api>(
 			});
 			return { socketReused: reused };
 		}
+		const socketRequestOrdinal = nextWebSocketRequestOrdinal(socket);
 		recordDiagnostics?.({
 			type: "request",
 			lane: "prewarm",
@@ -348,8 +362,18 @@ export async function prewarmWebSocket<TApi extends Api>(
 			socketReused: reused,
 			socketAgeMs,
 			socketLane,
+			socketRequestOrdinal,
 			prewarm,
 			continuation: cachedRequest.decision,
+			continuationMismatch: cachedRequest.mismatch,
+			...(entry?.continuation
+				? {
+						continuationBaselineInputItems:
+							entry.continuation.lastRequestBody.input.length,
+						continuationBaselineResponseItems:
+							entry.continuation.lastResponseItems.length,
+					}
+				: {}),
 			previousResponseId: Boolean(requestBody.previous_response_id),
 		});
 		socket.send(

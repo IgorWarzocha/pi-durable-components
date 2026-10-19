@@ -1,30 +1,30 @@
 // Adapted from @howaboua/pi-codex-conversion, MIT. See ../NOTICE.
-export const HOST_RELEASE = "rust-v0.145.0";
+export const HOST_RELEASE = "rust-v0.163.0";
 
 const HOST_ASSETS = {
 	"darwin-arm64": [
 		"codex-code-mode-host-aarch64-apple-darwin.tar.gz",
-		"75f9306834aa8913b5c1f91ff72f1f6b9441e5a92cd5d64b8e605cf54668460c",
+		"2e28f49a4767a97586843c92692b96481be74d837199b49038f731cec88e9941",
 	],
 	"darwin-x64": [
 		"codex-code-mode-host-x86_64-apple-darwin.tar.gz",
-		"2628a7925ff13704126693a2d964fb6d9433a70f5b10c7a966dad3629b55a939",
+		"5211c6ed5062c84ba5796e555903c22a6e38fcccf6fe11ee11d7e1b5687ce1fd",
 	],
 	"linux-arm64": [
 		"codex-code-mode-host-aarch64-unknown-linux-musl.tar.gz",
-		"22b5862c7206bc944f59402dbab4b4169e381ae8a68f0144a9ba7b61bcf3dd39",
+		"284356aefb197f00b76b912efdfdbae8ccf3ea1f89b976dde064b7ccb43214ef",
 	],
 	"linux-x64": [
 		"codex-code-mode-host-x86_64-unknown-linux-musl.tar.gz",
-		"ac23177956c30cc1f9f180c27bd80f5bb5b76780db55fb94dcc22644d490852e",
+		"314263128ba6592e7e807c265deeaf928a692b72dcbfeb5e0b20c9423b703529",
 	],
 	"win32-arm64": [
 		"codex-code-mode-host-aarch64-pc-windows-msvc.exe",
-		"f7b336e7832c44074c66d2952ab25dfe1ebad46d6fde47abb97ef27d1e259f78",
+		"8abfb32791949287a132289a6633fb4e7d79bb616f01244fe2782da226755160",
 	],
 	"win32-x64": [
 		"codex-code-mode-host-x86_64-pc-windows-msvc.exe",
-		"de58d3bd9fb88c44555de1104d06fba78e207bce7115d92691b42f6b0f87f3b7",
+		"07f3869f0849cd54b31cec1f86ec796f004501bd3a215135c1facc883a2b9988",
 	],
 } as const;
 

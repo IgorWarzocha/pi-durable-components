@@ -6,3 +6,7 @@ Copyright (c) 2026 Igor Warzocha. MIT licensed, see LICENSE.
 Modifications: native Durable Generation and Tool hooks, explicit host policy
 and lifecycle API, structural provider completion observation. No Pi extension
 API, TUI, filesystem configuration loader or Code/Notebook bridge is included.
+
+Parent capture aligned to the Codex developer-input wire shape at Pi Stuff
+revision 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32. Native pending-slot and
+trusted-completion authorization remain unchanged.

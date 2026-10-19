@@ -10,6 +10,8 @@ Igor selected Durable-native delegation, profiles, messages, blocking and asynch
 
 ## Preserved contracts
 
+The 2026-10-19 alignment inspects Pi Stuff `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including its local commits. Agents now advertises explicit help-backed discovery through ordinary registration metadata. Its help prefers short, two-word labels without enforcing a word count and asks for distinct worker scope, outcome and relevant context rather than lists of forbidden investigations. A disposable real SQLite/Harness call verified this help is delivered through the actual tool. Herdr process controls, Chill Actions and the experimental PCC alternate-prose mode remain excluded; no host profiles or standing prompt broker are installed.
+
 The approved refresh adopts selected contracts from source revision `69f50cf70e8a7b05c2349be6227f521b6504f80e`: empty-call discovery for both tools, spawn thread handoff, and fresh subscription catch-up. The original pins remain the baseline for other behavior. Board summary/detail presentations are native host contracts, not a port of the source viewer or archive server.
 
 The approved 2026-10-10 native cleanup removes `agents read` in favor of Context's targeted history and the host's Durable conversation views. It also removes the terminal-origin label word-count restriction. Completion delivery, messaging and persistent watches remain separate contracts.

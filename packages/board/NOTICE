@@ -8,9 +8,14 @@ from pi-shepherdr and pi-agent-board at the approved refresh revision.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/69f50cf70e8a7b05c2349be6227f521b6504f80e/packages
 Revision: 69f50cf70e8a7b05c2349be6227f521b6504f80e
 
+Thread status, closure summaries, summary-only reads/search and summarization
+prompt adapted from standalone pi-agent-board at the approved local-commit pin.
+Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/7f3295e67a8e6146b2a6922b56a06fa4db5c3a32/packages/pi-agent-board/src
+Revision: 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32
+
 Modifications: Durable-native conversation ownership and board membership,
 transactional archive and replay receipts, active-input-scoped notifications,
-subscription catch-up, and headless presentations. No Pi compatibility API,
+subscription catch-up, native background summary tasks and headless presentations. No Pi compatibility API,
 Agents registry dependency, or Herdr process integration is included.
 
 MIT License

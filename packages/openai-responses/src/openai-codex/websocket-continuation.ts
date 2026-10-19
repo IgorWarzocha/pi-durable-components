@@ -1,3 +1,8 @@
+import {
+	continuationItemType,
+	WEBSOCKET_REQUEST_CHANGE_REASONS,
+	type WebSocketContinuationMismatch,
+} from "./continuation-diagnostics.ts";
 import type {
 	CachedWebSocketContinuationState,
 	CachedWebSocketRequestBodyResult,
@@ -64,23 +69,31 @@ function responsesValuesEqual(a: unknown, b: unknown): boolean {
 	);
 }
 
-function requestBodiesMatchExceptInput(
-	a: ResponsesBody,
-	b: ResponsesBody,
-): boolean {
-	return responsesValuesEqual(
-		requestBodyForWebSocketContinuationComparison(a),
-		requestBodyForWebSocketContinuationComparison(b),
-	);
+function requestBodyMismatch(
+	previous: ResponsesBody,
+	current: ResponsesBody,
+): WebSocketContinuationDecision | undefined {
+	const before = requestBodyForWebSocketContinuationComparison(previous);
+	const after = requestBodyForWebSocketContinuationComparison(current);
+	if (responsesValuesEqual(before, after)) return undefined;
+	for (const [field, reason] of Object.entries(
+		WEBSOCKET_REQUEST_CHANGE_REASONS,
+	)) {
+		if (!responsesValuesEqual(before[field], after[field])) return reason;
+	}
+	return "body_mismatch";
 }
 
 function getCachedWebSocketInputDelta(
 	body: ResponsesBody,
 	continuation: CachedWebSocketContinuationState,
-): { delta?: unknown[] | undefined; decision: WebSocketContinuationDecision } {
-	if (!requestBodiesMatchExceptInput(body, continuation.lastRequestBody)) {
-		return { decision: "body_mismatch" };
-	}
+): {
+	delta?: unknown[] | undefined;
+	decision: WebSocketContinuationDecision;
+	mismatch?: WebSocketContinuationMismatch;
+} {
+	const mismatch = requestBodyMismatch(continuation.lastRequestBody, body);
+	if (mismatch) return { decision: mismatch };
 
 	const currentInput = body.input ?? [];
 	const baseline = [
@@ -88,14 +101,28 @@ function getCachedWebSocketInputDelta(
 		...continuation.lastResponseItems,
 	];
 	if (currentInput.length < baseline.length) {
-		return { decision: "input_shorter_than_baseline" };
+		return {
+			decision: "input_shorter_than_baseline",
+			mismatch: {
+				previousItemType: continuationItemType(baseline[currentInput.length]),
+				currentItemType: "none",
+			},
+		};
 	}
 
-	const prefix = currentInput.slice(0, baseline.length);
-	if (!responseInputsEqual(prefix, baseline)) {
+	const index = baseline.findIndex(
+		(item, index) => !responsesValuesEqual(item, currentInput[index]),
+	);
+	if (index !== -1) {
 		// Matching tool result IDs cannot prove the preceding request or response
 		// provenance. A changed history must reach the server as a full request.
-		return { decision: "input_prefix_mismatch" };
+		return {
+			decision: "input_prefix_mismatch",
+			mismatch: {
+				previousItemType: continuationItemType(baseline[index]),
+				currentItemType: continuationItemType(currentInput[index]),
+			},
+		};
 	}
 
 	return { delta: currentInput.slice(baseline.length), decision: "delta" };
@@ -109,9 +136,12 @@ export function buildCachedWebSocketRequestBody(
 		return { body, decision: "no_continuation" };
 	}
 
-	const { delta, decision } = getCachedWebSocketInputDelta(body, continuation);
+	const { delta, decision, mismatch } = getCachedWebSocketInputDelta(
+		body,
+		continuation,
+	);
 	if (!delta) {
-		return { body, decision };
+		return { body, decision, ...(mismatch ? { mismatch } : {}) };
 	}
 	if (!continuation.lastResponseId) {
 		return { body, decision: "missing_previous_response_id" };

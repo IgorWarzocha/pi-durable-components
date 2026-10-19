@@ -11,6 +11,8 @@ import { readSkillPackage } from "./skill-package.ts";
 const MAX_OUTPUT_BYTES = 48 * 1024;
 // Leave room for an exact continuation command inside the output budget.
 const MAX_COMMAND_BYTES = 4 * 1024;
+const READ_HELP =
+	"Reference-only selectors omit the initial skill body. To read a body plus references, use separate commands: read skill; read other/references/topic";
 
 type SkillRequest =
 	| { action: "help" }
@@ -162,9 +164,9 @@ export async function runSkills(
 		files.check();
 		outputs.push(
 			command.action === "help"
-				? `Commands: list [category...] | read <skill> [skill-or-reference...] | help. Join commands with ;\nJS: tools.skills("read <skill>")\n\n${formatSkillList(skills)}`
+				? `Commands: list [category...] | read <skill> [skill-or-reference...] | help. Join commands with ;\nJS: tools.skills("read <skill>")\n${READ_HELP}\n\n${formatSkillList(skills)}`
 				: command.action === "list"
-					? formatSkillList(skills, command.categories)
+					? `${READ_HELP}\n\n${formatSkillList(skills, command.categories)}`
 					: await readSkillPackage(
 							skills,
 							command.name,

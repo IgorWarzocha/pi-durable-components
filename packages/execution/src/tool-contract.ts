@@ -9,6 +9,8 @@ export interface ExecutionToolHints {
 	readonly deferLoading?: boolean;
 	readonly yieldTimeMs?: number;
 	readonly inputSchema?: JsonValue;
+	/** Empty calls return help without performing an operation. Never inferred from schema shape. */
+	readonly discovery?: "help";
 	/** Keep the tool on the provider surface and prohibit calls from execution cells. */
 	readonly nativeOnly?: boolean;
 }
@@ -30,6 +32,7 @@ interface ExecutionToolContract {
 	readonly nativeOnly: boolean;
 	readonly yieldTimeMs?: number;
 	readonly help: string;
+	readonly prompt: string;
 }
 
 /** Validate ordinary registration metadata before presentation or execution policy uses it. */
@@ -53,6 +56,7 @@ export function readToolContract(
 		"yieldTimeMs",
 		"inputSchema",
 		"nativeOnly",
+		"discovery",
 	]);
 	for (const key of Object.keys(hints))
 		if (!supported.has(key))
@@ -60,6 +64,9 @@ export function readToolContract(
 				`Tool ${tool.name} executionHints has unsupported field ${key}`,
 			);
 	const usageHint = "usage" in hints ? hints.usage : undefined;
+	const discovery = "discovery" in hints ? hints.discovery : undefined;
+	if (discovery !== undefined && discovery !== "help")
+		throw new Error(`Tool ${tool.name} executionHints.discovery must be help`);
 	const output = "output" in hints ? hints.output : undefined;
 	for (const [field, value] of [
 		["usage", usageHint],
@@ -99,12 +106,15 @@ export function readToolContract(
 		? `tools.${tool.name}`
 		: `tools[${JSON.stringify(tool.name)}]`;
 	const usage =
-		typeof usageHint === "string" ? usageHint : `await ${reference}(args)`;
+		typeof usageHint === "string"
+			? usageHint
+			: `await ${reference}(${discovery === "help" ? "" : "args"})`;
 	const outputHint = typeof output === "string" ? output : undefined;
 	return {
 		name: tool.name,
 		description: tool.description,
 		usage,
+		prompt: discovery === "help" ? `${reference}: ${tool.description}` : usage,
 		inputSchema,
 		deferLoading: typeof deferred === "boolean" ? deferred : true,
 		nativeOnly: nativeOnly === true,

@@ -16,7 +16,7 @@ import {
 
 const CONTINUATION_HEADERS = new Set([
 	"openai-beta",
-	"session-id",
+	// Affinity changes require a new handshake, but never merge native lanes.
 	"thread-id",
 	"x-client-request-id",
 	// Later authoritative request bodies may change model/tier on the same lane.

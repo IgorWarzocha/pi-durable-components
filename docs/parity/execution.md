@@ -8,12 +8,15 @@ The shared implementation is internal to Code, Notebook and Worker Code. Ordinar
 - The output buffer was refreshed from the published Durable 1.0.4 source map. Nested invocation now supports its `outputWindow` and skipped-output contract, with progress intervals taken from the Harness settings.
 - Code and Notebook source revision `b2006db9def12c373ae48e70044d30f7d6b7e34f`, `packages/pi-codex-conversion/src/tools/code-mode/exec-contract.ts`, `host-protocol.ts`, `public-tools.ts`, `tool-source.ts`, `custom-tools.ts` and `custom-tool-runner.ts`.
 - `packages/execution/NOTICE` retains the MIT notices. The bounded output buffer and progress committer derive from Durable's implementation. The leading exec pragma parser and provider grammar derive from the pinned Code source.
+- The 2026-10-19 alignment inspected Pi Stuff `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including local commits, for help-backed discovery, omitted nested input, resumed admission and shell output draining. Pi prompt-mode switching and global destructive Notebook retention remain host-policy exclusions.
 
 ## Dispatch
 
 `createCellCoordinator` resolves the conversation's selected, filtered, wrapped registrations through the public `TaskRuntime.agent()` API. Dispatch uses Durable 1.2.0's `Agent.callable`, so tools-only registrations are available and model-only registrations are excluded. Tool names remain unchanged, including names requiring JavaScript bracket access. Drivers receive these registrations and callable functions automatically.
 
 Every nested call creates an owned Durable task. Raw JSON values pass through the registration's `prepareArguments` before schema validation. The selected extensions' `ToolTask` hooks run in extension order. Before hooks can replace arguments or block a call. Replacement arguments are validated again before intent commits. The task commits the final arguments and replay policy before executing the registration.
+
+The V8 host serialises omitted arguments as null. Preparation receives undefined only when null fails the actual registration schema and an empty object passes. Schema-valid nulls survive both native drivers. Undefined preparation results become an empty object only when that object is schema-valid. A disposable real Harness and V8 probe verified no-argument preparation without changing ordinary schema validation.
 
 Tool execution and hooks receive the Harness's shared Models collection through Durable 1.1.0's public `models` field, preserving the host's catalog, credentials and request transforms.
 
@@ -49,6 +52,8 @@ Top-level waits share the source's adaptive budget policy. Incomplete observatio
 
 Ordinary registrations can carry optional `executionHints` with usage, output description, loading preference, direct-call yield budget and runtime input schema. `readToolContract` validates these fields and supplies defaults for registrations without hints. This metadata controls runtime help and observation, not the implementation schema, argument repair or selected tool set. The shared source scanner applies the largest configured yield budget among direct executable tool references. Comments, quoted strings, regular expressions and non-executable template text do not trigger an override. Names remain unchanged and bracket calls support names that are not JavaScript identifiers.
 
+Explicit `executionHints.discovery: "help"` identifies tools whose no-argument calls return usage without performing an operation. Promoted entries show only their reference and description. Default runtime usage for these tools is a no-argument call. Tools own their empty-call implementation, and structured calls still pass `{}` through the ordinary registration. No optional-schema heuristic changes third-party tools.
+
 `executionHints.nativeOnly` adds a generic execution boundary. Native-only tools remain on the provider surface and cannot run inside cells. Durable strips registration metadata from provider declarations, so the host binds Code or Notebook to the same Harness. Projection then resolves the selected wrapped registrations through the public conversation API. Discovery and dispatch enforce the same policy, including retained Notebook functions and nested recovery. Unbound components preserve their existing execution-only projection.
 
 The TOML command factory and direct process backend are shared internal modules, exposed by both public products. Notebook does not depend on Code to load commands. Trusted roots and a namespace-bound backend are explicit host inputs. Loaded commands are ordinary unsafe-replay registrations with scalar argument repair and runtime hints. Live inventory changes publish through the ordinary registry. Invocation rereads the current definition, validates the conversation's environment namespace and executes directly without shell expansion.
@@ -58,6 +63,8 @@ The shared JavaScript projection honours declared `structuredOutputSchema` value
 ## Evidence
 
 Generic task-scoped origin metadata records the actual ordinary admission when a cell starts and propagates transactionally to child tasks. It is never taken from model arguments or reconstructed from the latest wrapper. Consumers still have to verify the live originating slot. The [Guardian checks](guardian.md) exercised nested admission while that slot was pending and rejection after a cell yielded past its completion.
+
+A live wait renews the cell's origin only after validating its conversation and task kind. Each newly created child freezes the origin transactionally, so renewal cannot reattribute an already admitted invocation. Guardian's live pending-slot and captured parent-response checks remain unchanged. A disposable real Harness and V8 probe verified nested admission under the active wait rather than the retired exec, then confirmed that both retired admissions fail the live-slot predicate.
 
 `packages/code/test/integration.test.ts` drives the actual V8 host through the real Durable Harness and faux provider. It checks that an ordinary side effect executes once across conversation-owned yielding and reaches the model through V8.
 

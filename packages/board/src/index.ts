@@ -1,3 +1,4 @@
+import type { Context } from "@earendil-works/chord";
 import type {
 	ConversationId,
 	Harness,
@@ -8,6 +9,12 @@ import { defineExtension } from "@earendil-works/pi-durable";
 import { boardScope } from "./membership.ts";
 import { createBoardNoticeHooks } from "./notice-hooks.ts";
 import { BoardCatalog, BoardIndex, findRoot } from "./store-model.ts";
+import {
+	type BoardSummaryOptions,
+	createSummaryTask,
+	LUNA_SUMMARY_MODEL,
+	scheduleSummary,
+} from "./summarizer.ts";
 import { createBoardTool } from "./tool.ts";
 
 export {
@@ -16,8 +23,13 @@ export {
 	type SavedThread,
 } from "./saved-threads.ts";
 
+export type { BoardSummaryOptions } from "./summarizer.ts";
+export { LUNA_SUMMARY_MODEL } from "./summarizer.ts";
+
 /** Install before opening and bind before scheduling board posts or notice delivery. */
-export function createBoard() {
+export function createBoard(
+	options: { summary?: BoardSummaryOptions | false } = {},
+) {
 	let host: { harness: Harness; storage: Storage } | undefined;
 	const binding = () => {
 		if (host === undefined)
@@ -26,10 +38,24 @@ export function createBoard() {
 			);
 		return host;
 	};
-	const tool = createBoardTool(binding);
+	const summaryTask = createSummaryTask(
+		options.summary === false ? {} : options.summary,
+	);
+	const tool = createBoardTool(
+		binding,
+		options.summary !== false ? summaryTask : undefined,
+		options.summary === false
+			? { enabled: false }
+			: {
+					enabled: true,
+					model: options.summary?.model ?? LUNA_SUMMARY_MODEL,
+					reasoning: options.summary?.reasoning ?? "high",
+				},
+	);
 	const extension = defineExtension({
 		name: "howaboua.board",
 		tools: [tool],
+		tasks: [summaryTask],
 		hooks: createBoardNoticeHooks(binding, () => host),
 	});
 	return {
@@ -46,6 +72,40 @@ export function createBoard() {
 		/** Release only after closing this Harness and its task invocations. */
 		unbind(harness: Harness) {
 			if (host?.harness === harness) host = undefined;
+		},
+		/** Explicit retry: reuse requestId to rejoin the original native task, including failures. */
+		async summarize(
+			conversationId: ConversationId,
+			threadId: string,
+			requestId: string,
+			context: Context,
+		) {
+			if (options.summary === false)
+				throw new Error("Board summarization is disabled by the host");
+			const { harness } = binding();
+			const result = await harness.commit(async (tx) => {
+				const scope = await boardScope(tx, conversationId, "");
+				if (scope.rootConversationId !== conversationId)
+					throw new Error("Only the root conversation can summarize threads");
+				const thread = threadId.toLowerCase();
+				const index = await tx.doc(BoardIndex, scope.boardId, null);
+				findRoot(index, thread);
+				if (!index.has_thread_states)
+					throw new Error(
+						"Only completed or abandoned threads can be summarized",
+					);
+				return scheduleSummary(
+					tx,
+					summaryTask,
+					scope.boardId,
+					thread,
+					conversationId,
+					requestId,
+				);
+			}, context);
+			if (result.previous !== undefined)
+				await harness.abortTask(result.previous, context);
+			return result.taskId;
 		},
 		async threadReference(
 			tx: Tx,

@@ -29,10 +29,9 @@ import { WindowEntry, WindowState } from "./window-state.ts";
 export function createHistoryTool(options: {
 	conversation: (id: ConversationId, context: Context) => Promise<Conversation>;
 }) {
-	return defineTool({
+	const tool = defineTool({
 		name: "history",
-		description:
-			"Search earlier conversation, don't browse it. Pass returned IDs unchanged. Omit arguments for help",
+		description: "Search earlier conversation",
 		parameters: historyParameters,
 		prepareArguments: prepareHistoryArguments,
 		replay: "safe",
@@ -63,6 +62,7 @@ export function createHistoryTool(options: {
 			};
 		},
 	});
+	return { ...tool, executionHints: { discovery: "help" as const } };
 }
 
 /** Newest-first pages include retired context. Initialization identifies, but never cuts, earlier input. */

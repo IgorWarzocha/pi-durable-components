@@ -1,6 +1,10 @@
 # Code parity
 
-Reference: `howaboua-pi-stuff` revision `b2006db9def12c373ae48e70044d30f7d6b7e34f`, `packages/pi-codex-conversion/src/tools/code-mode`. The source checkout remains read-only. Native host source tracks OpenAI Codex `rust-v0.145.0`, commit `25af12f7e61572b0bc18ddb1008be543b91519b0`.
+Reference: `howaboua-pi-stuff` revision `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including local commits, `packages/pi-codex-conversion/src/tools/code-mode`. The source checkout remains read-only. Native host source tracks OpenAI Codex `rust-v0.163.0`, commit `83086188ae0614bd882818ff1aa23f3194962012`, resolved from its official annotated release tag.
+
+The 2026-10-19 alignment replaces the six official release asset digests exactly. All six match the official GitHub release asset metadata. Linux x64 provisioning verified the archive checksum and ran that executable without a host override. Other platforms were not executed. Existing Node proxy handling already uses a supported Undici dispatcher and closes it after download, matching the source correction without another transport layer. Disposable native probes verified that admission-time cancellation preserves stored session values, and `exit()` stops later statements and cancels a pending ordinary tool. Cancellation retains the admission acknowledgement, terminates the identified cell and joins termination. Lost admission remains uncertain and is never replayed.
+
+Explicit `executionHints.discovery: "help"` removes promoted call signatures and advertises no-argument help. Runtime discovery still includes the actual schema and usage. Unannotated third-party registrations keep their previous contracts. Source GPT-mode prose switching is Pi prompt policy, not a native execution feature, and is excluded.
 
 ## Preserved contracts
 
@@ -31,4 +35,4 @@ A failed native host is not automatically replaced with an empty session. Previo
 
 The driver retains at most one bounded native output batch while awaiting delivery acknowledgement. It then resumes native observation. This preserves source per-observation output budgets without accumulating an unbounded backlog or discarding later output before a model-visible wait consumes it. Native code itself continues independently until completion or cancellation.
 
-Without promoted custom commands, the emitted `exec` and `wait` schemas including the Lark grammar occupy 771 UTF-8 bytes as JSON. The Code prompt section occupies 508 bytes. Each promoted contract adds only its usage line. Other registrations stay in runtime discovery instead of provider tool schemas. The actual Durable integration test checks the projected provider offer.
+Earlier port measurements recorded 771 UTF-8 bytes of emitted `exec` and `wait` schemas including the Lark grammar. Discovery guidance now also explains no-argument help. Each promoted contract adds only its usage line or explicit help-backed description. Other registrations stay in runtime discovery instead of provider tool schemas. The actual Durable integration test checks the projected provider offer.

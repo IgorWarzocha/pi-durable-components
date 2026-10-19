@@ -1,1 +1,8 @@
 Frontmatter and schedule algorithms carried from IgorWarzocha/pi-clawa (Howaclawa), revision 07fbb0ad71a08a864b285b01d512c2052861b91d, src/pulses/frontmatter.ts and schedule.ts. Copyright Igor Warzocha. MIT license; see LICENSE. Parser and scheduling semantics preserved; filesystem, native admission and execution are Durable-native implementations.
+
+Schedule-edit rebasing and task-result guidance aligned to packages/pi-pulses
+in https://github.com/IgorWarzocha/howaboua-pi-stuff at revision
+7f3295e67a8e6146b2a6922b56a06fa4db5c3a32, including local commits.
+Copyright (c) 2026 Igor Warzocha. MIT licensed.
+Native task receipts replace process-runner ownership and retry ledgers;
+the accepted folder layout and passive parent results remain unchanged.

@@ -52,3 +52,11 @@ Real toolkit validation used this package's `createBrowserExtension` through the
 An explicitly permitted private headless Chromium fixture then validated real `help`, `tabs`, `evaluate` and `screenshot` calls through the same production registration and Harness. Capture returned a 2,138-byte PNG, 780x493 pixels, DPR 1, at `/tmp/pi-durable-browser-headless-vjJR3L/.pi/browser/browser-8E4EBFAF-5d98dfe5-7b22-44c1-996d-eef840ea6234.png`. Its PNG signature and dimensions were read from the actual file. The result is `/tmp/pi-durable-browser-headless-vjJR3L/result.json`. This confirms the screenshot belongs to the supplied execution environment rather than the native fallback store. Runtime and Harness were closed, the private Chromium process group was stopped and its disposable profile was removed. No permanent test was added.
 
 Real SSH/SCP deployment was not exercised. The retained package Harness workflow reads real cached artifacts but does not by itself claim external browser compatibility. Root owns the repository umbrella gate. Root resolved the external declaration dependency previously reported during installation. No operational credentials, user browser settings or remote machines were changed.
+
+## 2026-10-19 source alignment
+
+Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32` against `036dc876da5afc4ec27b64878ebb1cfb30c8211d`.
+
+The only new browser execution delta is source experimental GPT-mode help wording and its Pi prompt-mode registration. The ordinary help already preserves host affinity, returned references, independent batches and consequential-action safety. Those behaviours remain the native contract; alternate Pi prose switching is excluded. The ordinary browser registration now explicitly declares help-backed discovery. No component-specific Code or Notebook bridge was added.
+
+A disposable real Harness exercised empty Browser, Sites and Sites documentation calls without CDP discovery, OAuth, project access or network traffic. Safety and resource guidance survived the native output boundary. The generic execution contract reader rendered all three as help-backed capability entries. No permanent tests were added.

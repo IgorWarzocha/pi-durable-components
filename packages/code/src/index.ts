@@ -177,9 +177,10 @@ export function createCodeMode(options: CodeModeOptions) {
 						.filter(
 							(contract) => !contract.nativeOnly && !contract.deferLoading,
 						)
-						.map((contract) => contract.usage)
+						.map((contract) => contract.prompt)
 						.join("\n");
 					return [
+						"For tools listed without a call signature, call with no arguments to get usage without performing an operation. Structured calls use {}.",
 						'exec accepts JavaScript source with optional // @exec: {"yield_time_ms":30000,"max_output_tokens":10000}. Await work and emit with text(value), image(value), generatedImage(value), notify(value). tools contains ordinary registered tools. ALL_TOOLS lists callable contracts. store(key,value)/load(key) retain serializable values between cells. Cells have no filesystem, network or Node globals. Shell tools follow the conversation environment. Use wait for exec cells and tools.write_stdin for shell sessions.',
 						usage,
 					]

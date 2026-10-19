@@ -224,8 +224,12 @@ export function createNotebookMode(options: NotebookModeOptions) {
 					.filter((tool) => !["exec", "wait", "notebook"].includes(tool.name))
 					.map(readToolContract)
 					.filter((contract) => !contract.nativeOnly && !contract.deferLoading)
-					.map((contract) => contract.usage);
-				return [base, ...promoted].join("\n");
+					.map((contract) => contract.prompt);
+				return [
+					base,
+					"For tools listed without a call signature, call with no arguments to get usage without performing an operation. Structured calls use {}.",
+					...promoted,
+				].join("\n");
 			}),
 		],
 	});

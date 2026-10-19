@@ -1,7 +1,7 @@
-import type { JsonObject, Tx } from "@earendil-works/pi-durable";
+import type { JsonObject, TaskId, Tx } from "@earendil-works/pi-durable";
 import { caseFold } from "unicode-case-folding";
 import { agentPath, type BoardParams, required } from "./contract.ts";
-import { budget, metadata, page, preview, window } from "./paging.ts";
+import { budget, cursor, metadata, page, preview, window } from "./paging.ts";
 import {
 	BoardCatalog,
 	BoardIndex,
@@ -14,7 +14,11 @@ import {
 	findRoot,
 	type PostIndex,
 	PostText,
+	summaryPreview,
+	ThreadStates,
+	type ThreadStatesValue,
 	textKey,
+	threadStatus,
 } from "./store-model.ts";
 
 async function loadPost(tx: Tx, board: string, post: PostIndex) {
@@ -114,6 +118,30 @@ export async function queryBoard(
 	}
 	if (params.action === "read_thread") {
 		const root = findRoot(index, required(params.thread_id, "thread_id"));
+		const state = index.has_thread_states
+			? (await tx.doc(ThreadStates, board, null)).threads[root.thread_id]
+			: undefined;
+		const summary = params.full ? undefined : state?.summary;
+		if (summary) {
+			const points = Array.from(summary.text);
+			const start = Math.min(window(params).offset, points.length);
+			const text = points.slice(start, start + budget(params, 1)).join("");
+			const next = start + Array.from(text).length;
+			return {
+				view: "summary",
+				root_post: metadata(await loadPost(tx, board, root)),
+				...threadStatus(state),
+				summary_task: await summaryTaskState(tx, state?.task_id),
+				summary: {
+					...summaryPreview(summary, 0),
+					text_preview: text,
+					offset_chars: start,
+					truncated: next < points.length,
+				},
+				has_more: next < points.length,
+				next_cursor: next < points.length ? cursor(next) : null,
+			};
+		}
 		const replies = slicePage(
 			index.posts
 				.filter(
@@ -126,6 +154,9 @@ export async function queryBoard(
 		);
 		const chars = budget(params, Math.min(replies.length, limit) + 1);
 		return {
+			view: "full",
+			...threadStatus(state),
+			summary_task: await summaryTaskState(tx, state?.task_id),
 			root_post: preview(await loadPost(tx, board, root), chars),
 			...page(
 				await Promise.all(
@@ -179,6 +210,7 @@ async function listThreads(
 		params,
 	);
 	const chars = budget(params, 2 * Math.min(roots.length, limit));
+	const states = await readThreadStates(tx, board, index);
 	return page(
 		await Promise.all(
 			roots.map(async (root) => {
@@ -190,15 +222,31 @@ async function listThreads(
 				const reply = replies.sort(comparePosts).at(-1);
 				return {
 					thread_id: root.message_id,
-					root_post: preview(await loadPost(tx, board, root), chars),
+					...threadStatus(states.threads[root.thread_id]),
+					summary_task: await summaryTaskState(
+						tx,
+						states.threads[root.thread_id]?.task_id,
+					),
+					...(states.threads[root.thread_id]?.summary
+						? {
+								summary: summaryPreview(
+									states.threads[root.thread_id]!.summary!,
+									chars,
+								),
+							}
+						: { root_post: preview(await loadPost(tx, board, root), chars) }),
 					reply_count: replies.length,
 					last_activity_at:
 						reply && reply.created_at > root.created_at
 							? reply.created_at
 							: root.created_at,
-					latest_reply: reply
-						? preview(await loadPost(tx, board, reply), chars)
-						: null,
+					...(states.threads[root.thread_id]?.summary
+						? {}
+						: {
+								latest_reply: reply
+									? preview(await loadPost(tx, board, reply), chars)
+									: null,
+							}),
 				};
 			}),
 		),
@@ -220,12 +268,30 @@ async function search(
 			? undefined
 			: findPost(index, params.after_message_id);
 	const query = params.query === undefined ? undefined : caseFold(params.query);
+	const states = await readThreadStates(tx, board, index);
+	const summaries = params.full
+		? {}
+		: Object.fromEntries(
+				Object.entries(states.threads).flatMap(([id, state]) =>
+					state.summary ? [[id, state.summary]] : [],
+				),
+			);
 	const candidates = index.posts
+		.filter(
+			(post) =>
+				!summaries[post.thread_id] ||
+				summaries[post.thread_id]!.through_message_id === post.message_id,
+		)
 		.filter(
 			(post) =>
 				(params.channel_name === undefined ||
 					post.channel_name === params.channel_name) &&
-				(author === undefined || post.author === author) &&
+				(author === undefined ||
+					(summaries[post.thread_id]
+						? index.posts.some(
+								(p) => p.thread_id === post.thread_id && p.author === author,
+							)
+						: post.author === author)) &&
 				(after === undefined || comparePosts(post, after) > 0),
 		)
 		.sort((a, b) => comparePosts(b, a));
@@ -233,12 +299,12 @@ async function search(
 	let skipped = 0;
 	for (const post of candidates) {
 		if (query !== undefined) {
-			const body = await tx.doc(
-				PostText,
-				textKey(board, post.message_id),
-				null,
-			);
-			if (!body.body_search.includes(query)) continue;
+			const summary = summaries[post.thread_id];
+			const text = summary
+				? caseFold(summary.text)
+				: (await tx.doc(PostText, textKey(board, post.message_id), null))
+						.body_search;
+			if (!text.includes(query)) continue;
 		}
 		if (skipped++ < offset) continue;
 		selected.push(post);
@@ -247,10 +313,51 @@ async function search(
 	const chars = budget(params, Math.min(selected.length, limit));
 	return page(
 		await Promise.all(
-			selected.map(async (post) =>
-				preview(await loadPost(tx, board, post), chars),
-			),
+			selected.map(async (post) => {
+				const summary = summaries[post.thread_id];
+				const status = threadStatus(states.threads[post.thread_id]);
+				return summary
+					? {
+							kind: "summary",
+							thread_id: post.thread_id,
+							channel_name: post.channel_name,
+							...status,
+							summary: summaryPreview(summary, chars),
+						}
+					: {
+							kind: "post",
+							...preview(await loadPost(tx, board, post), chars),
+							...status,
+						};
+			}),
 		),
 		params,
 	);
+}
+
+async function readThreadStates(
+	tx: Tx,
+	board: string,
+	index: BoardIndexValue,
+): Promise<ThreadStatesValue> {
+	if (index.has_thread_states) return tx.doc(ThreadStates, board, null);
+	return { threads: {} };
+}
+
+async function summaryTaskState(
+	tx: Tx,
+	taskId: TaskId | null | undefined,
+): Promise<JsonObject | null> {
+	if (taskId == null) return null;
+	const task = await tx.task(taskId);
+	if (!task) throw new Error("Missing Board summary task");
+	const outcome = task.state.outcome;
+	return {
+		task_id: taskId,
+		status: outcome?.status ?? task.state.status,
+		...(task.abortReason === "restart"
+			? { reason: "restart", uncertain: true }
+			: {}),
+		...(outcome?.error ? { error: outcome.error.message } : {}),
+	};
 }

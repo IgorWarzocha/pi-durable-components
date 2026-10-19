@@ -113,12 +113,13 @@ export function captureParent(
 		)
 			return undefined;
 		const input = body["input"];
-		const lite =
-			isRecord(input[0]) &&
-			input[0]["type"] === "additional_tools" &&
-			input[0]["role"] === "developer" &&
-			Array.isArray(input[0]["tools"]);
-		if (typeof body["instructions"] !== "string" && !lite) return undefined;
+		// Codex carries standing instructions in a developer input item, including after
+		// Lite's additional_tools item. Empty standing instructions may be absent entirely.
+		if (
+			body["instructions"] !== undefined &&
+			typeof body["instructions"] !== "string"
+		)
+			return undefined;
 		if (
 			input.some(
 				(item) =>
