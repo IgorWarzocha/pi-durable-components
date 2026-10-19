@@ -19,6 +19,7 @@ interface Run {
 	resolveDone(text: string): void;
 	rejectDone(error: Error): void;
 	finalized: string[];
+	utteranceChunks: string[];
 	closed: boolean;
 	cleanup?: Promise<void>;
 	readyTimer?: ReturnType<typeof setTimeout>;
@@ -76,6 +77,7 @@ export class GrokDictationController {
 				resolveDone: done.resolve,
 				rejectDone: done.reject,
 				finalized: [],
+				utteranceChunks: [],
 				closed: false,
 			};
 			const cancel = () => {
@@ -217,8 +219,20 @@ export class GrokDictationController {
 				typeof event.speech_final !== "boolean"
 			)
 				throw new Error("Invalid partial");
-			if (event.is_final && event.text) run.finalized.push(event.text);
-			const text = [...run.finalized, ...(event.is_final ? [] : [event.text])]
+			if (event.speech_final) {
+				if (!event.is_final) throw new Error("Invalid utterance final");
+				// xAI's utterance final is the stitched utterance, not another chunk.
+				// Replace that utterance's chunk finals without deduplicating speech.
+				run.utteranceChunks = [];
+				if (event.text) run.finalized.push(event.text);
+			} else if (event.is_final && event.text) {
+				run.utteranceChunks.push(event.text);
+			}
+			const text = [
+				...run.finalized,
+				...run.utteranceChunks,
+				...(event.is_final ? [] : [event.text]),
+			]
 				.filter(Boolean)
 				.join(" ");
 			if (Buffer.byteLength(text) > 64 * 1024)

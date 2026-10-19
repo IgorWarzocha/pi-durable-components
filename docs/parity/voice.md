@@ -20,6 +20,8 @@ Codex adds 16-to-24-kHz interpolation and optional language selection. Grok acce
 
 Scoped delivery accepts exact package names after the build command or pack destination, for example `node scripts/workspaces.mjs build @howaboua/pi-durable-gippity-voice @howaboua/pi-durable-grok-voice`. The unfiltered gate is unchanged. No tests or live-service calls were requested for this addition. Validation is limited to static checks, emitted public entries, asset checks and packaging. Howcode owns integration review and authorised running-app acceptance.
 
+Howcode's live Grok acceptance subsequently reported duplicated phrases. Inspection found that the carried partial handler appended both chunk finals and their stitched utterance final. The [xAI STT protocol](https://docs.x.ai/developers/model-capabilities/audio/speech-to-text) distinguishes `is_final` from `speech_final`: an utterance final replaces the pending chunk finals for that utterance. The handler now keeps those separately. It does not deduplicate text or remove genuinely repeated speech. A nonempty `transcript.done.text` remains authoritative and unmodified. This corrects preview assembly and the existing empty-final fallback. Live revalidation belongs to the consuming Howcode app.
+
 ## Artifact evidence
 
 All six Grok binaries and their six dependency notices match the carried SHA256 manifest. Every manifest value matches the immutable source pin, with local formatting applied. All six GipPity helpers were compared byte-for-byte with `git show` at the extraction pin. Native Rust source, lockfiles, build scripts and relevant notices remain available for deliberate rebuilding.
