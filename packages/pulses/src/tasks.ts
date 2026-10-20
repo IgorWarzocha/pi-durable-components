@@ -5,10 +5,10 @@ import {
 	type Harness,
 	LiveDoc,
 	type SettledSubmissionRecord,
-	type TaskId,
 } from "@earendil-works/pi-durable";
 import type {
 	PulseBinding,
+	PulseOccurrence,
 	PulseOutcome,
 	PulsesOptions,
 	PulseTrigger,
@@ -39,6 +39,8 @@ export type PulseRunInput = {
 	reference: PulseReference;
 	trigger: PulseTrigger;
 	requestId: string;
+	/** Absent on native tasks admitted before missed-period tracking. */
+	occurrence?: PulseOccurrence;
 };
 type RunState =
 	| { phase: "dispatch" }
@@ -56,31 +58,64 @@ export function createRunTask(host: () => Harness, options: PulsesOptions) {
 					context,
 				);
 				if (!conversation) throw new Error("Missing pulse conversation");
-				const { definition, trigger } = task.input;
-				const submission = await conversation
-					.submit(
-						{
-							type: "input",
-							requestId: `pulse-input:${task.id}`,
-							whenBusy: "reject",
-							content: `[Pulse: ${definition.title}; ${trigger}]\nWorkspace: ${definition.root}\nPulse home: ${definition.pulseHome}\nDefinition: ${definition.path}\nBefore work, read applicable instructions including ${definition.pulseHome}/AGENTS.md if present. Preserve the pulse folder and use its existing journal/artifact conventions.\n\n${definition.body}\n\n${resultGuidance}`,
-						},
+				const { definition, trigger, occurrence } = task.input;
+				const period = occurrence
+					? `\nScheduled occurrences coalesced: ${occurrence.count}. Period: ${new Date(occurrence.startAt).toISOString()} through ${new Date(occurrence.endAt).toISOString()}. Cover relevant work since the start of this period in one fresh run; do not replay each occurrence.`
+					: "";
+				const content = `[Pulse: ${definition.title}; ${trigger}]\nWorkspace: ${definition.root}\nPulse home: ${definition.pulseHome}\nDefinition: ${definition.path}${period}\nBefore work, read applicable instructions including ${definition.pulseHome}/AGENTS.md if present. Preserve the pulse folder and use its existing journal/artifact conventions.\n\n${definition.body}\n\n${resultGuidance}`;
+				const requestId = `pulse-input:${task.id}`;
+				const outcome = await (async () => {
+					// Native receipt rejoin precedes even the host delivery port and its policy.
+					const previous = await host().commit(
+						(tx) =>
+							tx.submissionByRequest(
+								task.input.reference.conversationId,
+								requestId,
+							),
 						context,
-					)
-					.catch(async (error) => {
-						if (!(error instanceof ConversationBusy)) throw error;
-						// Native reject admitted nothing. Retain exactly this one responsibility while external work clears.
-						await runtime.commit(
-							() => ({
-								status: "running",
-								checkpoint: { phase: "retry", after: runtime.now() + 5_000 },
-							}),
+					);
+					if (previous) {
+						const submission = await host().submission(previous.id, context);
+						if (!submission)
+							throw new Error("Missing admitted pulse submission");
+						return submission.wait(context);
+					}
+					if (options.submitInput)
+						return options.submitInput(
+							{
+								conversationId: task.input.reference.conversationId,
+								taskId: task.id,
+								requestId,
+								content,
+							},
 							context,
 						);
-						return undefined;
-					});
-				if (!submission) return;
-				const outcome = await submission.wait(context);
+					const submission = await conversation.submit(
+						{ type: "input", requestId, whenBusy: "reject", content },
+						context,
+					);
+					return submission.wait(context);
+				})().catch(async (error) => {
+					if (!(error instanceof ConversationBusy)) throw error;
+					// Native reject admitted nothing. Retain exactly this one responsibility while external work clears.
+					await runtime.commit(
+						() => ({
+							status: "running",
+							checkpoint: { phase: "retry", after: runtime.now() + 5_000 },
+						}),
+						context,
+					);
+					return undefined;
+				});
+				if (!outcome) return;
+				if (
+					outcome.type !== "input" ||
+					outcome.requestId !== requestId ||
+					outcome.conversationId !== task.input.reference.conversationId
+				)
+					throw new Error(
+						"Pulse delivery returned a different native input receipt",
+					);
 				await runtime.commit(
 					() => ({
 						status: "running",
@@ -103,16 +138,29 @@ export function createRunTask(host: () => Harness, options: PulsesOptions) {
 					const delivery = {
 						parentConversationId,
 						conversationId: task.input.reference.conversationId,
-						taskId: task.id as TaskId,
+						taskId: task.id,
 						outcome,
 						requestId: `pulse-result:${task.id}`,
 						title: task.input.definition.title,
 						text: await resultText(host(), outcome, context),
+						...(task.input.occurrence
+							? { occurrence: task.input.occurrence }
+							: {}),
 					};
-					const receipt = options.writeResult
-						? await options.writeResult(delivery, context)
-						: await passiveResult(host(), delivery, context);
-					if (receipt.type !== "write" || receipt.status !== "done")
+					const receipt =
+						(await runtime.memo<SettledSubmissionRecord>(
+							"passive-receipt",
+							context,
+						)) ??
+						(options.writeResult
+							? await options.writeResult(delivery, context)
+							: await passiveResult(host(), delivery, context));
+					if (
+						receipt.type !== "write" ||
+						receipt.status !== "done" ||
+						receipt.requestId !== delivery.requestId ||
+						receipt.conversationId !== parentConversationId
+					)
 						throw new Error(
 							`Pulse passive delivery did not settle: ${receipt.status}`,
 						);
@@ -159,16 +207,29 @@ export function createRunTask(host: () => Harness, options: PulsesOptions) {
 				const delivery = {
 					parentConversationId,
 					conversationId: task.input.reference.conversationId,
-					taskId: task.id as TaskId,
+					taskId: task.id,
 					outcome,
 					title: task.input.definition.title,
 					text: await resultText(harness, outcome, context),
 					requestId: `pulse-result:${task.id}`,
+					...(task.input.occurrence
+						? { occurrence: task.input.occurrence }
+						: {}),
 				};
-				const receipt = options.writeResult
-					? await options.writeResult(delivery, context)
-					: await passiveResult(harness, delivery, context);
-				if (receipt.type !== "write" || receipt.status !== "done")
+				const receipt =
+					(await runtime.memo<SettledSubmissionRecord>(
+						"passive-receipt",
+						context,
+					)) ??
+					(options.writeResult
+						? await options.writeResult(delivery, context)
+						: await passiveResult(harness, delivery, context));
+				if (
+					receipt.type !== "write" ||
+					receipt.status !== "done" ||
+					receipt.requestId !== delivery.requestId ||
+					receipt.conversationId !== parentConversationId
+				)
 					throw new Error("Aborted pulse passive delivery did not settle");
 				await runtime.memo("passive-receipt", receipt, context);
 			}

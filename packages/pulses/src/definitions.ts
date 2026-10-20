@@ -20,6 +20,8 @@ export type PulseDefinition = PulsePaths & {
 	scheduleText: string;
 	schedule: PulseSchedule;
 	enabled: boolean;
+	target?: "child" | "resident";
+	expiresAt?: number;
 	quietHours?: PulseQuietHours;
 	body: string;
 };
@@ -69,6 +71,13 @@ export function parsePulseDefinition(
 				: "frontmatter must include schedule",
 		);
 	const rawQuiet = data["quietHours"];
+	const target = data["target"];
+	if (target !== undefined && target !== "child" && target !== "resident")
+		return invalid("target must be child or resident");
+	const rawExpiry = data["expiresAt"];
+	const expiresAt = typeof rawExpiry === "string" ? Date.parse(rawExpiry) : NaN;
+	if (rawExpiry !== undefined && !Number.isFinite(expiresAt))
+		return invalid("expiresAt must be a datetime");
 	const quietHours =
 		typeof rawQuiet === "string" ? parsePulseQuietHours(rawQuiet) : undefined;
 	if (rawQuiet !== undefined && !quietHours)
@@ -80,6 +89,8 @@ export function parsePulseDefinition(
 		scheduleText,
 		schedule,
 		enabled: data["enabled"] !== false,
+		...(target === undefined ? {} : { target }),
+		...(rawExpiry === undefined ? {} : { expiresAt }),
 		body,
 		...(quietHours ? { quietHours } : {}),
 	};

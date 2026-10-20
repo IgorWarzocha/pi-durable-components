@@ -5,10 +5,10 @@ export type PulseSchedule =
 	| { kind: "weekly"; day: number; hour: number; minute: number }
 	| { kind: "at"; atMs: number };
 
-export interface PulseQuietHours {
+export type PulseQuietHours = {
 	startMinute: number;
 	endMinute: number;
-}
+};
 
 const DURATION_PATTERN =
 	/^(\d+)\s*(m|min|mins|minute|minutes|h|hr|hour|hours|d|day|days)$/iu;
@@ -186,4 +186,62 @@ export function isPulseDue(options: {
 
 	const dueKey = pulseDueKey(options.schedule, options.nowMs);
 	return { due: Boolean(dueKey && dueKey !== options.lastDueKey), dueKey };
+}
+
+/** First untracked slot; discovery never manufactures earlier occurrences. */
+export function nextPulseDue(
+	schedule: PulseSchedule,
+	after: number,
+): number | undefined {
+	if (schedule.kind === "manual") return undefined;
+	if (schedule.kind === "interval") return after + schedule.everyMs;
+	if (schedule.kind === "at")
+		return schedule.atMs > after ? schedule.atMs : undefined;
+	const slot = new Date(after);
+	slot.setHours(schedule.hour, schedule.minute, 0, 0);
+	if (schedule.kind === "weekly") {
+		slot.setDate(slot.getDate() + ((schedule.day - slot.getDay() + 7) % 7));
+		slot.setHours(schedule.hour, schedule.minute, 0, 0);
+	}
+	if (slot.getTime() <= after) {
+		slot.setDate(slot.getDate() + (schedule.kind === "weekly" ? 7 : 1));
+		slot.setHours(schedule.hour, schedule.minute, 0, 0);
+	}
+	return slot.getTime();
+}
+
+/** Count calendar slots in local time, not elapsed 24h periods across DST. */
+export function pulseOccurrences(
+	schedule: PulseSchedule,
+	first: number,
+	now: number,
+) {
+	if (first > now || schedule.kind === "manual") return undefined;
+	if (schedule.kind === "at") return { count: 1, startAt: first, endAt: first };
+	if (schedule.kind === "interval") {
+		const count = Math.floor((now - first) / schedule.everyMs) + 1;
+		return {
+			count,
+			startAt: first,
+			endAt: first + (count - 1) * schedule.everyMs,
+		};
+	}
+	const last = new Date(now);
+	last.setHours(schedule.hour, schedule.minute, 0, 0);
+	if (schedule.kind === "weekly") {
+		last.setDate(last.getDate() - ((last.getDay() - schedule.day + 7) % 7));
+		last.setHours(schedule.hour, schedule.minute, 0, 0);
+	}
+	if (last.getTime() > now) {
+		last.setDate(last.getDate() - (schedule.kind === "weekly" ? 7 : 1));
+		last.setHours(schedule.hour, schedule.minute, 0, 0);
+	}
+	if (last.getTime() < first) return undefined;
+	const day = (date: Date) =>
+		Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000;
+	const count =
+		Math.round(
+			(day(last) - day(new Date(first))) / (schedule.kind === "weekly" ? 7 : 1),
+		) + 1;
+	return { count, startAt: first, endAt: last.getTime() };
 }

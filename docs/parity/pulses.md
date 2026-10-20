@@ -11,3 +11,15 @@ The task prompt carries the source's result guidance: put substantive results in
 ## Evidence
 
 A disposable real SQLite/Harness probe checked cosmetic versus semantic schedule changes, legacy current-slot seeding, failed-admission rollback followed by a successful retry, active-task and history preservation across schedule edits, removed-definition request rejoining, and exactly one passive parent result without waking a parent generation. It also captured the actual task prompt. No permanent tests were added. Existing ownership and cancellation evidence remains in the [package contract](../../packages/pulses/README.md).
+
+## Assistant-first scheduling
+
+The host integration extends the pinned source with a persisted due cursor, coalesced occurrence count and period, execution concurrency and explicit resident targeting. Counts begin at the new tracking cursor. Legacy checkpoints seed the current slot rather than inventing earlier missed work. Reconciliation accounts for the previous tracked schedule before recording removed, disabled, invalid, expired or superseded pending work as a disposition. Accepted native tasks retain their captured inputs and submission receipts.
+
+Child execution remains the default. A resident target uses the host-supplied continuing conversation without applying child configuration or sending a passive report to itself. The injected occurrence period asks for one fresh run covering the missed work. Explicit jobs retain separate identities and queue oldest first under the persisted concurrency limit. Native generation retry deadlines can delay admission. They are not treated as proof of a provider rate limit, and settled failures are not replayed.
+
+The optional host admission callback runs in the native task-creation transaction. It may read and write documents, but native table reads after task creation are forbidden. A blocked decision escapes the commit before being caught, rolling back task creation, configuration and host activity credit together. The later input-delivery port validates committed accepted-task lineage. Native request and submission receipt rejoining precedes new admission, so later restrictions do not strand accepted work or refresh its activity credit.
+
+`bind` now returns an awaited reconciliation promise and does not resume the Harness or admit work during reconciliation. The host owns resume after all capabilities are bound. Existing checkpoint and task document versions remain unchanged, with additive optional fields for older tasks.
+
+Construction evidence is source review, TypeScript, lint and supported build and package checks only. No tests were added or run, and no new live-provider or runtime acceptance is claimed. The probe evidence above remains historical.

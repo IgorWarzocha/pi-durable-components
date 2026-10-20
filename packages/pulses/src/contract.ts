@@ -14,6 +14,25 @@ export type PulseBinding = {
 };
 export type PulseSource = { id: string; text: string; error?: string };
 export type PulseTrigger = "manual" | "scheduled";
+export type PulseOccurrence = { count: number; startAt: number; endAt: number };
+export type PulseAdmission = {
+	binding: PulseBinding;
+	definition: PulseDefinition;
+	trigger: PulseTrigger;
+	requestId: string;
+	taskId: TaskId;
+	conversationId: ConversationId;
+	occurrence?: PulseOccurrence;
+};
+export type PulseAdmissionDecision =
+	| { status: "accepted" }
+	| { status: "blocked"; reason: string; retryAt?: number };
+export type PulseInputDelivery = {
+	conversationId: ConversationId;
+	taskId: TaskId;
+	requestId: string;
+	content: string;
+};
 /** The abort-before-dispatch case has a native task outcome but no submission receipt. */
 export type PulseOutcome = SettledSubmissionRecord | { status: "aborted" };
 export type PulseResultDelivery = {
@@ -24,22 +43,36 @@ export type PulseResultDelivery = {
 	requestId: string;
 	title: string;
 	text: string;
+	occurrence?: PulseOccurrence;
 };
 export interface PulsesOptions {
+	/** Initial limit only. Persisted changes through setConcurrency survive rebinding. */
+	concurrency?: number;
 	getBindings(context: Context): Promise<readonly PulseBinding[]>;
 	/** Read immediate pulse directories in the explicit execution environment. Never modify files. */
 	readDefinitions(
 		binding: PulseBinding,
 		context: Context,
 	): Promise<readonly PulseSource[]>;
-	/** Authorize every new admission, including the current optional parent's external-input policy. */
+	/** Prepare environment data and preflight every new admission. Race-safe policy/credit belongs in admitTransaction. */
 	admit(
 		binding: PulseBinding,
 		definition: PulseDefinition,
 		trigger: PulseTrigger,
 		context: Context,
 	): Promise<void>;
-	/** Transaction-only native configuration on every NEW admission. Prepare data in admit; no filesystem/model I/O here. Configure cwd=root and fresh applicable pulse-home instructions without accumulating old local instructions; preserve native parent models/tools/extensions. Native ownership and identity change only with the parent ID. */
+	/** Same native transaction as createTask. Blocked rolls back ALL changes, including policy credit. Use tx.doc only: table reads after createTask are forbidden. No filesystem, network, Harness reads or irreversible effects. Receipt retries bypass this hook. */
+	admitTransaction?(
+		tx: Tx,
+		admission: PulseAdmission,
+		context: Context,
+	): Promise<PulseAdmissionDecision>;
+	/** Deliver already accepted work. Validate native task lineage and rejoin requestId before new input policy; return the actual settled input receipt. */
+	submitInput?(
+		delivery: PulseInputDelivery,
+		context: Context,
+	): Promise<SettledSubmissionRecord>;
+	/** Transaction-only configuration on every NEW child admission, never the resident target. Prepare data in admit. Use document operations only, no table reads or filesystem/model I/O. Configure cwd=root and fresh pulse-home instructions without accumulating old instructions; preserve native parent models/tools/extensions. */
 	configure(
 		tx: Tx,
 		conversationId: ConversationId,

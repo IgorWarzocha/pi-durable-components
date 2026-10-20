@@ -1,30 +1,22 @@
 import type { Context } from "@earendil-works/chord";
-import {
-	type Cursor,
-	defineExtension,
-	type Harness,
-	InboxDoc,
-	LiveDoc,
-	type TaskId,
-	type Tx,
-} from "@earendil-works/pi-durable";
-import type { PulsesOptions, PulseTrigger } from "./contract.ts";
+import { defineExtension, type Harness } from "@earendil-works/pi-durable";
+import { admitted, createAdmission, validateConcurrency } from "./admission.ts";
+import type { PulsesOptions } from "./contract.ts";
 import {
 	type PulseCatalogItem,
 	type PulseDefinition,
 	parsePulseDefinition,
 } from "./definitions.ts";
-import { isPulseDue, isPulseQuietAt, pulseDueKey } from "./schedule.ts";
-import {
-	Checkpoints,
-	type PulseReference,
-	pulseKey,
-	restoreMissingReferences,
-} from "./state.ts";
+import { explicitReady, reconcileSchedules } from "./occurrences.ts";
+import { Checkpoints, pulseKey, restoreMissingReferences } from "./state.ts";
 import { Anchor, createRunTask } from "./tasks.ts";
 
 export type {
+	PulseAdmission,
+	PulseAdmissionDecision,
 	PulseBinding,
+	PulseInputDelivery,
+	PulseOccurrence,
 	PulseOutcome,
 	PulseResultDelivery,
 	PulseSource,
@@ -37,6 +29,7 @@ export {
 	parsePulseDefinition,
 } from "./definitions.ts";
 export { parsePulseFrontmatter } from "./frontmatter.ts";
+export { explicitReady } from "./occurrences.ts";
 export {
 	isPulseDue,
 	isPulseQuietAt,
@@ -46,7 +39,11 @@ export {
 	parsePulseSchedule,
 	pulseDueKey,
 } from "./schedule.ts";
-export type { PulseCheckpoint, PulseReference } from "./state.ts";
+export type {
+	PulseCheckpoint,
+	PulseDisposition,
+	PulseReference,
+} from "./state.ts";
 export type { PulseRunInput } from "./tasks.ts";
 
 /** Supply the actual installed asset path mapped into the execution environment. Compatible with Skills' LoadedSkill. */
@@ -59,98 +56,16 @@ export function pulsesSkill(filePath: string, baseDir: string) {
 	};
 }
 
-/** Native task inputs, not a second request ledger, are the idempotent admission authority. */
-async function admitted(
-	tx: Tx,
-	bindingKey: string,
-	pulseId: string,
-	requestId: string,
-) {
-	let cursor: Cursor | undefined;
-	do {
-		const page = await tx.scanTasks(
-			{ kind: "howaboua.pulses.run", order: "descending" },
-			100,
-			cursor,
-		);
-		for (const task of page.items) {
-			const input = task.input;
-			if (typeof input !== "object" || input === null || Array.isArray(input))
-				continue;
-			const binding = input["binding"];
-			const definition = input["definition"];
-			if (
-				typeof binding !== "object" ||
-				binding === null ||
-				Array.isArray(binding) ||
-				typeof definition !== "object" ||
-				definition === null ||
-				Array.isArray(definition)
-			)
-				continue;
-			if (
-				binding["key"] === bindingKey &&
-				definition["id"] === pulseId &&
-				input["requestId"] === requestId
-			)
-				return task.id;
-		}
-		cursor = page.next;
-	} while (cursor !== undefined);
-	return undefined;
-}
-
-/** Eligibility owns only schedule bookkeeping; native histories and admitted responsibility survive removal. */
-async function reconcileSchedules(
-	tx: Tx,
-	definitions: readonly PulseCatalogItem[],
-	now: number,
-) {
-	const state = await tx.doc(Checkpoints);
-	const eligible = new Set<string>();
-	for (const definition of definitions) {
-		if (
-			definition.status !== "valid" ||
-			!definition.enabled ||
-			definition.schedule.kind === "manual"
-		)
-			continue;
-		const key = pulseKey(definition.bindingKey, definition.id);
-		eligible.add(key);
-		state.pulses[key] ??= {
-			firstSeenAt: now,
-			history: [],
-		};
-		const checkpoint = state.pulses[key];
-		if (!checkpoint) throw new Error("Missing initialized pulse checkpoint");
-		const scheduleKey = JSON.stringify(definition.schedule);
-		if (
-			!checkpoint.scheduledEligible ||
-			checkpoint.scheduleKey !== scheduleKey
-		) {
-			checkpoint.firstSeenAt = now;
-			delete checkpoint.lastRunAt;
-			delete checkpoint.lastDueKey;
-			const dueKey = pulseDueKey(definition.schedule, now);
-			if (dueKey !== null) checkpoint.lastDueKey = dueKey;
-			checkpoint.scheduledEligible = true;
-			checkpoint.scheduleKey = scheduleKey;
-		}
-	}
-	for (const [key, checkpoint] of Object.entries(state.pulses)) {
-		if (eligible.has(key)) continue;
-		checkpoint.scheduledEligible = false;
-		delete checkpoint.lastRunAt;
-		delete checkpoint.lastDueKey;
-	}
-}
-
 export function createPulses(options: PulsesOptions) {
+	const initialConcurrency = validateConcurrency(options.concurrency ?? 2);
 	let harness: Harness | undefined;
 	let timer: ReturnType<typeof setInterval> | undefined;
 	let accepting = false;
 	let scanFlight: Promise<PulseCatalogItem[]> | undefined;
 	let unsubscribeClose: (() => void) | undefined;
+	let unsubscribeCommits: (() => void) | undefined;
+	let bindingFlight: Promise<void> | undefined;
+	let releaseScanQueued = false;
 	let pending = Promise.resolve();
 	const host = () => {
 		if (!harness) throw new Error("Bind Pulses before use");
@@ -188,147 +103,21 @@ export function createPulses(options: PulsesOptions) {
 			)
 		).flat();
 	}
-	async function dispatch(
-		definition: PulseDefinition,
-		trigger: PulseTrigger,
-		requestId: string,
-		context: Context,
-	): Promise<TaskId | undefined> {
-		const receipt = await host().commit(
-			(tx) => admitted(tx, definition.bindingKey, definition.id, requestId),
-			context,
-		);
-		if (receipt !== undefined) return receipt;
-		const binding = (await options.getBindings(context)).find(
-			(value) => value.key === definition.bindingKey,
-		);
-		if (!binding || binding.root !== definition.root)
-			throw new Error("Pulse binding changed; rescan before admission");
-		await options.admit(binding, definition, trigger, context);
-		if (!accepting) throw new Error("Pulses admission has stopped");
-		const now = Date.now();
-		const id = await host().commit(async (tx) => {
-			const state = await tx.doc(Checkpoints);
-			const key = pulseKey(binding.key, definition.id);
-			const seed = pulseDueKey(definition.schedule, now);
-			state.pulses[key] ??= {
-				firstSeenAt: now,
-				history: [],
-				...(seed === null ? {} : { lastDueKey: seed }),
-			};
-			const checkpoint = state.pulses[key];
-			if (!checkpoint) throw new Error("Missing initialized pulse checkpoint");
-			const existing = await admitted(
-				tx,
-				binding.key,
-				definition.id,
-				requestId,
-			);
-			if (existing !== undefined) return existing;
-			if (checkpoint.activeTask !== undefined) {
-				const active = await tx.task(checkpoint.activeTask);
-				if (!active) throw new Error("Missing pulse task");
-				if (active.state.status !== "terminal") return undefined;
-			}
-			if (checkpoint.current) {
-				const live = await tx.doc(LiveDoc, checkpoint.current.conversationId);
-				const inbox = await tx.doc(InboxDoc, checkpoint.current.conversationId);
-				if (live.run !== undefined || inbox.items.length > 0) return undefined;
-			}
-			const due = isPulseDue({
-				schedule: definition.schedule,
-				nowMs: now,
-				firstSeenAt: checkpoint.firstSeenAt,
-				lastRunAt: checkpoint.lastRunAt,
-				lastDueKey: checkpoint.lastDueKey,
-			});
-			if (
-				trigger === "scheduled" &&
-				(!definition.enabled ||
-					!due.due ||
-					(definition.quietHours && isPulseQuietAt(definition.quietHours, now)))
-			)
+	const dispatch = createAdmission(host, options, Run, () => accepting);
+	function releaseCapacity(context: Context) {
+		if (!accepting || releaseScanQueued) return;
+		releaseScanQueued = true;
+		// Commit listeners cannot call Session APIs. Reconcile after adoption and any current scan.
+		queueMicrotask(() => {
+			const rescan = () => {
+				releaseScanQueued = false;
+				if (accepting) return scan(context);
 				return undefined;
-			let reference: PulseReference;
-			let created = false;
-			if (
-				checkpoint.current &&
-				checkpoint.current.parentConversationId === binding.parentConversationId
-			) {
-				reference = { ...checkpoint.current };
-				if (reference.root !== binding.root) {
-					reference = {
-						...reference,
-						root: binding.root,
-						pulseHome: definition.pulseHome,
-					};
-					checkpoint.current = reference;
-					const historical = checkpoint.history.findIndex(
-						(item) => item.conversationId === reference.conversationId,
-					);
-					if (historical < 0)
-						throw new Error(
-							"Missing current pulse conversation history reference",
-						);
-					checkpoint.history[historical] = reference;
-				}
-			} else {
-				created = true;
-				const ownership =
-					binding.parentConversationId === undefined
-						? { kind: "ownerless" as const }
-						: {
-								kind: "task" as const,
-								taskId: await tx.createTask(Anchor, null, {
-									ownership: { kind: "conversation" },
-									conversationId: binding.parentConversationId,
-									background: true,
-								}),
-							};
-				const conversation = await tx.createConversation({ ownership });
-				reference = {
-					conversationId: conversation.id,
-					root: binding.root,
-					pulseHome: definition.pulseHome,
-					...(binding.parentConversationId === undefined
-						? {}
-						: { parentConversationId: binding.parentConversationId }),
-				};
-				checkpoint.current = reference;
-				checkpoint.history.push(reference);
-			}
-			// Refresh environment-owned local instructions for every admitted snapshot, without replacing identity.
-			await options.configure(
-				tx,
-				reference.conversationId,
-				binding,
-				definition,
-				{ created },
-			);
-			const taskId = await tx.createTask(
-				Run,
-				{
-					binding: { ...binding },
-					definition: { ...definition },
-					reference,
-					trigger,
-					requestId,
-				},
-				{
-					ownership: { kind: "conversation" },
-					conversationId: reference.conversationId,
-					background: true,
-				},
-			);
-			checkpoint.activeTask = taskId;
-			if (trigger === "scheduled") {
-				checkpoint.lastRunAt = now;
-				if (due.dueKey !== null) checkpoint.lastDueKey = due.dueKey;
-			}
-			return taskId;
-		}, context);
-		host().resume();
-		return id;
+			};
+			void (scanFlight ?? Promise.resolve())
+				.then(rescan, rescan)
+				.catch(options.onError);
+		});
 	}
 	function scan(context: Context): Promise<PulseCatalogItem[]> {
 		if (scanFlight !== undefined) return scanFlight;
@@ -339,23 +128,36 @@ export function createPulses(options: PulsesOptions) {
 				(tx) => reconcileSchedules(tx, definitions, now),
 				context,
 			);
-			for (const definition of definitions)
-				if (
-					definition.status === "valid" &&
-					definition.enabled &&
-					definition.schedule.kind !== "manual"
-				) {
-					try {
-						await dispatch(
-							definition,
-							"scheduled",
-							`scheduled:${pulseKey(definition.bindingKey, definition.id)}:${pulseDueKey(definition.schedule, now)}`,
-							context,
-						);
-					} catch (error) {
-						options.onError(error);
-					}
+			const checkpoints =
+				(await host().snapshot(Checkpoints, context))?.pulses ?? {};
+			const ready = definitions
+				.filter(
+					(definition): definition is PulseDefinition =>
+						definition.status === "valid" &&
+						definition.enabled &&
+						checkpoints[pulseKey(definition.bindingKey, definition.id)]
+							?.pending !== undefined,
+				)
+				.sort(
+					(a, b) =>
+						(checkpoints[pulseKey(a.bindingKey, a.id)]?.pending?.startAt ?? 0) -
+						(checkpoints[pulseKey(b.bindingKey, b.id)]?.pending?.startAt ?? 0),
+				);
+			for (const definition of ready) {
+				const checkpoint =
+					checkpoints[pulseKey(definition.bindingKey, definition.id)];
+				if (!checkpoint?.pending) continue;
+				try {
+					await dispatch(
+						definition,
+						"scheduled",
+						`scheduled:${pulseKey(definition.bindingKey, definition.id)}:${checkpoint.trackedAt}:${checkpoint.pending.startAt}:${checkpoint.pending.endAt}`,
+						context,
+					);
+				} catch (error) {
+					options.onError(error);
 				}
+			}
 			return definitions;
 		}).finally(() => {
 			scanFlight = undefined;
@@ -369,6 +171,23 @@ export function createPulses(options: PulsesOptions) {
 		}),
 		catalog,
 		scan,
+		explicitReady,
+		async configuration(context: Context) {
+			return {
+				concurrency:
+					(await host().snapshot(Checkpoints, context))?.concurrency ??
+					initialConcurrency,
+			};
+		},
+		async setConcurrency(limit: number, context: Context) {
+			validateConcurrency(limit);
+			return exclusive(async () => {
+				await host().commit(async (tx) => {
+					(await tx.doc(Checkpoints)).concurrency = limit;
+				}, context);
+				return { concurrency: limit };
+			});
+		},
 		async run(
 			request: { bindingKey: string; pulseId: string; requestId: string },
 			context: Context,
@@ -429,10 +248,10 @@ export function createPulses(options: PulsesOptions) {
 				}
 			});
 		},
-		bind(value: Harness, context: Context) {
+		bind(value: Harness, context: Context): Promise<void> {
 			if (harness && harness !== value)
 				throw new Error("Create one Pulses component per Harness");
-			if (timer) return;
+			if (bindingFlight) return bindingFlight;
 			harness = value;
 			accepting = true;
 			unsubscribeClose = value.subscribeClose(() => {
@@ -441,30 +260,66 @@ export function createPulses(options: PulsesOptions) {
 				timer = undefined;
 				unsubscribeClose?.();
 				unsubscribeClose = undefined;
+				unsubscribeCommits?.();
+				unsubscribeCommits = undefined;
+			});
+			unsubscribeCommits = value.subscribeCommits((publication) => {
+				if (
+					publication.changes.some(
+						(change) =>
+							change.type === "task" &&
+							change.value.kind === "howaboua.pulses.run" &&
+							change.value.state.status === "terminal",
+					)
+				)
+					releaseCapacity(context);
 			});
 			timer = setInterval(() => {
 				void scan(context).catch(options.onError);
 			}, 300_000);
 			timer.unref?.();
-			void exclusive(() => host().commit(restoreMissingReferences, context))
-				.then(() => scan(context))
+			bindingFlight = exclusive(() =>
+				host().commit(async (tx) => {
+					await restoreMissingReferences(tx);
+					(await tx.doc(Checkpoints)).concurrency ??= initialConcurrency;
+				}, context),
+			)
+				.then(() =>
+					exclusive(async () => {
+						const definitions = await catalog(context);
+						await host().commit(
+							(tx) => reconcileSchedules(tx, definitions, Date.now()),
+							context,
+						);
+					}),
+				)
+				.then(() => {})
 				.catch((error: unknown) => {
 					accepting = false;
 					if (timer) clearInterval(timer);
 					timer = undefined;
 					unsubscribeClose?.();
 					unsubscribeClose = undefined;
-					options.onError(error);
+					unsubscribeCommits?.();
+					unsubscribeCommits = undefined;
+					throw error;
 				});
+			// Preserve visible errors for callers that used the original non-awaited binding API.
+			void bindingFlight.catch(options.onError);
+			return bindingFlight;
 		},
 		/** Stop admission first; host must drain/close native task invocations before releasing this binding. */
 		async unbind() {
 			accepting = false;
 			unsubscribeClose?.();
 			unsubscribeClose = undefined;
+			unsubscribeCommits?.();
+			unsubscribeCommits = undefined;
 			if (timer) clearInterval(timer);
 			timer = undefined;
 			await pending;
+			if (bindingFlight) await bindingFlight.catch(() => {});
+			bindingFlight = undefined;
 			harness = undefined;
 		},
 	};

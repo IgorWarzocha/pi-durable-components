@@ -1,2 +1,5 @@
 - Rejoin a manual run's native request receipt before reading current definitions or applying new-admission policy. Definition edits, disablement and deletion must not invalidate an already admitted request.
 - Reacquire nested tracked document values after insertion. An assignment expression returns the untracked supplied object; later mutations through that object do not persist.
+- Task admission and host credit share one native commit. Read native tables before creating tasks/conversations. The post-create policy callback may use documents only, and a blocked decision must escape the commit before being caught or both task and credit can leak through.
+- Missed-period counts start at the persisted tracking cursor, never reconstructed from legacy lastRunAt. Account the previous schedule through reconciliation before marking removed or changed work obsolete/superseded. Already admitted native tasks keep their immutable input and receipts.
+- Bind reconciles state without admitting work or resuming the Harness. The host owns resume after all feature bindings are ready. Resident targets never receive child configuration or a passive self-report.

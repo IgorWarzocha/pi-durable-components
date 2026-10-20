@@ -5,18 +5,36 @@ import {
 	type TaskId,
 	type Tx,
 } from "@earendil-works/pi-durable";
+import type { PulseOccurrence } from "./contract.ts";
+import type { PulseQuietHours, PulseSchedule } from "./schedule.ts";
 
 export type PulseReference = {
 	conversationId: ConversationId;
 	root: string;
 	pulseHome: string;
 	parentConversationId?: ConversationId;
+	target?: "child" | "resident";
+};
+export type PulseDisposition = {
+	status: "obsolete" | "superseded";
+	reason: string;
+	at: number;
+	occurrence: PulseOccurrence;
 };
 export type PulseCheckpoint = {
 	firstSeenAt: number;
 	scheduledEligible?: boolean;
 	/** Parsed schedule identity. Missing legacy values seed the current slot on discovery. */
 	scheduleKey?: string;
+	/** Exact accounting starts here, never inferred from legacy lastRunAt. */
+	trackedAt?: number;
+	trackedSchedule?: PulseSchedule;
+	quietHours?: PulseQuietHours;
+	expiresAt?: number;
+	nextDueAt?: number;
+	pending?: PulseOccurrence;
+	blocked?: { reason: string; retryAt?: number };
+	disposition?: PulseDisposition;
 	lastRunAt?: number;
 	lastDueKey?: string;
 	current?: PulseReference;
@@ -25,6 +43,8 @@ export type PulseCheckpoint = {
 };
 export const Checkpoints = defineDoc<{
 	pulses: Record<string, PulseCheckpoint>;
+	concurrency?: number;
+	backoffUntil?: number;
 }>({
 	kind: "howaboua.pulses.checkpoints",
 	version: 1,
@@ -85,9 +105,13 @@ export async function restoreMissingReferences(tx: Tx) {
 			)
 				throw new Error("Invalid admitted pulse conversation reference");
 			const conversation = await tx.conversation(task.conversationId);
+			const resident = definition["target"] === "resident";
 			if (
 				!conversation ||
-				reference["parentConversationId"] !== conversation.owner?.conversationId
+				(resident
+					? conversation.id !== binding["parentConversationId"]
+					: reference["parentConversationId"] !==
+						conversation.owner?.conversationId)
 			)
 				throw new Error("Admitted pulse conversation ownership is unavailable");
 			const checkpoint = state.pulses[key];
@@ -96,7 +120,8 @@ export async function restoreMissingReferences(tx: Tx) {
 				conversationId: conversation.id,
 				root: reference["root"],
 				pulseHome: reference["pulseHome"],
-				...(conversation.owner
+				...(resident ? { target: "resident" as const } : {}),
+				...(!resident && conversation.owner
 					? { parentConversationId: conversation.owner.conversationId }
 					: {}),
 			};
