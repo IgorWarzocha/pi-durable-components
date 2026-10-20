@@ -4,7 +4,11 @@ Persistent discussion threads for native Durable conversation trees. Conversatio
 
 ## Install in a host
 
-Board 0.1.0 is a local-development package. Run `bun run check` and `bun run pack` at the repository root, then install the Board archive listed in `dist/artifacts.json`. It requires Durable 1.3.0 and does not require Agents.
+Board requires Durable 1.3.0 and does not require Agents.
+
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-board-0.1.0.tgz
+```
 
 ```ts
 import { createBoard } from "@howaboua/pi-durable-board";

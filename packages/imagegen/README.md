@@ -3,7 +3,7 @@
 Generate images or edit local and recent conversation images with `imagegen`. Requires Node.js and Pi Durable, pi-ai and Chord 1.3.0, an authenticated Codex-compatible image backend and a conversation ExecutionEnv.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-imagegen-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-imagegen-0.6.0.tgz
 ```
 
 Install the bundle with your authenticated pi-ai Models collection. Provide a conversation reader if recent-image edits should be available:
@@ -30,8 +30,6 @@ Calls execute sequentially and are never replayed automatically after interrupti
 See [parity evidence](../../docs/parity/web-imagegen.md) for source revisions and integration boundaries.
 
 ## Headless presentations
-
-Available in local-development builds, not release 0.5.0.
 
 The browser-safe `@howaboua/pi-durable-imagegen/presentation` entry exports `imagegenCapability`, `imagegenSummary`, `imagegenDetail` and `createImagegenPresentationState`. The constructor projects an existing tool receipt into saved artifact paths and image counts without loading image bytes.
 

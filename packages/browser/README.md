@@ -7,7 +7,7 @@ Requires Node 22.19 or newer and a browser with remote debugging enabled. The ho
 ## Install and register
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-browser-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-browser-0.6.0.tgz
 ```
 
 Use the package with Pi Durable, pi-ai and Chord 1.3.0:
@@ -55,8 +55,6 @@ Remote hosts need Node, SSH access and their own CDP browser. The shipped worker
 The CDP implementation derives from [pasky/chrome-cdp-skill](https://github.com/pasky/chrome-cdp-skill) and [pi-browser](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-browser). See `NOTICE` for attribution.
 
 ## Headless presentations
-
-Available in local-development builds, not release 0.5.0.
 
 The browser-safe `@howaboua/pi-durable-browser/presentation` entry exports `browserCapability`, `browserSummary`, `browserDetail` and `createBrowserPresentationState`. The constructor projects an existing tool receipt into completed operation counts, screenshot paths, host routing and text continuation cursors.
 

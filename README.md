@@ -8,10 +8,10 @@ Install only the components you need. Use their tools directly, or call them tog
 
 The source tree requires Pi Durable 1.3.0. Most components require a Node.js host. Worker Code and the OpenAI Responses provider also support Cloudflare Workers. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
 
-[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Release 0.5.0 targets Durable 1.1.0. For example, install Apply Patch:
+[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Release 0.6.0 targets Durable 1.3.0, with matching pi-ai and Chord versions. For example, install Apply Patch:
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-apply-patch-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-apply-patch-0.6.0.tgz
 ```
 
 Then add it to the registry passed to your Harness:
@@ -25,6 +25,8 @@ registry.install(ApplyPatch);
 ```
 
 If your application already has a registry, use that one. Conversations use installed extensions by default. If you select extensions explicitly, include `ApplyPatch` in that selection. Remove it with `registry.uninstall(ApplyPatch)`.
+
+Upgrading Agents from 0.5.0 requires installing standalone Board and updating saved extension selections before resume. See the [Board migration guide](packages/board/README.md#migrating-from-bundled-board).
 
 ## Choose your tools
 
@@ -54,9 +56,9 @@ Each component's guide includes its install command and host configuration.
 | [GipPity Voice](packages/gippity-voice) | Use Codex subscription voice, dictation and browser audio controls |
 | [Settings](packages/settings) | Persist component-owned global and project preferences with revision checks |
 
-Git, the UI SDK, Sites, Guardian, Pulses, Settings, standalone Board and both voice integrations are local-development packages, not part of release 0.5.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
+Git, the UI SDK, Sites, Guardian, Pulses, Settings and both voice integrations are local-development packages, not part of release 0.6.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
 
-The local-development tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
+The tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
 
 Code and Notebook both include shell tools. Select one execution mode per conversation. Both discover the conversation's ordinary tools, including tools from other Durable extensions.
 

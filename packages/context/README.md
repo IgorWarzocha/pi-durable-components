@@ -5,7 +5,7 @@ Continue long conversations through saved notes and clean context windows. Notes
 Requires Node 22.19 or newer and Durable 1.3.0.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-context-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-context-0.6.0.tgz
 ```
 
 ## Connect your host
@@ -71,8 +71,6 @@ Direct `conversation.submit` calls, including another extension's delegation or 
 A window change preserves the conversation ID and live Code or Notebook runtime. A process restart does not preserve kernels or shell sessions. Close the Harness and storage using their normal lifecycle when the host exits. Notes and history remain local, but checkpoint and overflow-summary inference still use your configured model.
 
 ## Headless presentations
-
-Available in local-development builds, not release 0.5.0.
 
 The browser-safe `@howaboua/pi-durable-context/presentation` entry provides validated host snapshots and pure summary and detail selectors, structurally compatible with `UiCapability` and `UiPresentation`. It does not import the UI runtime.
 

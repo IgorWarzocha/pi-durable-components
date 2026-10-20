@@ -9,7 +9,7 @@ Codex mode remains the default. Explicit direct mode targets OpenAI's ordinary R
 Requires pi-ai 1.3.0. Node.js 22.19 or newer is supported, with Linux tested. Cloudflare Workers with `nodejs_compat` use an explicit native Upgrade runtime, described below.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-openai-responses-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-openai-responses-0.6.0.tgz
 ```
 
 Register the provider with the same Models collection your Harness uses:

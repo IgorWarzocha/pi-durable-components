@@ -6,7 +6,11 @@ The host supplies named profiles as Durable `AgentChange` presets. This package 
 
 ## Install in a host
 
-Agents 0.6.0 is a local-development package. Run `bun run check` and `bun run pack` at the repository root, then install its archive from `dist/artifacts.json`. Published release 0.5.0 predates the standalone Board split.
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-agents-0.6.0.tgz
+```
+
+Upgrading from 0.5.0? Board is now a separate package. Follow the migration section below before resuming saved conversations.
 
 Use Durable 1.3.0 and a persistent storage backend for restart recovery. Create a fresh component for each Harness. Install the extension before opening the Harness, then bind it before enabling scheduling.
 
@@ -79,7 +83,7 @@ Failures retain a failed status and reason. Blocking failures set the tool resul
 
 ## Host observation and control
 
-Available in local-development builds, not release 0.5.0. After binding, `agents.roster(context)` returns every registered worker's target, name, label, profile and controller, plus its native Durable `owner` edge and `state`. State is `idle` or `working` with the native run task ID. Controller metadata records the original delegation controller. It does not replace native task ownership.
+After binding, `agents.roster(context)` returns every registered worker's target, name, label, profile and controller, plus its native Durable `owner` edge and `state`. State is `idle` or `working` with the native run task ID. Controller metadata records the original delegation controller. It does not replace native task ownership.
 
 The roster uses separate committed reads, not an atomic frame. Refresh it through the host's native Harness commit subscriptions or watches. Read transcripts through Durable conversation views or history. No separate worker graph or observer lifecycle is introduced.
 
@@ -90,8 +94,6 @@ To reuse a component after runtime close, first close the old Harness and wait f
 `agents.message({ target, sender, message, requestId }, context)` submits an attributed message with `whenBusy: "steer"` and returns the native submission. Use a unique, stable request ID for each operation and reuse it when retrying an uncertain outcome. This sends no additional completion report. Both controls require a registered worker. The sender must be an existing conversation. The host owns authorisation of every read and control, including sender attribution.
 
 ## Headless presentations
-
-Available in local-development builds, not release 0.5.0.
 
 The browser-safe `@howaboua/pi-durable-agents/presentation` entry provides validated host snapshots and pure summary and detail selectors, structurally compatible with `UiCapability` and `UiPresentation`. It does not import the UI runtime.
 

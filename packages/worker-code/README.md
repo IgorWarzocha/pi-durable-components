@@ -9,7 +9,7 @@ This is a separate execution product, not native Code or Notebook parity. There 
 Install the release package with its pinned Durable peers. It is not published to the npm registry.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-worker-code-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-worker-code-0.6.0.tgz
 ```
 
 Import the package's compiled WASM through your host bundler. For Wrangler, add a `CompiledWasm` rule for `**/*.wasm` with `fallthrough: false`. No runtime fetching or compilation is needed.
@@ -62,8 +62,6 @@ From the repository, run `node --experimental-strip-types --test packages/worker
 The consuming app must separately prove its persistence, lease fencing, activation and abrupt process-loss recovery. This package does not supply another scheduler or journal.
 
 ## Headless presentations
-
-Available in local-development builds, not release 0.5.0.
 
 `@howaboua/pi-durable-worker-code/presentation` exports `workerCodeCapability`, `workerCodeSummary` and `workerCodeDetail`. These browser-safe descriptors are structurally compatible with the UI SDK without importing it. They perform no I/O and have no renderer.
 

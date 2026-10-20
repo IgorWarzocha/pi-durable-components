@@ -5,7 +5,7 @@ Run JavaScript that composes ordinary Durable tools. `exec` and `wait` are the m
 Requires Node 22.19 or newer and Durable 1.3.0.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-code-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-code-0.6.0.tgz
 ```
 
 The shell's native PTY addon requires Python, Make and a C++ compiler on Linux. If install scripts are disabled, run `npm rebuild node-pty` before using interactive shells. Pipe-based commands do not require the addon.
@@ -84,8 +84,6 @@ Call `await code.close()` when disposing the component, then close your harness.
 If the native host exits unexpectedly, interrupted output remains observable. Recreate the component before running new cells. The package does not silently replace a lost session with an empty one.
 
 ## Headless presentations
-
-Available in local-development builds, not release 0.5.0.
 
 `@howaboua/pi-durable-code/presentation` exports `codeCapability`, `codeSummary` and `codeDetail`. These browser-safe descriptors are structurally compatible with the UI SDK without importing it. They perform no I/O and have no renderer.
 

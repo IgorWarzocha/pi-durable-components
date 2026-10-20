@@ -3,7 +3,7 @@
 Apply Codex-format multi-file patches through the conversation's execution environment. The tool supports additions, updates, deletions, moves, ordered hunks, Unicode-tolerant matching, and mixed line endings. No Rust helper runs at runtime.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-apply-patch-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-apply-patch-0.6.0.tgz
 ```
 
 Install the bundle in your Durable registry:
@@ -35,8 +35,6 @@ The registration is `replay: "unsafe"`. Reopening Durable does not replay an int
 Requires Durable, pi-ai, and Chord 1.3.0. Derived engine code is Apache-2.0; adapter code is MIT. See [NOTICE](./NOTICE).
 
 ## Headless presentations
-
-Available in local-development builds, not release 0.5.0.
 
 The browser-safe `@howaboua/pi-durable-apply-patch/presentation` entry exports `applyPatchCapability`, `applyPatchSummary`, `applyPatchDetail` and `createApplyPatchPresentationState`. The constructor projects an existing tool receipt into committed file counts, exactness, partial failures, failed targets and serialization warnings.
 

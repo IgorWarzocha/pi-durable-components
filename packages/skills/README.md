@@ -7,7 +7,7 @@ Requires Node 22.19 or newer and `@earendil-works/pi-durable`, `@earendil-works/
 ## Register
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-skills-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-skills-0.6.0.tgz
 ```
 
 ```ts
@@ -61,8 +61,6 @@ Discovery does not read Pi settings or resolve Pi packages. Hosts needing those 
 Filesystem failures are reported rather than replaced by local reads. Missing roots are empty catalogs. Unsupported canonical-path operations fail visibly. Read-only calls may rerun after Durable recovery and see current file contents.
 
 ## Headless presentations
-
-Available in local-development builds, not release 0.5.0.
 
 The browser-safe `@howaboua/pi-durable-skills/presentation` entry provides validated host snapshots and pure summary and detail selectors, structurally compatible with `UiCapability` and `UiPresentation`. It does not import the UI runtime.
 

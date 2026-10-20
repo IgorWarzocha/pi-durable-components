@@ -3,7 +3,7 @@
 `createViewImageTool(options)` creates a Durable `view_image` registration. Install it in the ordinary tool registry. Code and Notebook discover the same registration.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.5.0/howaboua-pi-durable-view-image-0.5.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-view-image-0.6.0.tgz
 ```
 
 ```ts
@@ -43,8 +43,6 @@ VIEW_IMAGE_REFERENCE_BINARY=/path/to/pinned/view_image \
 The differential probe creates temporary fixtures and invokes the reference helper read-only. Original bytes, first-frame conversion and decoder acceptance evidence are recorded in [`docs/parity/view-image.md`](../../docs/parity/view-image.md).
 
 ## Headless presentations
-
-Available in local-development builds, not release 0.5.0.
 
 The browser-safe `@howaboua/pi-durable-view-image/presentation` entry exports `viewImageCapability`, `viewImageSummary`, `viewImageDetail` and `createViewImagePresentationState`. The constructor projects an existing tool receipt into the invoked path and returned image MIME type without retaining encoded bytes.
 
