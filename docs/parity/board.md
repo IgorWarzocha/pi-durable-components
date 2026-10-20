@@ -26,7 +26,7 @@ Persisted `howaboua.agents.board.*` document kinds, versions, member addresses, 
 
 The board owns public Durable documents in the host's existing storage, not another SQLite connection or filesystem archive. `BoardCatalog` lists materialized boards. `BoardIndex` holds each board's channel, subscription and post metadata. `PostText` stores bodies separately. Empty reads do not materialize an archive. Indexed posts with missing text fail instead of appearing empty. No additional post-count cap is imposed.
 
-Saved history is confined to the current Durable Session rather than the source's folder-level archive across Pi sessions. `list_boards` returns `root_conversation_id` instead of `root_session_id`. The root's environment cwd identifies the owner folder, even when a worker posts first. Reads may choose another saved board ID; writes always use current membership. Attach and detach affect only board membership, not context access or native background ownership.
+Saved history is confined to the current Durable Session rather than the source's folder-level archive across Pi sessions. `list_boards` returns `root_conversation_id` instead of `root_session_id`. The root's environment cwd identifies the owner folder, even when a worker posts first. Reads may choose another saved board ID. Writes default to local membership, with additional host-granted participation described below. Attach and detach affect only board membership, not context access or native background ownership.
 
 Notices use a conversation document keyed to the active run's first input submission. A generation task ID alone is insufficient because tool rounds and continuations replace that task. Public `beforeRequest` and `onYield` hooks consume matching notices with task-scoped delivery receipts. Before-request delivery appends a native user entry and includes it in the already-captured request. Yield delivery requests a native continuation. Neither path places turn-bound work in Durable's ordinary inbox, whose failure policy would retain it for a later run.
 
@@ -69,6 +69,18 @@ The source's experimental GPT-only alternative help prose is intentionally not a
 ### Validation at the standalone pin
 
 The existing three real-SQLite workflows passed unchanged. A disposable actual-Harness probe exercised the public tool and native Models request path: root-only status, closed-reply rejection, saved summary and full/original reads, participant-filtered summary search, character continuation, explicit retry deduplication, reopen cancellation and deletion, and saved summaries after SQLite reopen. It inspected the actual provider request for tool-free payload and closing-comment attribution. An interrupted closure resumed the same tool task and returned the same receipt with exactly one status comment. Its interrupted model task was aborted on restart and no second request was sent until an explicit retry. These probes used the real Faux provider, not a live provider, and added no permanent tests. The same probe exercised disabled summarisation, visible missing-Luna failure without fallback and headless parsing of actual summary pages. Focused Board TypeScript and Biome checks passed. Live Luna acceptance remains opt-in and unclaimed.
+
+## Host-controlled resident families
+
+The assistant-first integration adds transaction-scoped host operations for family resolution, enrolment, resident designation and additional Board participation. This is an explicit extension to the pinned source contract. Existing Board documents, native conversation ownership and local membership remain intact. An additive `howaboua.board.families` document holds designated authority, exact-conversation participation grants and canonical thread references.
+
+An enrolled conversation retains its own context. The stable family anchor owns the Board identity, while the designated resident controls thread status and summary retries. Families without a designation retain native-root authority. A designation of `null` removes that authority rather than falling back to the root.
+
+Additional participation permits writes using `board_id` without moving the caller's local family. Workers do not inherit the grant. Posts use the target Board's mapped author address and existing mutation receipt. Participation supplies neither thread lifecycle authority nor a turn-start mechanism. Notices and subscription catch-up remain passive and include the target Board reference.
+
+The host may also create a canonical thread atomically under a feature-owned key, publish retry-safe replies and read a bounded thread projection. Host replies use the ordinary post validation and passive notice path, with a Board-scoped request receipt committed alongside the post. Board owns the reference and discussion data. Setup naming, workspace identity and cross-workspace policy belong to the consuming host.
+
+Construction validation is limited to source review, TypeScript, lint and supported package build and packing. No new runtime or provider acceptance is claimed for these operations. The executable evidence above describes earlier implementations.
 
 ## Attribution
 

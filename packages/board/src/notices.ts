@@ -7,6 +7,7 @@ import type {
 } from "@earendil-works/pi-durable";
 import { defineDoc, LiveDoc, UserEntry } from "@earendil-works/pi-durable";
 import { markBoardSeen } from "./awareness.ts";
+import { boardAddresses } from "./membership.ts";
 
 type PendingNotice = {
 	input: SubmissionId;
@@ -81,7 +82,7 @@ export async function queueBoardNotices(
 		prepared.push({ run, notices });
 	}
 
-	const content = `Board post ${JSON.stringify(notice)}`;
+	const content = `Board post ${JSON.stringify({ ...notice, board_id: boardId })}`;
 	let queued = 0;
 	for (const { run, notices } of prepared) {
 		discardStale(notices.pending, run?.input);
@@ -110,6 +111,10 @@ export async function receiveBoardNotices(
 	const notices = await tx.doc(BoardNotices, api.conversationId);
 	const receipt = await tx.doc(BoardNoticeReceipt, api.taskId);
 	discardStale(notices.pending, run?.input);
+	const addresses = await boardAddresses(tx, api.conversationId);
+	for (const [key, notice] of Object.entries(notices.pending))
+		if (notice.boardId !== undefined && addresses[notice.boardId] === undefined)
+			delete notices.pending[key];
 	if (run === undefined || run.taskId !== api.taskId) return undefined;
 	const saved = receipt[at];
 	if (saved !== null && saved.input === run.input)

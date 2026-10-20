@@ -6,6 +6,16 @@ import type {
 	Tx,
 } from "@earendil-works/pi-durable";
 import { defineExtension } from "@earendil-works/pi-durable";
+import {
+	designateResident,
+	enrol,
+	ensureThread,
+	family,
+	grantParticipation,
+	post,
+	revokeParticipation,
+	threads,
+} from "./host-family.ts";
 import { boardScope } from "./membership.ts";
 import { createBoardNoticeHooks } from "./notice-hooks.ts";
 import { BoardCatalog, BoardIndex, findRoot } from "./store-model.ts";
@@ -17,12 +27,24 @@ import {
 } from "./summarizer.ts";
 import { createBoardTool } from "./tool.ts";
 
+export type {
+	BoardCanonicalThread,
+	BoardEnrolment,
+	BoardFamily,
+	BoardParticipation,
+	BoardPost,
+	BoardPosted,
+	BoardResidentDesignation,
+	BoardThread,
+	BoardThreadPage,
+	BoardThreadQuery,
+	BoardThreadReference,
+} from "./host-family.ts";
 export {
 	readSavedThreads,
 	type SavedPost,
 	type SavedThread,
 } from "./saved-threads.ts";
-
 export type { BoardSummaryOptions } from "./summarizer.ts";
 export { LUNA_SUMMARY_MODEL } from "./summarizer.ts";
 
@@ -54,6 +76,12 @@ export function createBoard(
 	);
 	const extension = defineExtension({
 		name: "howaboua.board",
+		sections: [
+			{
+				key: "board-documentation",
+				render: () => "Record useful work, decisions and outcomes on Board.",
+			},
+		],
 		tools: [tool],
 		tasks: [summaryTask],
 		hooks: createBoardNoticeHooks(binding, () => host),
@@ -61,6 +89,14 @@ export function createBoard(
 	return {
 		extension,
 		tool,
+		family,
+		enrol,
+		designateResident,
+		grantParticipation,
+		post,
+		revokeParticipation,
+		ensureThread,
+		threads,
 		bind(harness: Harness, storage: Storage) {
 			if (
 				host !== undefined &&
@@ -85,8 +121,8 @@ export function createBoard(
 			const { harness } = binding();
 			const result = await harness.commit(async (tx) => {
 				const scope = await boardScope(tx, conversationId, "");
-				if (scope.rootConversationId !== conversationId)
-					throw new Error("Only the root conversation can summarize threads");
+				if (!scope.canManageThreads)
+					throw new Error("Only the designated resident can summarize threads");
 				const thread = threadId.toLowerCase();
 				const index = await tx.doc(BoardIndex, scope.boardId, null);
 				findRoot(index, thread);

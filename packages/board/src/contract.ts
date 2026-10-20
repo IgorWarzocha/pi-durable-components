@@ -76,7 +76,7 @@ const fields: Record<BoardAction, string[]> = {
 	attach: ["target"],
 	detach: ["target"],
 	list_boards: paging,
-	create_channel: ["channel_name", "subscribe"],
+	create_channel: ["channel_name", "subscribe", "board_id"],
 	get_channels: ["query", "recent_first", ...paging, ...reads],
 	post: [
 		"text",
@@ -84,8 +84,9 @@ const fields: Record<BoardAction, string[]> = {
 		"new_channel_name",
 		"thread_id",
 		"agents_to_notify",
+		"board_id",
 	],
-	set_status: ["thread_id", "status", "comment"],
+	set_status: ["thread_id", "status", "comment", "board_id"],
 	list_threads: [
 		"channel_name",
 		"sort",
@@ -106,8 +107,8 @@ const fields: Record<BoardAction, string[]> = {
 		...paging,
 		...reads,
 	],
-	subscribe: ["channel_name", "thread_id", "target_agent"],
-	unsubscribe: ["channel_name", "thread_id", "target_agent"],
+	subscribe: ["channel_name", "thread_id", "target_agent", "board_id"],
+	unsubscribe: ["channel_name", "thread_id", "target_agent", "board_id"],
 };
 const requiredFields: Partial<Record<BoardAction, string[]>> = {
 	attach: ["target"],
@@ -127,7 +128,7 @@ export function parseBoardRequest(value: unknown): BoardParams {
 	const request = { ...(value as BoardParams) };
 	const allowed = new Set(["action", ...fields[request.action]]);
 	if (Object.keys(request).some((field) => !allowed.has(field)))
-		throw new Error(`Unknown ${request.action} field; board_id is read-only`);
+		throw new Error(`Unknown ${request.action} field; call board help`);
 	for (const field of requiredFields[request.action] ?? []) {
 		if (!(field in request)) throw new Error(`${field} is required`);
 	}
@@ -181,10 +182,10 @@ export const boardHelp = {
 	),
 	rules: {
 		scope:
-			"Defaults to your tree; board_id browses history, never writes. list_boards discovers saved boards",
+			"Defaults to your local family. board_id reads saved boards; writes require an explicit host participation grant. list_boards discovers saved boards",
 		post: "text required; exactly one of channel_name, new_channel_name, thread_id. Thread ID is the first post ID. New channel subscribes author to first posts",
 		set_status:
-			"Root conversation only. Mark completed when the user confirms it is done, or abandoned when they drop it—not merely when agents finish. Closed threads reject replies; reopen first",
+			"Designated resident only. Mark completed when the user confirms it is done, or abandoned when they drop it—not merely when agents finish. Closed threads reject replies; reopen first",
 		summaries:
 			"When enabled, closing starts summarization. Summarized threads return/search only summaries; full=true reads/searches originals. Summary author filters match participants; read_post always reads originals",
 		subscriptions:

@@ -9,6 +9,7 @@ import type {
 } from "@earendil-works/pi-durable";
 import { AgentDoc, defineDoc, LiveDoc } from "@earendil-works/pi-durable";
 import type { BoardParams } from "./contract.ts";
+import { BoardFamilies } from "./family-policy.ts";
 
 type Binding = {
 	boardId: string;
@@ -25,6 +26,19 @@ export const BoardMembers = defineDoc<{
 	scope: "session",
 	initial: () => ({ members: {}, ownerFolders: {} }),
 });
+
+export async function boardAddresses(tx: Tx, conversationId: ConversationId) {
+	const member = (await tx.doc(BoardMembers)).members[String(conversationId)];
+	const addresses: Record<string, string> =
+		member === undefined ? {} : { [member.boardId]: member.agentName };
+	for (const [boardId, family] of Object.entries(
+		(await tx.doc(BoardFamilies)).families,
+	)) {
+		const name = family.participants[String(conversationId)];
+		if (name !== undefined) addresses[boardId] = name;
+	}
+	return addresses;
+}
 const MembershipReceipt = defineDoc<{
 	saved: {
 		request: string;
@@ -89,14 +103,27 @@ export async function boardScope(
 	tx: Tx,
 	caller: ConversationId,
 	ownerFolder: string,
+	boardId?: string,
 ) {
 	const directory = await membership(tx, caller);
-	const member = directory.members[String(caller)];
+	let member = directory.members[String(caller)];
 	if (member === undefined) throw new Error("Missing board membership");
+	const policies = await tx.doc(BoardFamilies);
+	if (boardId !== undefined && boardId !== member.boardId) {
+		const family = policies.families[boardId];
+		const agentName = family?.participants[String(caller)];
+		if (family === undefined || agentName === undefined)
+			throw new Error("No write participation granted for this board");
+		member = {
+			boardId,
+			rootConversationId: family.anchorConversationId,
+			agentName,
+		};
+	}
 	if (!Object.hasOwn(directory.ownerFolders, member.boardId)) {
 		const rootAgent = await tx.doc(AgentDoc, member.rootConversationId);
 		directory.ownerFolders[member.boardId] =
-			member.rootConversationId === caller
+			member.rootConversationId === caller && ownerFolder !== ""
 				? ownerFolder
 				: (rootAgent.cwd ?? "");
 	}
@@ -105,6 +132,9 @@ export async function boardScope(
 		if (value.boardId === member.boardId)
 			members[value.agentName] = Number(id) as ConversationId;
 	}
+	const family = policies.families[member.boardId];
+	for (const [id, agentName] of Object.entries(family?.participants ?? {}))
+		members[agentName] = Number(id) as ConversationId;
 	return {
 		boardId: member.boardId,
 		rootConversationId: member.rootConversationId,
@@ -112,6 +142,10 @@ export async function boardScope(
 		callerConversationId: caller,
 		ownerFolder: directory.ownerFolders[member.boardId] ?? "",
 		members,
+		canManageThreads:
+			family === undefined
+				? member.rootConversationId === caller
+				: family.residentConversationId === caller,
 	};
 }
 
@@ -146,6 +180,11 @@ export async function changeMembership(
 		const current = directory.members[String(target)];
 		if (caller === undefined || current === undefined)
 			throw new Error("Missing board membership");
+		const family = (await tx.doc(BoardFamilies)).families[current.boardId];
+		if (family?.residentConversationId === target)
+			throw new Error(
+				"The host must release resident authority before moving this conversation",
+			);
 		const live = await tx.doc(LiveDoc, target);
 		if (live.run !== undefined)
 			throw new Error(

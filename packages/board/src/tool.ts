@@ -6,7 +6,8 @@ import {
 	type TaskId,
 } from "@earendil-works/pi-durable";
 import { markBoardSeen } from "./awareness.ts";
-import { BoardParameters, parseBoardRequest } from "./contract.ts";
+import { BoardParameters, MUTATIONS, parseBoardRequest } from "./contract.ts";
+import { BoardFamilies } from "./family-policy.ts";
 import { boardScope, changeMembership } from "./membership.ts";
 import { queueBoardNotices } from "./notices.ts";
 import { serializeBoardResult } from "./response.ts";
@@ -41,7 +42,12 @@ export function createBoardTool(
 			const agent = await api.agent(context);
 			const ownerFolder = api.env?.cwd ?? agent.cwd ?? "";
 			const value = await api.commit(async (tx) => {
-				const scope = await boardScope(tx, api.conversationId, ownerFolder);
+				const scope = await boardScope(
+					tx,
+					api.conversationId,
+					ownerFolder,
+					MUTATIONS.has(args.action) ? args.board_id : undefined,
+				);
 				const result = await executeBoard(tx, scope, args, api.taskId);
 				if (args.action === "read_post" || args.action === "read_thread") {
 					const posts =
@@ -107,6 +113,16 @@ export function createBoardTool(
 							summarization: summaryPolicy,
 							board_id: scope.boardId,
 							agent_name: scope.agentName,
+							can_manage_threads: scope.canManageThreads,
+							participation: Object.entries(
+								(await tx.doc(BoardFamilies)).families,
+							).flatMap(([board_id, family]) => {
+								const agent_name =
+									family.participants[String(api.conversationId)];
+								return agent_name === undefined
+									? []
+									: [{ board_id, agent_name }];
+							}),
 						}
 					: result.value;
 			}, context);

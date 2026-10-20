@@ -44,6 +44,7 @@ export type BoardScope = {
 	agentName: string;
 	callerConversationId: ConversationId;
 	members: Readonly<Record<string, ConversationId>>;
+	canManageThreads?: boolean;
 };
 export type BoardResult = {
 	value: JsonObject;
@@ -56,7 +57,7 @@ export async function executeBoard(
 	tx: Tx,
 	scope: BoardScope,
 	params: BoardParams,
-	taskId: TaskId,
+	taskId: TaskId | undefined,
 	now: () => number = Date.now,
 ): Promise<BoardResult> {
 	params = parseBoardRequest(params);
@@ -70,7 +71,8 @@ export async function executeBoard(
 		}));
 	}
 	checkMutationBudget(scope.agentName, params);
-	const receipt = await tx.doc(MutationReceipt, taskId);
+	const receipt =
+		taskId === undefined ? undefined : await tx.doc(MutationReceipt, taskId);
 	const request = JSON.stringify({
 		board: scope.boardId,
 		caller: scope.callerConversationId,
@@ -84,7 +86,7 @@ export async function executeBoard(
 			}).sort(([a], [b]) => a.localeCompare(b)),
 		),
 	});
-	if (receipt.saved !== null) {
+	if (receipt !== undefined && receipt.saved !== null) {
 		if (receipt.saved.request !== request)
 			throw new Error(
 				params.action === "post"
@@ -103,7 +105,7 @@ export async function executeBoard(
 	// Budget failures abort the same transaction as all document writes.
 	serializeBoardResult(result.value);
 	const value = detached(result.value);
-	receipt.saved = { request, value };
+	if (receipt !== undefined) receipt.saved = { request, value };
 	return { ...result, value };
 }
 
@@ -182,9 +184,12 @@ async function mutate(
 	if (params.action === "post" || params.action === "set_status") {
 		if (
 			params.action === "set_status" &&
-			scope.callerConversationId !== scope.rootConversationId
+			!(
+				scope.canManageThreads ??
+				scope.callerConversationId === scope.rootConversationId
+			)
 		)
-			throw new Error("Only the root conversation can change thread status");
+			throw new Error("Only the designated resident can change thread status");
 		result = await publish(tx, index, scope, params, created);
 	} else if (params.action === "create_channel") {
 		const name = required(params.channel_name, "channel_name");
@@ -277,7 +282,7 @@ async function publish(
 			: undefined;
 		if (params.action === "post" && state && state.status !== "open")
 			throw new Error(
-				"Thread is closed. The root conversation must reopen it before replies.",
+				"Thread is closed. The designated resident must reopen it before replies.",
 			);
 		channel = post.channel_name;
 		root = post.thread_id;
