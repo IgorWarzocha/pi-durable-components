@@ -1,5 +1,5 @@
 - Build against the pinned packages' published `dist` exports. Their `source` conditions reference files absent from the npm artifacts.
 - Keep live-service requests opt-in and outside the default gate. The smoke runner may read explicitly supplied credentials but must not refresh, persist or print them.
 - Package checks must exercise emitted entry points and reject missing notices or bundled development state. Browser's remote worker needs its separate Node bundle and Durable-specific ownership marker.
-- Bundle owned source, not npm dependencies. Durable must stay external so installed components share the host's runtime. Ship one JavaScript entry per product plus Browser's worker, with no cross-component npm dependency.
+- Bundle owned source, not npm dependencies. Durable must stay external so installed components share the host's runtime.
 - Keep the explicit MCP SDK peer while pi-ai's public Google declarations transitively import it through `@google/genai`. Check that declaration chain, not only direct pi-ai imports, before removing it. A clean consumer must typecheck without `skipLibCheck` or repository-only devDependencies.
