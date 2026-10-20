@@ -5,6 +5,7 @@ import {
 	type Harness,
 	LiveDoc,
 	type SettledSubmissionRecord,
+	type TaskId,
 } from "@earendil-works/pi-durable";
 import type {
 	PulseBinding,
@@ -46,6 +47,8 @@ type RunState =
 	| { phase: "dispatch" }
 	| { phase: "retry"; after: number }
 	| { phase: "deliver"; outcome: SettledSubmissionRecord };
+export const pulseInputRequestId = (taskId: TaskId) => `pulse-input:${taskId}`;
+
 export function createRunTask(host: () => Harness, options: PulsesOptions) {
 	return defineTask<PulseRunInput, RunState, SettledSubmissionRecord>({
 		name: "howaboua.pulses.run",
@@ -63,7 +66,7 @@ export function createRunTask(host: () => Harness, options: PulsesOptions) {
 					? `\nScheduled occurrences coalesced: ${occurrence.count}. Period: ${new Date(occurrence.startAt).toISOString()} through ${new Date(occurrence.endAt).toISOString()}. Cover relevant work since the start of this period in one fresh run; do not replay each occurrence.`
 					: "";
 				const content = `[Pulse: ${definition.title}; ${trigger}]\nWorkspace: ${definition.root}\nPulse home: ${definition.pulseHome}\nDefinition: ${definition.path}${period}\nBefore work, read applicable instructions including ${definition.pulseHome}/AGENTS.md if present. Preserve the pulse folder and use its existing journal/artifact conventions.\n\n${definition.body}\n\n${resultGuidance}`;
-				const requestId = `pulse-input:${task.id}`;
+				const requestId = pulseInputRequestId(task.id);
 				const outcome = await (async () => {
 					// Native receipt rejoin precedes even the host delivery port and its policy.
 					const previous = await host().commit(

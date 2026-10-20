@@ -7,6 +7,7 @@ import {
 	type PulseDefinition,
 	parsePulseDefinition,
 } from "./definitions.ts";
+import { execution, type PulseExecutionRequest } from "./execution.ts";
 import { explicitReady, reconcileSchedules } from "./occurrences.ts";
 import { Checkpoints, pulseKey, restoreMissingReferences } from "./state.ts";
 import { Anchor, createRunTask } from "./tasks.ts";
@@ -28,6 +29,7 @@ export {
 	type PulseDefinition,
 	parsePulseDefinition,
 } from "./definitions.ts";
+export type { PulseExecutionRequest } from "./execution.ts";
 export { parsePulseFrontmatter } from "./frontmatter.ts";
 export { explicitReady } from "./occurrences.ts";
 export {
@@ -217,6 +219,10 @@ export function createPulses(options: PulsesOptions) {
 					throw new Error(`Pulse is disabled: ${definition.id}`);
 				return dispatch(definition, "manual", requestId, context);
 			});
+		},
+		/** Native task and input receipt for the latest run of this exact job/target. No receipt means not yet submitted. */
+		execution(request: PulseExecutionRequest, context: Context) {
+			return host().commit((tx) => execution(tx, request), context);
 		},
 		async observe(context: Context) {
 			const references =
