@@ -111,11 +111,13 @@ export class CodeCellOutput {
 			name,
 			input: JSON.stringify(input).slice(0, 16_384),
 			status: "running",
+			nativeCallIds: [],
 		};
 		this.traces.push(trace);
 		return {
-			done(result: ToolExecutionResult): void {
+			done(result: ToolExecutionResult, callId: string): void {
 				trace["status"] = "done";
+				trace["nativeCallIds"] = [callId];
 				trace["result"] = JSON.stringify(result).slice(0, 16_384);
 			},
 			failed(error: unknown): void {

@@ -1,3 +1,7 @@
+Opt-in summaries, compact acknowledgements and summary previews adapted from
+pi-agent-board at revision 3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281.
+Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281/packages/pi-agent-board/src
+
 Discussion board contracts, paging, subscriptions, and query behavior adapted
 from @howaboua/pi-shepherdr 0.2.13.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb/packages/pi-shepherdr/src/board

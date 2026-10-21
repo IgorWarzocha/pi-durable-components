@@ -39,6 +39,7 @@ export const WindowState = defineDoc<{
 	kind: "howaboua.context.window-state",
 	version: 1,
 	scope: "conversation",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	history: "rewindable",
 	fork: "initial",
 	initial: () => ({ reminded: 0 }),

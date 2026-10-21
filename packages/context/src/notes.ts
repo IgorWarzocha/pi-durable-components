@@ -68,7 +68,7 @@ export function createNotesTool(options: { now: () => number }) {
 						append: args.action === "append_to_file",
 						now: options.now,
 					});
-					return { source: "sqlite", file: noteMetadata(file) };
+					return { file: { path: file.path } };
 				}
 				return readNotes(tx, target, args, hasCatalog);
 			}, context);

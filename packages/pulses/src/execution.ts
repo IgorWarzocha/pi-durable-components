@@ -1,4 +1,11 @@
-import type { ConversationId, Cursor, Tx } from "@earendil-works/pi-durable";
+import type { JsonValue } from "@earendil-works/chord";
+import type {
+	ConversationId,
+	Cursor,
+	SubmissionRecord,
+	TaskRecord,
+	Tx,
+} from "@earendil-works/pi-durable";
 import { pulseInputRequestId } from "./tasks.ts";
 
 export type PulseExecutionRequest = {
@@ -8,7 +15,16 @@ export type PulseExecutionRequest = {
 };
 
 /** Latest admitted execution for this exact job and conversation, including historical targets. */
-export async function execution(tx: Tx, request: PulseExecutionRequest) {
+export async function execution(
+	tx: Tx,
+	request: PulseExecutionRequest,
+): Promise<
+	| {
+			task: TaskRecord<JsonValue, JsonValue, JsonValue>;
+			submission: Extract<SubmissionRecord, { type: "input" }> | undefined;
+	  }
+	| undefined
+> {
 	let cursor: Cursor | undefined;
 	do {
 		const page = await tx.scanTasks(

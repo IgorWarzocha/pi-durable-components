@@ -2,10 +2,10 @@
 
 Run TypeScript in a persistent Deno kernel. Globals and imports survive between cells. Serializable values and self-contained functions restore from checkpoints without replaying the cells that created them. Shell tools are included.
 
-Requires Node 22.19 or newer and Durable 1.3.0.
+Requires Node 22.19 or newer and Durable 1.4.0.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-notebook-0.6.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.0/howaboua-pi-durable-notebook-0.7.0.tgz
 ```
 
 The shell's native PTY addon requires Python, Make and a C++ compiler on Linux. If install scripts are disabled, run `npm rebuild node-pty` before using interactive shells. Pipe-based commands do not require the addon.

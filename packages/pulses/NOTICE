@@ -1,5 +1,9 @@
 Frontmatter and schedule algorithms carried from IgorWarzocha/pi-clawa (Howaclawa), revision 07fbb0ad71a08a864b285b01d512c2052861b91d, src/pulses/frontmatter.ts and schedule.ts. Copyright Igor Warzocha. MIT license; see LICENSE. Parser and scheduling semantics preserved; filesystem, native admission and execution are Durable-native implementations.
 
+Pi 1.4 refresh inspected pi-pulses at revision
+3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281. This delta changes dependency metadata
+only; Durable sleep checkpoints and task ownership remain native implementations.
+
 Schedule-edit rebasing and task-result guidance aligned to packages/pi-pulses
 in https://github.com/IgorWarzocha/howaboua-pi-stuff at revision
 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32, including local commits.

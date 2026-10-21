@@ -30,6 +30,10 @@ failures count against retry admission; terminal observer failures never replay;
 case-insensitive request affinity reconnects without merging native socket lanes.
 Pi usage ledgers, UI, V2 session compaction and experimental GPT prompt-policy
 brokers are excluded. Durable owns native session identity and lifecycle.
+Pi 1.4 additions-only transcript folding and native-session diagnostic selection
+follow snapshot 3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281.
+Modifications: transport cleanup remains provider-instance owned. No Pi-global
+session cleanup callback, footer or logging adapter is installed.
 
 Portions of the Responses conversion and streaming implementation derive
 from Pi, Copyright (c) 2025 Mario Zechner, MIT licensed.

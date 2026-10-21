@@ -1,3 +1,7 @@
+Exposed-body read evidence and byte-page attribution adapted from
+pi-better-skills-tool at revision 3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281.
+Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281/packages/pi-better-skills-tool/src
+
 Source alignment inspected at Pi Stuff revision 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32.
 See docs/parity for carried changes and explicit native-environment exclusions.
 

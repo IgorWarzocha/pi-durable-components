@@ -1,3 +1,7 @@
+Parallel blocking delegation guidance aligned to pi-shepherdr at revision
+3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281. Durable transactions own concurrent
+name allocation; native instructions preserve role text after project sections.
+
 Delegation contracts and name-normalization behavior adapted from
 @howaboua/pi-shepherdr 0.2.12.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-shepherdr

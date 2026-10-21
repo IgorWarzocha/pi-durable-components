@@ -60,6 +60,16 @@ Earlier validation included 12 delegation workflows, board workflows, strict Typ
 
 Native model-provider side effects retain Durable's own interruption and generation-recovery semantics. These tests do not claim that a provider request is exactly-once or that remote terminal state survives a restart.
 
+## Pi 1.4 source alignment
+
+Compared read-only Pi Stuff `3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281` against `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`. The ordinary Agents registration now permits parallel execution. Help recommends `await Promise.allSettled` for JavaScript fan-out that waits for all results, including failures. `blocking: false` is for continuing other work, not a prerequisite for parallelism.
+
+The source reserves process names during asynchronous launch. Durable already allocates unique names, workers and receipts inside the same transaction. Concurrent same-label requests therefore require no new in-memory reservation owner. Native `AgentChange.instructions` already preserves exact role text and renders it after extension project sections. No Pi flag, prompt rewriting or worker-role event channel is imported. Process notification diagnostics and remote launch corrections remain outside the accepted boundary.
+
+The Fleet document now declares Durable 1.4's required checkpoint policy, storing a base after 64 accumulated deltas without changing its persisted kind or version. Existing watch and worker task classifiers regard every nonterminal state, including sleeping, as live.
+
+A disposable actual-Harness probe admitted two blocking same-label spawns in one native tool round, held both workers concurrently and observed unique `same-label` and `same-label-2` names before either completed. Both calls settled after release. Captured worker requests preserved a multiline role, including a tab and trailing newline, after the shared project section. Strict TypeScript passed against Durable, Pi AI and Chord 1.4.0. No permanent tests or live-provider claims were added. The coordinator owns the final repository gate.
+
 ## Attribution
 
 Background ownership and report submission patterns adapt Durable example 23 under its MIT license. The upstream copyright and permission notice are retained in `packages/agents/src/tasks.ts` and the published `packages/agents/NOTICE`. Shepherdr's delegation contracts are used under its MIT license, copyright 2026 Igor Warzocha, matching this repository's license. The package notice records the pinned revisions and inherited copyright holders.

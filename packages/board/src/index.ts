@@ -50,6 +50,7 @@ export { LUNA_SUMMARY_MODEL } from "./summarizer.ts";
 
 /** Install before opening and bind before scheduling board posts or notice delivery. */
 export function createBoard(
+	/** Summary generation is opt-in. Supply summary: {} for the source Luna preset. */
 	options: { summary?: BoardSummaryOptions | false } = {},
 ) {
 	let host: { harness: Harness; storage: Storage } | undefined;
@@ -65,8 +66,8 @@ export function createBoard(
 	);
 	const tool = createBoardTool(
 		binding,
-		options.summary !== false ? summaryTask : undefined,
-		options.summary === false
+		options.summary ? summaryTask : undefined,
+		!options.summary
 			? { enabled: false }
 			: {
 					enabled: true,
@@ -116,7 +117,7 @@ export function createBoard(
 			requestId: string,
 			context: Context,
 		) {
-			if (options.summary === false)
+			if (!options.summary)
 				throw new Error("Board summarization is disabled by the host");
 			const { harness } = binding();
 			const result = await harness.commit(async (tx) => {

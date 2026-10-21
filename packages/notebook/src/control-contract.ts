@@ -14,5 +14,5 @@ export function canExecuteNotebookControlInsideExec(request: {
 }
 
 export function notebookExecStartupNotice(): string {
-	return `Inside exec tools.notebook supports ${NOTEBOOK_EXEC_ACTIONS.join(", ")}; all others use the top-level notebook tool after exec returns`;
+	return 'Inside exec: tools.notebook({action:"status"}); also "list" or "diagnostics"; direct object, not {input:...}; status without query. Other controls: top-level notebook after exec returns';
 }

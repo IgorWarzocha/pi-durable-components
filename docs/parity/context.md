@@ -69,3 +69,15 @@ The ordinary Notes guidance now treats notes as concise recovery state, batches 
 Source Pi V2 branch projection, custom kickoff messages and attachment storage are not this component's storage model. Native owned writes, same-storage shared reads, atomic rollover receipts and retained Durable history remain unchanged. The source experimental GPT guidance is alternate Pi prompt policy, not a second Durable mode. No prompt event bus, model-name detection or silent activation is installed.
 
 Validation: both retained real SQLite/Harness workflows passed. A disposable real Harness captured the provider-bound recovery guidance and exercised empty Notes and History calls, including write/path and returned-ID instructions. No permanent tests were added.
+
+## Pi 1.4 source alignment
+
+Compared read-only Pi Stuff `3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281` against `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`. Notes writes now return only `{ file: { path } }`, matching the reduced source acknowledgement. Body, metadata, freshness and original write receipt still commit together. Freshness uses that stored proof, not model-visible receipt fields. List, read and search metadata remain available. Source `codexHistoryNotes.source` compatibility proof is unnecessary with the native document authority.
+
+The History schema now says `window_id` is required with `item_id` for `read_item`. Missing identifiers name the field and instruct callers to copy both IDs from the same search or item-list result. Current-window guidance explicitly says previous skill reads do not carry into this window and task-relevant skills must be reread. No skill body or hidden cross-window read cache is injected.
+
+Source idle settings now offer off, 25 and 55 minutes, and nominal two-, six- and twelve-hour presets with five minutes of headroom. These remain outside this component's accepted fixed-25-minute, host-opt-in policy, as documented above. Native observed settlement and fresh notes from the latest completed run remain the admission proof. No Pi settings UI, alternate prose mode or process worker-role channel is installed.
+
+All owned documents declare Durable 1.4's required checkpoint policy, storing a base after 64 accumulated deltas while preserving document identities, history and fork semantics. Native task classifiers already treat sleeping work as live.
+
+A disposable real SQLite/Harness probe verified the minimal write acknowledgement and captured the provider-bound skill-reload guidance through ordinary tool execution. Strict TypeScript passed against Durable 1.4.0, including the targeted History schema and validation. No permanent tests or live-provider acceptance were added. The coordinator owns the retained-workflow and final repository gate.

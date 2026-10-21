@@ -117,7 +117,9 @@ export interface CodexDiagnosticsFailure {
 	code?: string | undefined;
 	status?: number | undefined;
 }
-export type CodexDiagnosticsEvent =
+export type CodexDiagnosticsEvent = {
+	scope?: "session" | "auxiliary" | undefined;
+} & (
 	| {
 			type: "request";
 			lane: CodexDiagnosticsLane;
@@ -189,7 +191,8 @@ export type CodexDiagnosticsEvent =
 			intervalMs?: number | undefined;
 			requestSource?: "captured" | "reconstructed" | undefined;
 			action?: "generated-refresh" | undefined;
-	  };
+	  }
+);
 
 export type CodexDiagnosticsSink = (event: CodexDiagnosticsEvent) => void;
 

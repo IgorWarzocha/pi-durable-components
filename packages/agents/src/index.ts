@@ -30,7 +30,7 @@ export function createAgents(options: AgentsOptions) {
 		description: "Delegate to persistent agents",
 		parameters: AgentsParameters,
 		replay: "safe",
-		executionMode: "sequential",
+		executionMode: "parallel",
 		// Delegation results retain full replies.
 		outputLimits: {
 			maxBytes: Number.MAX_SAFE_INTEGER,

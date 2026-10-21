@@ -1,6 +1,6 @@
 # Functionality parity
 
-The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.3.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
+The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.4.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
 
 Tool arguments, outputs, errors, cancellation, state, and recovery are part of parity. Pi-specific TUI rendering and slash commands are not being shipped as a compatibility layer. Missing functionality must stay visible here until implemented and validated.
 
@@ -13,6 +13,10 @@ The 2026-10-19 alignment compares that pin with `7f3295e67a8e6146b2a6922b56a06fa
 The experimental PCC GPT prose switch remains Pi prompt policy, not a new component-wide mode. Components retain one concise discovery contract and the applicable behavioral guidance. Pi V2 session projection, usage ledgers, terminal viewers, Chill Actions, GitHub Watch, remote process control and destructive global Notebook retention remain outside these accepted packages. The official Code host advances to the source's pinned `rust-v0.163.0`; Durable, pi-ai and Chord remain unchanged at 1.3.0. This alignment neither activates components in Howcode nor changes host profiles.
 
 The source advanced during validation to `9cc01aa0d9c99d8121a1dfe77a3bf933952559bf`. That follow-up fixes Shepherdr SSH pipe failures and terminal reconnect notices only; inspection found no applicable component delta. The carried-code pin remains `7f3295e6`.
+
+The 2026-10-21 refresh compares that carried pin with source release commit `753e79b91bdeff23596f7bfb926cb1cffaafa344`. The inspected checkout at `3d0faf5a` adds only a generated Observatory changelog entry. The later merge `a06eae4d141fae421a8d0108a4a560013d6508a8` has the same tree. Component evidence records the applicable provider, execution, coordination, notes and skill changes. Observatory and Suggestions are new Pi-specific products outside the accepted component set. Browser changes only adjust its optional GPT wording, which remains excluded. The remaining accepted file, shell, web, image, voice, Sites and Guardian implementations have no applicable source changes in this range.
+
+The runtime upgrade uses published Durable, pi-ai and Chord 1.4.0, with upstream release reference `earendil-works/pi` at `4a080252f06caf63a525d7873c5d94d3c23887e0`. SQLite opening automatically migrates to schema version 2, which older Durable versions cannot reopen. Older runtimes also cannot resume sleeping tasks in JSONL. Hosts must upgrade their runtime and installed components together and plan recovery before opening existing storage. Components use native document checkpoint policies and durable sleep phases rather than patching upstream. New telemetry and client identity capabilities remain host-controlled.
 
 | Component | Accepted scope | Evidence |
 |---|---|---|
@@ -59,6 +63,10 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-21, the Durable 1.4 refresh passed independent review after correcting Board's compact acknowledgements for nested execution. All delivery-gate stages passed: lint, twenty-two package builds, strict TypeScript, Knip, all 28 retained workflows and dry-pack checks. The initial gate exposed inferred Pulse declarations that leaked a transitive telemetry import, an undeclared Knip exception for Grok's existing bundled validation dependency, and a Board test helper that still equated compact text with full host details. Explicit native return types, a scoped dependency exception and the updated helper resolved those failures. No permanent tests were added.
+
+All twenty-two rebuilt archives installed in a fresh external npm consumer with lifecycle scripts disabled. Its forty public declaration exports passed strict TypeScript with `skipLibCheck: false`. An installed-archive migration probe created real SQLite storage using the published Board 0.1 archive and Durable 1.3, then reopened it with Board 0.2 and Durable 1.4. The archive, canonical thread identity and post receipt survived without duplicate posts. Thirteen public release archives were prepared with matching SHA-256 checksums. Disposable real V8, Deno, SQLite and SSE/WebSocket probes are recorded in the component evidence. Live providers, audio devices and non-Linux platforms were not revalidated.
 
 On 2026-10-19, the alignment passed one independent review with no material findings and all delivery-gate stages: lint, twenty-two package builds, strict TypeScript, Knip, all 28 retained workflows and dry-pack checks. The initial build caught an excess-property placement in Agents' discovery metadata; attaching it to the ordinary registration after `defineTool` resolved the error, and the remaining stages passed. No permanent tests were added.
 

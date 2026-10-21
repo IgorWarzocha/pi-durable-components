@@ -115,7 +115,7 @@ export function help(profiles: AgentsOptions["profiles"]) {
 			prompt:
 				"Give each worker a distinct scope, desired outcome, relevant project context and issue references. Describe success rather than lists of forbidden investigations",
 			blocking:
-				"Defaults true; spawn profile policy overrides. False reports completion after you reply. No polling",
+				"Defaults true; spawn profile policy overrides. In JavaScript cells, use await Promise.allSettled for parallel calls that wait for every result, including failures. Use false only to continue other work; completion arrives after your reply. No polling or sleep waits",
 			send: "Admits a message, wakes idle recipients, steers active work. No wait or implicit watch",
 			watch: "Persists until unwatch; delegation reports are task-scoped",
 			board_thread_id:

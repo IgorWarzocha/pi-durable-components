@@ -7,12 +7,12 @@ The host supplies named profiles as Durable `AgentChange` presets. This package 
 ## Install in a host
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-agents-0.6.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.0/howaboua-pi-durable-agents-0.7.0.tgz
 ```
 
 Upgrading from 0.5.0? Board is now a separate package. Follow the migration section below before resuming saved conversations.
 
-Use Durable 1.3.0 and a persistent storage backend for restart recovery. Create a fresh component for each Harness. Install the extension before opening the Harness, then bind it before enabling scheduling.
+Use Durable 1.4.0 and a persistent storage backend for restart recovery. Create a fresh component for each Harness. Install the extension before opening the Harness, then bind it before enabling scheduling.
 
 ```ts
 import { createAgents } from "@howaboua/pi-durable-agents";

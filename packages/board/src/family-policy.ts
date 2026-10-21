@@ -16,5 +16,6 @@ export const BoardFamilies = defineDoc<{
 	kind: "howaboua.board.families",
 	version: 1,
 	scope: "session",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({ families: {} }),
 });

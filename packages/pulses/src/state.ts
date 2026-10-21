@@ -49,6 +49,7 @@ export const Checkpoints = defineDoc<{
 	kind: "howaboua.pulses.checkpoints",
 	version: 1,
 	scope: "session",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({ pulses: {} }),
 });
 export const pulseKey = (bindingKey: string, id: string) =>

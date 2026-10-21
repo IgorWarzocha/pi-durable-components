@@ -14,9 +14,6 @@ export interface BoardDerivedSummary {
 	status_message_id: string;
 	through_message_id: string;
 	created_at: string;
-	provider: string;
-	model: string;
-	reasoning: string;
 	has_newer_posts: boolean;
 	text_preview: string;
 	n_chars: number;
@@ -157,9 +154,6 @@ function summary(value: unknown, thread: string): BoardDerivedSummary {
 		status_message_id: string(item["status_message_id"]),
 		through_message_id: string(item["through_message_id"]),
 		created_at: string(item["created_at"]),
-		provider: string(item["provider"]),
-		model: string(item["model"]),
-		reasoning: string(item["reasoning"]),
 		has_newer_posts: boolean(item["has_newer_posts"]),
 		text_preview: string(item["text_preview"]),
 		n_chars: count(item["n_chars"]),

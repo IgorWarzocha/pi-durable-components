@@ -1,3 +1,4 @@
+import type { JsonObject } from "@earendil-works/pi-durable";
 import type { BoardParams } from "./contract.ts";
 
 // Includes UTF-8 text, JSON escaping and metadata, in every tool mode.
@@ -10,6 +11,24 @@ export function serializeBoardResult(value: unknown): string {
 			"Result exceeds the output budget. Reduce limit or max_chars_per_post; use read_post with a smaller limit_chars for long posts.",
 		);
 	return text;
+}
+
+/** Models and programs share compact acknowledgements; host details retain the receipt. */
+export function boardToolValue(
+	value: JsonObject,
+	action: BoardParams["action"],
+): JsonObject {
+	const result = { ...value };
+	if (action === "post" || action === "set_status") {
+		delete result["author"];
+		delete result["created_at"];
+	} else if (action === "create_channel") {
+		delete result["created_at"];
+		delete result["created_by"];
+		delete result["message_count"];
+		delete result["last_message_id"];
+	}
+	return result;
 }
 
 export function checkMutationBudget(caller: string, params: BoardParams) {

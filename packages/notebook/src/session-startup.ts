@@ -11,6 +11,8 @@ import { notebookExecStartupNotice } from "./control-contract.ts";
 import { ensureNotebookDenoBinary } from "./deno-binary.ts";
 import { initializeNotebookJournal, type NotebookJournal } from "./journal.ts";
 import { DenoJupyterKernel } from "./jupyter-kernel.ts";
+import { inspectNotebookStatus } from "./lifecycle-inspection.ts";
+import { formatStartupStatus } from "./lifecycle-result.ts";
 import { notebookToolHooksSource } from "./lifecycle-runtime.ts";
 import { notebookBootstrapSource } from "./notebook-bootstrap.ts";
 import {
@@ -26,7 +28,10 @@ import {
 	type ProjectStateBaseline,
 	restoreProjectState,
 } from "./project-state.ts";
-import { formatProjectStateNotice } from "./project-state-metadata.ts";
+import {
+	formatProjectStateNotice,
+	readRetainedProjectBindings,
+} from "./project-state-metadata.ts";
 import type {
 	NotebookRuntimeOptions,
 	NotebookSessionContext,
@@ -182,18 +187,30 @@ export async function startNotebookSession(options: {
 		const npmNotice = formatNotebookNpmImportsNotice(
 			readNotebookNpmImports(checkpointIdentity),
 		);
-		const exampleNotice =
-			exampleNames.length === 2
-				? "Notebook example foo/bar available; inspect foo.description, foo.usage, bar.description, and bar.usage before constructing a reusable global"
-				: undefined;
+		const inventory = await inspectNotebookStatus(
+			{
+				kernel: () => kernel,
+				activeCellId: () => undefined,
+				baselineNames: () => baselineNames,
+				retainedBindings: () =>
+					readRetainedProjectBindings(
+						checkpointIdentity,
+						options.checkpointMaxBytes,
+					),
+				metadata: () => ({ userCells: journal.completedCells, checkpoint: {} }),
+			},
+			"*",
+			signal,
+			formatStartupStatus,
+		);
 		const restoreNotice =
 			[
-				exampleNotice,
 				npmNotice,
 				formatProjectStateNotice(projectState),
 				restored.message,
 				profileNotice,
 				notebookExecStartupNotice(),
+				inventory.message,
 			]
 				.filter(Boolean)
 				.join(". ") || undefined;

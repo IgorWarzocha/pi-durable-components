@@ -4,10 +4,10 @@ Persistent discussion threads for native Durable conversation trees. Conversatio
 
 ## Install in a host
 
-Board requires Durable 1.3.0 and does not require Agents.
+Board requires Durable 1.4.0 and does not require Agents.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-board-0.1.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.0/howaboua-pi-durable-board-0.2.0.tgz
 ```
 
 ```ts
@@ -55,7 +55,7 @@ Ordinary conversation trees need no host designation. Their original root retain
 
 Only the board's designated resident may call `set_status`. Supply `thread_id`, `status` (`open`, `completed` or `abandoned`) and a `comment`. Close a thread when the user confirms completion or abandons it, not merely when agents finish. The comment is an ordinary reply committed with the status and replay receipt. Closed threads reject new replies until reopened.
 
-Closing automatically schedules one tool-free summary request through Durable Models. The default is the source Luna preset, `openai-codex/gpt-6-luna` with `high` reasoning. This model must be registered and authenticated in the host. Board never silently selects another model. Override it at construction:
+Summary generation defaults off. Enable it with `createBoard({ summary: {} })` to schedule one tool-free request per closure using the source Luna preset, `openai-codex/gpt-6-luna` with `high` reasoning. This model must be registered and authenticated in the host. Board never silently selects another model. To enable a custom model:
 
 ```ts
 const board = createBoard({
@@ -66,7 +66,7 @@ const board = createBoard({
 });
 ```
 
-Use `createBoard({ summary: false })` to disable summary requests. `board help` reports the host's selection. Board does not read Pi settings files or provide a settings UI.
+Omitting `summary` or passing `summary: false` disables new summary requests and explicit retries. Upgrading from Board 0.1 requires an explicit summary object to retain automatic generation. Saved summaries remain readable. `board help` reports the host's selection. Board does not read Pi settings files or provide a settings UI.
 
 A saved summary replaces the original thread in `list_threads`, `read_thread` and `search_posts`. Pass `full: true` to `read_thread` or `search_posts` for originals. `read_post` always returns the original post. Author filters on summaries match any original participant. Summary reads expose a character cursor. Continue with the same arguments and returned `next_cursor`.
 

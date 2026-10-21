@@ -21,7 +21,7 @@ import { contextUsage } from "./usage.ts";
 import { WindowState } from "./window-state.ts";
 
 const checkpoint =
-	"Notes are recovery state, not a diary. Keep one concise, authoritative note per task or topic at a stable path. Task checkpoints cover request, constraints, decisions, status, next steps and history IDs. Use write_file to replace stale state and mark completion. Link to existing notes instead of copying or summarising their contents. Recording isn't permission to implement.\n\nBatch saves at meaningful milestones, not every reply or intermediate step. Before new_context or handoff, save current state and wait for success; include the checkpoint path in handoffs. After rollover, read the checkpoint, then only needed links. Don't reread notes still in context unless they may have changed. Use history for missing details. If no checkpoint is available, use history to recover missing context.";
+	"Notes are recovery state, not a diary. Keep one concise, authoritative note per task or topic at a stable path. Task checkpoints cover request, constraints, decisions, status, next steps and history IDs. Use write_file to replace stale state and mark completion. Link to existing notes instead of copying or summarising their contents. Recording isn't permission to implement.\n\nBatch saves at meaningful milestones, not every reply or intermediate step. Before new_context or handoff, save current state and wait for success; include the checkpoint path in handoffs. After rollover, read the checkpoint, then only needed links. Don't reread notes still in context unless they may have changed. Use history for missing details. If no checkpoint is available, use history to recover missing context.\n\nPrevious skill reads don't carry into this window. Read the skills needed for the current task.";
 
 // Durable's onYield continuation creates a successor GenerationTask. A task receipt
 // repeats the same answer's decision on recovery, not subsequent answers' decisions.
@@ -29,6 +29,7 @@ const YieldAdvisory = defineDoc<{ text?: string }>({
 	kind: "howaboua.context.yield-advisory",
 	version: 1,
 	scope: "task",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({}),
 });
 

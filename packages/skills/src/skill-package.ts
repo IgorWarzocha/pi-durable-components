@@ -1,69 +1,20 @@
 // Adapted from pi-better-skills-tool at b2006db9. MIT, Copyright (c) 2026 Igor Warzocha.
+import { Buffer } from "node:buffer";
 import type { CatalogSkill } from "./discovery.ts";
 import { SkillFiles } from "./files.ts";
 import { packageFiles } from "./package-files.ts";
-import {
-	type ReadSelection,
-	type ReferenceSelection,
-	selectSkillPackage,
-} from "./skill-selection.ts";
+import { selectSkillPackage } from "./skill-selection.ts";
 
-async function formatSkill(
-	skill: CatalogSkill,
-	files: SkillFiles,
-): Promise<string> {
-	const paths = await packageFiles(skill, files);
-	return `${skill.body}\n\n---\nSkill paths (${paths.length}):\n${paths.map((path) => `- ${path}`).join("\n")}`;
-}
+type SkillRead = {
+	name: string;
+	skillPath: string;
+	path: string;
+	kind: "skill" | "reference";
+};
 
-async function formatReferences(
-	selected: ReferenceSelection[],
-	files: SkillFiles,
-): Promise<string> {
-	const oneSkill = new Set(selected.map(({ skill }) => skill.name)).size === 1;
-	const withContent: (ReferenceSelection & { content: string })[] = [];
-	for (const selection of selected) {
-		withContent.push({
-			...selection,
-			content: (await files.text(selection.path)).trim(),
-		});
-	}
-	const content =
-		withContent.length === 1
-			? (withContent[0]?.content ?? "")
-			: withContent
-					.map(({ skill, reference, content: body }) => {
-						const label = oneSkill
-							? reference
-							: `${skill.name}/references/${reference}`;
-						return `--- ${label} ---\n${body}`;
-					})
-					.join("\n\n");
-	return `${content}\n\n---\nSources:\n${withContent.map(({ path }) => `- ${path}`).join("\n")}`;
-}
-
-async function formatMixedSelections(
-	selections: ReadSelection[],
-	files: SkillFiles,
-): Promise<string> {
-	const parts: string[] = [];
-	for (const selection of selections) {
-		parts.push(
-			selection.kind === "skill"
-				? `--- ${selection.skill.name} ---\n${await formatSkill(selection.skill, files)}`
-				: `--- ${selection.skill.name}/references/${selection.reference} ---\n${(await files.text(selection.path)).trim()}`,
-		);
-	}
-	const content = parts.join("\n\n");
-	const sources = selections
-		.filter(
-			(selection): selection is ReferenceSelection =>
-				selection.kind === "reference",
-		)
-		.map(({ path }) => `- ${path}`);
-	return sources.length
-		? `${content}\n\n---\nSources:\n${sources.join("\n")}`
-		: content;
+export interface SkillReadOutput {
+	output: string;
+	reads: { read: SkillRead; start: number; end: number }[];
 }
 
 export async function readSkillPackage(
@@ -71,18 +22,41 @@ export async function readSkillPackage(
 	name: string,
 	selectors: string[],
 	files: SkillFiles,
-): Promise<string> {
+): Promise<SkillReadOutput> {
 	const selections = await selectSkillPackage(skills, name, selectors, files);
-	if (selections.length === 1) {
-		const selection = selections[0] as ReadSelection;
-		return selection.kind === "skill"
-			? await formatSkill(selection.skill, files)
-			: formatReferences([selection], files);
+	const referencesOnly = selections.every(({ kind }) => kind === "reference");
+	const oneSkill =
+		new Set(selections.map(({ skill }) => skill.name)).size === 1;
+	const result: SkillReadOutput = { output: "", reads: [] };
+	const sources: string[] = [];
+	for (const selection of selections) {
+		if (result.reads.length) result.output += "\n\n";
+		const { skill, kind } = selection;
+		const path = kind === "skill" ? skill.path : selection.path;
+		const body =
+			kind === "skill" ? skill.body : (await files.text(path)).trim();
+		if (selections.length > 1) {
+			const label =
+				kind === "skill"
+					? skill.name
+					: referencesOnly && oneSkill
+						? selection.reference
+						: `${skill.name}/references/${selection.reference}`;
+			result.output += `--- ${label} ---\n`;
+		}
+		const start = Buffer.byteLength(result.output);
+		result.output += body;
+		result.reads.push({
+			read: { name: skill.name, skillPath: skill.path, path, kind },
+			start,
+			end: Buffer.byteLength(result.output),
+		});
+		if (kind === "skill") {
+			const paths = await packageFiles(skill, files);
+			result.output += `\n\n---\nSkill paths (${paths.length}):\n${paths.map((path) => `- ${path}`).join("\n")}`;
+		} else sources.push(`- ${path}`);
 	}
-	return selections.every(
-		(selection): selection is ReferenceSelection =>
-			selection.kind === "reference",
-	)
-		? formatReferences(selections, files)
-		: formatMixedSelections(selections, files);
+	if (sources.length)
+		result.output += `\n\n---\nSources:\n${sources.join("\n")}`;
+	return result;
 }

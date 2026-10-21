@@ -1,6 +1,14 @@
 # Code parity
 
-Reference: `howaboua-pi-stuff` revision `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including local commits, `packages/pi-codex-conversion/src/tools/code-mode`. The source checkout remains read-only. Native host source tracks OpenAI Codex `rust-v0.163.0`, commit `83086188ae0614bd882818ff1aa23f3194962012`, resolved from its official annotated release tag.
+Reference: `howaboua-pi-stuff` revision `3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281`, `packages/pi-codex-conversion/src/tools/code-mode`. The source checkout remains read-only. Native host source tracks OpenAI Codex `rust-v0.163.0`, commit `83086188ae0614bd882818ff1aa23f3194962012`, resolved from its official annotated release tag.
+
+## Pi 1.4 refresh
+
+The 2026-10-22 refresh compares the reference with prior pin `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`. Completed delegate traces retain the real nested Durable call IDs. Any direct nested termination request reaches a successfully completed cell, including cells containing other ordinary calls. Failed cells do not propagate termination. Durable 1.4 still owns the outer model round, which terminates only when every result requests it. Native `api.executeTool` children retain Durable's documented non-propagating control contract.
+
+Shared execution documents now declare explicit checkpoint policies. Task-only invocation and provenance documents retire with their task. Completed cell receipts and observation cursors store complete bases. The nested tool API exposes the Harness clock and reads the live Models collection on every access. Admission includes sleeping tasks when enforcing the single-cell boundary.
+
+Disposable real-Harness probes ran the pinned V8 host with direct nested termination, mixed nested calls, a failed cell, a mixed outer round and an all-terminating outer round. They verified native call IDs, an injected Harness clock and replacement of the Models collection during a tool invocation. Both retained Code workflows passed, as did focused strict TypeScript checking. No permanent tests were added. Source GPT-specific compressed prose remains excluded.
 
 The 2026-10-19 alignment replaces the six official release asset digests exactly. All six match the official GitHub release asset metadata. Linux x64 provisioning verified the archive checksum and ran that executable without a host override. Other platforms were not executed. Existing Node proxy handling already uses a supported Undici dispatcher and closes it after download, matching the source correction without another transport layer. Disposable native probes verified that admission-time cancellation preserves stored session values, and `exit()` stops later statements and cancels a pending ordinary tool. Cancellation retains the admission acknowledgement, terminates the identified cell and joins termination. Lost admission remains uncertain and is never replayed.
 

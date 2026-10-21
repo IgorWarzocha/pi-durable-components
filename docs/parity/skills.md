@@ -2,7 +2,7 @@
 
 Source: [`pi-better-skills-tool` at `b2006db9def12c373ae48e70044d30f7d6b7e34f`](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-better-skills-tool). The source checkout was read-only. Adapted algorithms retain the MIT notice in `packages/skills/NOTICE`.
 
-The component registers `skills` as an ordinary Durable `ToolRegistration` with `{ command?: string }` arguments and text content plus empty details. Empty calls and explicit help return command guidance with the catalog. Explicit list returns reference-selection guidance with the catalog. There is no Code or Notebook adapter. An optional Durable section supplies the source progressive-discovery guidance without editing other prompt sections.
+The component registers `skills` as an ordinary Durable `ToolRegistration` with `{ command?: string }` arguments and text content. Details carry exposed instruction-body evidence, described below. Empty calls and explicit help return command guidance with the catalog. Explicit list returns reference-selection guidance with the catalog. There is no Code or Notebook adapter. An optional Durable section supplies the source progressive-discovery guidance without editing other prompt sections.
 
 Empty-call discovery follows source revision `69f50cf70e8a7b05c2349be6227f521b6504f80e`. Disposable real-Harness validation exercised omitted arguments, catalog-backed help, explicit list and unknown-field rejection. The retained output-boundary workflow and package typecheck passed. Earlier source differential results below describe the original extraction, before this help addition.
 
@@ -57,3 +57,11 @@ Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`
 Includes local `ca3836dd` reference guidance: both help and list explain that reference-only selectors omit the initial body and show separate semicolon-delimited commands for reading a body plus another reference. The command parameter names help, list and read. Ordinary registration metadata declares help-backed discovery; the string preparation and native command envelope remain supported.
 
 The source experimental GPT help is a shorter prose variant. It is excluded as Pi prompt policy, without changing selection behaviour or adding a global mode. A disposable real Harness exercised help, list and a reference-only read, verified reference output without the primary body, and captured the source guidance. The retained output-boundary Harness workflow passed. No permanent tests were added.
+
+## Pi 1.4 source alignment
+
+Compared read-only Pi Stuff `3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281` against `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`. The changed `catalog.ts`, `skill-package.ts` and `tool.ts` add `details.skillReads: { version: 1, reads, continuation }`. Each read records `name`, `skillPath`, `path` and `kind`, either `skill` or `reference`. Evidence covers only nonempty body spans intersecting the current UTF-8 byte page. Labels, inventories, source paths and continuation footers do not count. An inventory-only continuation returns no reads. Batched commands offset their spans into the combined output before paging.
+
+The ordinary Durable result carries that metadata without a Code or Notebook bridge. The public `runSkills` helper retains its text return value. Existing arguments, output text, selection rules, byte budgets and environment boundaries remain unchanged. The source's compressed GPT wording remains excluded as an alternate prompt mode.
+
+A disposable real SQLite/Harness probe captured empty-call evidence, a body read, a reference-only read, a truncated body page and an inventory-only continuation. It verified instruction attribution without claiming whole-file exposure. Strict TypeScript passed with installed Durable, Pi AI and Chord 1.4.0. No permanent tests or live-provider acceptance were added. The coordinator owns the final repository gate.

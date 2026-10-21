@@ -15,6 +15,7 @@ const BoardAwareness = defineDoc<{
 	kind: "howaboua.agents.board.awareness",
 	version: 1,
 	scope: "conversation",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	history: "latest",
 	fork: "initial",
 	initial: () => ({ seen: {}, prepared: null }),
@@ -30,6 +31,7 @@ const CatchupReceipt = defineDoc<{
 	kind: "howaboua.agents.board.catchup-receipt",
 	version: 1,
 	scope: "task",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({ saved: null }),
 });
 

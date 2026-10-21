@@ -30,9 +30,9 @@ export function runtimeTools(
 			await publish();
 			try {
 				const value = await invoke(argumentsValue, signal);
+				trace.done(value, value.callId);
 				signal.throwIfAborted();
 				const projected = toolValue(value);
-				trace.done(value);
 				await publish();
 				return projected;
 			} catch (error) {

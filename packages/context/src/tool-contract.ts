@@ -54,7 +54,11 @@ export const historyParameters = Type.Object(
 		),
 		tool_name: Type.Optional(nullableString),
 		tool_namespace: Type.Optional(nullableString),
-		window_id: Type.Optional(nullableString),
+		window_id: Type.Optional(
+			Type.Union([Type.String(), Type.Null()], {
+				description: "Required with item_id for read_item",
+			}),
+		),
 	},
 	{ additionalProperties: false },
 );
@@ -235,8 +239,13 @@ export function validateHistoryArguments(args: HistoryArguments): void {
 		args.action === undefined ? [] : historyFields[args.action],
 	);
 	if (args.action === "read_item") {
-		requiredString(args.item_id, "history read_item requires item_id");
-		requiredString(args.window_id, "history read_item requires window_id");
+		const hint =
+			" as a string. Copy window_id and item_id from the same search_contents or list_items result";
+		requiredString(
+			args.window_id,
+			`history read_item requires window_id${hint}`,
+		);
+		requiredString(args.item_id, `history read_item requires item_id${hint}`);
 	}
 	if (args.action === "search_contents")
 		requiredString(args.query, "history search_contents requires query");

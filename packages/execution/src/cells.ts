@@ -64,6 +64,7 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 					"pending",
 					"running",
 					"waiting",
+					"sleeping",
 					"completing",
 				] as const) {
 					const live = await tx.scanTasks(

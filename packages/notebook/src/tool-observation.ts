@@ -14,6 +14,7 @@ const ObservationCursor = defineDocFamily<{ items: number }, null>({
 	scope: "conversation",
 	history: "latest",
 	fork: "initial",
+	checkpointWhen: () => true,
 	initial: () => ({ items: 0 }),
 });
 

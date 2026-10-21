@@ -35,6 +35,7 @@ export const BoardCatalog = defineDoc<{ boards: BoardRecord[] }>({
 	kind: "howaboua.agents.board.catalog",
 	version: 1,
 	scope: "session",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({ boards: [] }),
 });
 export const BoardIndex = defineDocFamily<
@@ -44,6 +45,7 @@ export const BoardIndex = defineDocFamily<
 	kind: "howaboua.agents.board.index",
 	version: 1,
 	scope: "session",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	family: true,
 	initial: (seed) => {
 		if (seed === null) throw new Error("Missing board index");
@@ -55,6 +57,7 @@ export const PostText = defineDocFamily<PostTextValue, PostTextValue | null>({
 	kind: "howaboua.agents.board.post-text",
 	version: 1,
 	scope: "session",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	family: true,
 	initial: (seed) => {
 		if (seed === null) throw new Error("Missing board post text");
@@ -70,6 +73,7 @@ export const MutationReceipt = defineDoc<{
 	kind: "howaboua.agents.board.mutation",
 	version: 1,
 	scope: "task",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({ saved: null }),
 });
 
@@ -145,6 +149,7 @@ export const ThreadStates = defineDocFamily<ThreadStatesValue, null>({
 	kind: "howaboua.board.thread-states",
 	version: 1,
 	scope: "session",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	family: true,
 	initial: () => ({ threads: {} }),
 });
@@ -157,7 +162,13 @@ export function threadStatus(
 	};
 }
 export function summaryPreview(summary: ThreadSummary, chars: number) {
-	const { text, ...value } = summary;
+	const {
+		text,
+		provider: _provider,
+		model: _model,
+		reasoning: _reasoning,
+		...value
+	} = summary;
 	const points = Array.from(text);
 	return {
 		...value,

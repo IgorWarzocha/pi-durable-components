@@ -24,6 +24,7 @@ export const BoardMembers = defineDoc<{
 	kind: "howaboua.agents.board.members",
 	version: 1,
 	scope: "session",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({ members: {}, ownerFolders: {} }),
 });
 
@@ -50,6 +51,7 @@ const MembershipReceipt = defineDoc<{
 	kind: "howaboua.agents.board.membership-change",
 	version: 1,
 	scope: "task",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({ saved: null }),
 });
 

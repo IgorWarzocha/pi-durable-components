@@ -29,6 +29,7 @@ export async function inspectNotebookStatus(
 	>,
 	query: string | undefined,
 	signal?: AbortSignal,
+	format: (details: NotebookStatusDetails) => string = formatStatus,
 ): Promise<NotebookControlResult> {
 	const kernel = host.kernel()!;
 	const activeCell = host.activeCellId();
@@ -129,7 +130,7 @@ export async function inspectNotebookStatus(
 					omittedMatches: Math.max(0, matches.length - reportedMatches.length),
 				}),
 	};
-	return { message: formatStatus(details), details };
+	return { message: format(details), details };
 }
 
 export async function notebookUserBindingNames(

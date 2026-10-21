@@ -6,7 +6,7 @@ import {
 	type ToolExecutionApi,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
-import { runSkills } from "./catalog.ts";
+import { runSkillsResult } from "./catalog.ts";
 import type { LoadedSkill, SkillsCatalogOptions } from "./discovery.ts";
 import { SkillFiles } from "./files.ts";
 
@@ -75,8 +75,15 @@ export function createSkillsTool(options: SkillsOptions = {}) {
 					: { sessionRoot: options.sessionRoot }),
 				...(loadedSkills === undefined ? {} : { loadedSkills }),
 			};
-			const output = await runSkills(args.command ?? "", files, catalog);
-			return { output: [{ type: "text", text: output }], details: {} };
+			const { output, skillReads } = await runSkillsResult(
+				args.command ?? "",
+				files,
+				catalog,
+			);
+			return {
+				output: [{ type: "text", text: output }],
+				details: { skillReads },
+			};
 		},
 	});
 	return { ...tool, executionHints: { discovery: "help" as const } };

@@ -5,6 +5,7 @@ import {
 	type Harness,
 	LiveDoc,
 	type SettledSubmissionRecord,
+	type Task,
 	type TaskId,
 } from "@earendil-works/pi-durable";
 import type {
@@ -49,7 +50,10 @@ type RunState =
 	| { phase: "deliver"; outcome: SettledSubmissionRecord };
 export const pulseInputRequestId = (taskId: TaskId) => `pulse-input:${taskId}`;
 
-export function createRunTask(host: () => Harness, options: PulsesOptions) {
+export function createRunTask(
+	host: () => Harness,
+	options: PulsesOptions,
+): Task<PulseRunInput, RunState, SettledSubmissionRecord, object> {
 	return defineTask<PulseRunInput, RunState, SettledSubmissionRecord>({
 		name: "howaboua.pulses.run",
 		version: 1,
@@ -128,9 +132,9 @@ export function createRunTask(host: () => Harness, options: PulsesOptions) {
 				);
 			},
 			retry: async (task, runtime, context) => {
-				await runtime.sleep(task.state.checkpoint.after, context);
-				await runtime.commit(
-					() => ({ status: "running", checkpoint: { phase: "dispatch" } }),
+				await runtime.sleepUntil(
+					task.state.checkpoint.after,
+					{ phase: "dispatch" },
 					context,
 				);
 			},

@@ -29,7 +29,10 @@ export interface CellEngineApi {
 	readonly tools: Readonly<
 		Record<
 			string,
-			(args: JsonValue, signal?: AbortSignal) => Promise<ToolExecutionResult>
+			(
+				args: JsonValue,
+				signal?: AbortSignal,
+			) => Promise<ToolExecutionResult & { readonly callId: string }>
 		>
 	>;
 	/** Replace the durable driver snapshot, including text, images and runtime errors. */

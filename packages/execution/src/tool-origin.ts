@@ -16,5 +16,6 @@ export const ToolOriginDoc = defineDoc<{ origin?: ToolOrigin }>({
 	kind: "howaboua.tool-origin",
 	version: 1,
 	scope: "task",
+	checkpointWhen: () => false,
 	initial: () => ({}),
 });

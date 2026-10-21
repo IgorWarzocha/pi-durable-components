@@ -25,6 +25,7 @@ const ToolWindow = defineDoc<{
 	kind: "howaboua.context.tool-window",
 	version: 1,
 	scope: "task",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({}),
 });
 

@@ -26,7 +26,10 @@ export function cellTools(
 ) {
 	const tools: Record<
 		string,
-		(args: JsonValue, signal?: AbortSignal) => Promise<ToolExecutionResult>
+		(
+			args: JsonValue,
+			signal?: AbortSignal,
+		) => Promise<ToolExecutionResult & { readonly callId: string }>
 	> = Object.create(null);
 	for (const registration of registrations)
 		tools[registration.name] = async (args, signal) => {
@@ -69,7 +72,7 @@ export function cellTools(
 						),
 				);
 				controls[position] = result.control;
-				return result;
+				return { ...result, callId: `nested-${id}` };
 			} finally {
 				signal?.removeEventListener("abort", cancel);
 				if (cancelling !== undefined) await cancelling;

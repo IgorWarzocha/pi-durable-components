@@ -190,25 +190,23 @@ export function convertResponsesMessages<TApi extends Api>(
 	);
 	const transcriptTools = resolveTranscriptTools(
 		normalizedContext.messages,
-		(options?.supportsAdditionalTools ?? false) ||
-			(options?.supportsToolSearch ?? false),
+		options?.supportsAdditionalTools || options?.supportsToolSearch
+			? "additions"
+			: "none",
 	);
 	const anchoredToolNames = new Set<string>();
-	if (transcriptTools.anchorsAdditions) {
-		for (let index = 1; index < normalizedContext.messages.length; index++) {
-			const message = normalizedContext.messages[index];
-			if (message?.role !== "system") continue;
-			for (const tool of message.toolsAdded ?? [])
-				anchoredToolNames.add(tool.name);
-		}
+	let declarationIndex = 0;
+	for (const message of normalizedContext.messages) {
+		if (message.role !== "system") continue;
+		if (declarationIndex++ < transcriptTools.foldedSystemMessages) continue;
+		for (const tool of message.toolsAdded ?? [])
+			anchoredToolNames.add(tool.name);
 	}
 	const appendSystemToolAdditions = (
 		message: SystemMessage,
 		seed: string,
 	): void => {
-		const tools = transcriptTools.anchorsAdditions
-			? (message.toolsAdded ?? [])
-			: [];
+		const tools = message.toolsAdded ?? [];
 		if (tools.length === 0) return;
 		if (options?.supportsAdditionalTools) {
 			messages.push({
@@ -250,10 +248,11 @@ export function convertResponsesMessages<TApi extends Api>(
 
 	let msgIndex = 0;
 	let sourceIndex = 0;
+	let systemIndex = 0;
 	for (const msg of transformedMessages) {
 		const isLeadingSystemMessage = sourceIndex++ === 0 && msg.role === "system";
 		if (msg.role === "system") {
-			if (!isLeadingSystemMessage)
+			if (systemIndex++ >= transcriptTools.foldedSystemMessages)
 				appendSystemToolAdditions(msg, `system:${msgIndex}`);
 			if (!isLeadingSystemMessage || includeSystemPrompt) {
 				const text = isLeadingSystemMessage

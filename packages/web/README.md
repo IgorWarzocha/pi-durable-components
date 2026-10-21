@@ -1,9 +1,9 @@
 # Durable Web
 
-Search the web and follow returned page references with the `web_run` tool. Requires Pi Durable, pi-ai and Chord 1.3.0, plus an authenticated Codex-compatible backend. Node is the default runtime; Cloudflare Workers can use native fetch.
+Search the web and follow returned page references with the `web_run` tool. Requires Pi Durable, pi-ai and Chord 1.4.0, plus an authenticated Codex-compatible backend. Node is the default runtime; Cloudflare Workers can use native fetch.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-web-0.6.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.0/howaboua-pi-durable-web-0.7.0.tgz
 ```
 
 Install the bundle in your Durable registry, passing the same authenticated pi-ai Models collection used by your application:

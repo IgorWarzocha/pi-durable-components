@@ -31,6 +31,7 @@ export const InvocationDoc = defineDoc<InvocationState>({
 	kind: "howaboua.execution.invocation",
 	version: 2,
 	scope: "task",
+	checkpointWhen: () => false,
 	initial: () => ({ result: {} }),
 	migrate: (value) => ({
 		...value,
@@ -123,14 +124,14 @@ export function createInvocation<I, S, R, H extends object>(
 		},
 		runtime.settings.progress.outputIntervalMs,
 	);
-	const api: ToolExecutionApi = {
+	const api: Omit<ToolExecutionApi, "models"> = {
 		taskId: runtime.taskId,
 		conversationId: runtime.conversationId,
 		callId: `nested-${runtime.taskId}`,
 		registry: runtime.registry,
 		agent: runtime.agent,
-		models: runtime.models,
 		env: undefined,
+		now: () => runtime.now(),
 		outputWindow:
 			limits.retain === "tail"
 				? {
@@ -206,7 +207,13 @@ export function createInvocation<I, S, R, H extends object>(
 	return {
 		/** Resolve the environment after the tracker exists, so environment failures still settle bounded hook results. */
 		async executionApi(): Promise<ToolExecutionApi> {
-			return { ...api, env: await runtime.env(context) };
+			return {
+				...api,
+				get models() {
+					return runtime.models;
+				},
+				env: await runtime.env(context),
+			};
 		},
 		async finish(result: ToolExecutionResult) {
 			ended = true;

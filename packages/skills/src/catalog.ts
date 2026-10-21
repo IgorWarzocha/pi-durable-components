@@ -6,7 +6,7 @@ import {
 	type SkillsCatalogOptions,
 } from "./discovery.ts";
 import { SkillFiles } from "./files.ts";
-import { readSkillPackage } from "./skill-package.ts";
+import { readSkillPackage, type SkillReadOutput } from "./skill-package.ts";
 
 const MAX_OUTPUT_BYTES = 48 * 1024;
 // Leave room for an exact continuation command inside the output budget.
@@ -133,7 +133,8 @@ function formatSkillList(
 	return lines.join("\n");
 }
 
-function boundedOutput(output: string, request: SkillsRequest): string {
+function boundedOutput(result: SkillReadOutput, request: SkillsRequest) {
+	const { output, reads } = result;
 	const bytes = Buffer.from(output);
 	const { offset } = request;
 	if (offset > bytes.length || (offset > 0 && offset === bytes.length))
@@ -142,38 +143,75 @@ function boundedOutput(output: string, request: SkillsRequest): string {
 		);
 	if (offset < bytes.length && ((bytes[offset] ?? 0) & 0xc0) === 0x80)
 		throw new Error(`--offset ${offset} splits a UTF-8 character`);
+	const page = (output: string, end: number) => ({
+		output,
+		skillReads: {
+			version: 1 as const,
+			// Labels, inventories and footers do not expose instruction bodies.
+			reads: reads
+				.filter(
+					(span) =>
+						span.start < span.end && span.start < end && span.end > offset,
+				)
+				.map(({ read }) => read),
+			continuation: offset > 0,
+		},
+	});
 	if (bytes.length - offset <= MAX_OUTPUT_BYTES)
-		return offset === 0 ? output : bytes.subarray(offset).toString("utf8");
+		return page(
+			offset === 0 ? output : bytes.subarray(offset).toString("utf8"),
+			bytes.length,
+		);
 	const command = formatCommand(request.commands);
 	const footer = (end: number) =>
 		`\n\n---\nIncomplete: bytes ${offset}-${end} of ${bytes.length}. Continue with command:\n${command} --offset ${end}`;
 	let end = offset + MAX_OUTPUT_BYTES - Buffer.byteLength(footer(bytes.length));
 	while (((bytes[end] ?? 0) & 0xc0) === 0x80) end--;
-	return bytes.subarray(offset, end).toString("utf8") + footer(end);
+	return page(bytes.subarray(offset, end).toString("utf8") + footer(end), end);
 }
 
+/** Text-only public helper retained for existing consumers. Tool results also carry read evidence. */
 export async function runSkills(
 	input: unknown,
 	files: SkillFiles,
 	options: SkillsCatalogOptions,
 ): Promise<string> {
+	return (await runSkillsResult(input, files, options)).output;
+}
+
+export async function runSkillsResult(
+	input: unknown,
+	files: SkillFiles,
+	options: SkillsCatalogOptions,
+) {
 	const request = parseRequest(input);
 	const skills = await discoverVisibleSkills(files, options);
-	const outputs: string[] = [];
-	for (const command of request.commands) {
+	const result: SkillReadOutput = { output: "", reads: [] };
+	for (const [index, command] of request.commands.entries()) {
 		files.check();
-		outputs.push(
-			command.action === "help"
-				? `Commands: list [category...] | read <skill> [skill-or-reference...] | help. Join commands with ;\nJS: tools.skills("read <skill>")\n${READ_HELP}\n\n${formatSkillList(skills)}`
-				: command.action === "list"
-					? `${READ_HELP}\n\n${formatSkillList(skills, command.categories)}`
-					: await readSkillPackage(
-							skills,
-							command.name,
-							command.selectors,
-							files,
-						),
-		);
+		if (index) result.output += "\n\n";
+		if (command.action === "read") {
+			const selected = await readSkillPackage(
+				skills,
+				command.name,
+				command.selectors,
+				files,
+			);
+			const start = Buffer.byteLength(result.output);
+			result.output += selected.output;
+			result.reads.push(
+				...selected.reads.map((span) => ({
+					read: span.read,
+					start: start + span.start,
+					end: start + span.end,
+				})),
+			);
+		} else {
+			result.output +=
+				command.action === "help"
+					? `Commands: list [category...] | read <skill> [skill-or-reference...] | help. Join commands with ;\nJS: tools.skills("read <skill>")\n${READ_HELP}\n\n${formatSkillList(skills)}`
+					: `${READ_HELP}\n\n${formatSkillList(skills, command.categories)}`;
+		}
 	}
-	return boundedOutput(outputs.join("\n\n"), request);
+	return boundedOutput(result, request);
 }

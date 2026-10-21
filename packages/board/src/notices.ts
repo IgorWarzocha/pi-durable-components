@@ -22,6 +22,7 @@ export const BoardNotices = defineDoc<{
 	kind: "howaboua.agents.board.notices",
 	version: 1,
 	scope: "conversation",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	history: "latest",
 	fork: "initial",
 	initial: () => ({ pending: {} }),
@@ -35,6 +36,7 @@ export const BoardNoticeReceipt = defineDoc<{
 	kind: "howaboua.agents.board.notice-receipt",
 	version: 1,
 	scope: "task",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({ beforeRequest: null, onYield: null }),
 });
 

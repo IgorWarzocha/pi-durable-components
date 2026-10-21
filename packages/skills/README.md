@@ -2,12 +2,12 @@
 
 Discover skill packages and load instructions or selected references on demand. This component registers the ordinary Durable `skills` tool. It does not load Pi extensions or rewrite existing prompts.
 
-Requires Node 22.19 or newer and `@earendil-works/pi-durable`, `@earendil-works/chord`, and `@earendil-works/pi-ai` 1.3.0.
+Requires Node 22.19 or newer and `@earendil-works/pi-durable`, `@earendil-works/chord`, and `@earendil-works/pi-ai` 1.4.0.
 
 ## Register
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.6.0/howaboua-pi-durable-skills-0.6.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.0/howaboua-pi-durable-skills-0.7.0.tgz
 ```
 
 ```ts
@@ -49,6 +49,8 @@ Read one skill to see its instructions and package paths. Read references by the
 Package listings exclude dotfiles, dependency directories, broken links, and links escaping the canonical package directory. Top-level `assets` directories are listed one level deep. References must be Markdown files beneath `references`. Skill-package symlinks are supported, including packages outside a configured discovery root.
 
 Output is limited to 48 KiB. An incomplete result includes an exact `--offset <byte>` continuation command. Offsets must land on UTF-8 boundaries. Continuations rediscover and reread files, so do not edit the library while paging.
+
+Native result details include `skillReads: { version: 1, reads, continuation }`. Each read identifies the skill name, its instruction path, the exposed path and `kind` (`skill` or `reference`). Only body bytes exposed on the current page count. Listings, path inventories and continuation footers do not count as instruction reads. This is read evidence, not a claim that a whole file or earlier context window remains loaded. The public `runSkills` helper still returns text.
 
 ## Host catalogs
 

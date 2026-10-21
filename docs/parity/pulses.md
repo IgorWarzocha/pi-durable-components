@@ -23,3 +23,11 @@ The optional host admission callback runs in the native task-creation transactio
 `bind` now returns an awaited reconciliation promise and does not resume the Harness or admit work during reconciliation. The host owns resume after all capabilities are bound. Existing checkpoint and task document versions remain unchanged, with additive optional fields for older tasks.
 
 Construction evidence is source review, TypeScript, lint and supported build and package checks only. No tests were added or run, and no new live-provider or runtime acceptance is claimed. The probe evidence above remains historical.
+
+## Pi 1.4 source alignment
+
+Compared read-only Pi Stuff `3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281` against `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`. The Pulses package changes only dependency metadata. Related Shepherdr changes mark process workers and reserve process names. Native task ownership and the existing host admission contract remain the component boundary, without a Pi event channel or process-runner adapter.
+
+Durable 1.4 replaces invocation-held sleeps with `sleepUntil(until, checkpoint)`. A busy, unadmitted Pulse now checkpoints its dispatch phase and sleeps durably without retaining an invocation. The old retry phase remains registered to recover existing tasks. Abort remains immediate and cancels only a native run that owns the captured Pulse input, never the external work causing a busy rejection. Sleeping tasks remain active for concurrency, cancellation and execution observation. The checkpoints document declares a base after 64 accumulated deltas, preserving its kind and version.
+
+A disposable real SQLite/Harness probe drove the production run task through a rejected native admission, observed its sleeping state and dispatch checkpoint, and cancelled it before the deadline with no input admitted. A second sleeper survived Harness and storage reopen without an early retry. Advancing the public Harness clock to its persisted deadline admitted exactly one native input and settled the original task. No task or side effect was recreated. Strict TypeScript passed against Durable, Pi AI and Chord 1.4.0. No permanent tests or live-provider acceptance were added. The coordinator owns the final repository gate.

@@ -82,6 +82,10 @@ export interface OpenAIResponsesProviderOptions<
 	forceCachedWebSockets?: boolean;
 	originator?: string;
 	diagnostics?: CodexDiagnosticsSink;
+	/** Select once per request by native session ID, never by cache affinity. Overrides diagnostics. */
+	getDiagnostics?: (
+		sessionId: string | undefined,
+	) => CodexDiagnosticsSink | undefined;
 	/** Opt-in ephemeral evidence of an actually completed sent request. */
 	onCompletion?: CompletionObserver;
 	/** Trusted host preparation, after provider conversion and before serialization. */
@@ -229,6 +233,9 @@ export function createOpenAIResponsesProvider(
 	) {
 		let operation: ReturnType<typeof lifecycle.begin> | undefined;
 		try {
+			const diagnostics = options.getDiagnostics
+				? options.getDiagnostics(streamOptions?.sessionId)
+				: options.diagnostics;
 			operation = lifecycle.begin(
 				streamOptions?.sessionId,
 				streamOptions?.signal,
@@ -266,7 +273,7 @@ export function createOpenAIResponsesProvider(
 					useResponsesLite: (selected) =>
 						lite(selected, context, effectiveOptions),
 					turnState: mode === "codex" ? current.turnState : undefined,
-					getDiagnostics: () => options.diagnostics,
+					getDiagnostics: () => diagnostics,
 					onCompletion: options.onCompletion,
 					beforeRequestSend: (selected, _context, body) =>
 						options.onPreparedRequest?.(body, selected),
@@ -310,6 +317,9 @@ export function createOpenAIResponsesProvider(
 			prewarmOptions.signal,
 		);
 		try {
+			const diagnostics = options.getDiagnostics
+				? options.getDiagnostics(prewarmOptions.sessionId)
+				: options.diagnostics;
 			const effective = {
 				...prewarmOptions,
 				signal: operation.signal,
@@ -332,7 +342,7 @@ export function createOpenAIResponsesProvider(
 				body,
 				effective,
 				operation.turnState,
-				options.diagnostics,
+				diagnostics,
 			);
 		} finally {
 			operation.finish();

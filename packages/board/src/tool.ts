@@ -5,12 +5,13 @@ import {
 	type Storage,
 	type TaskId,
 } from "@earendil-works/pi-durable";
+import { Type } from "typebox";
 import { markBoardSeen } from "./awareness.ts";
 import { BoardParameters, MUTATIONS, parseBoardRequest } from "./contract.ts";
 import { BoardFamilies } from "./family-policy.ts";
 import { boardScope, changeMembership } from "./membership.ts";
 import { queueBoardNotices } from "./notices.ts";
-import { serializeBoardResult } from "./response.ts";
+import { boardToolValue, serializeBoardResult } from "./response.ts";
 import { executeBoard } from "./store.ts";
 import { ThreadStates } from "./store-model.ts";
 import { createSummaryTask, scheduleSummary } from "./summarizer.ts";
@@ -24,6 +25,7 @@ export function createBoardTool(
 		name: "board",
 		description: "Shared discussion archive, not task assignment",
 		parameters: BoardParameters,
+		structuredOutputSchema: Type.Object({}, { additionalProperties: true }),
 		replay: "safe",
 		executionMode: "sequential",
 		outputLimits: { maxBytes: 8000, maxLines: Number.MAX_SAFE_INTEGER },
@@ -33,6 +35,7 @@ export function createBoardTool(
 				const value = await changeMembership(args, api, context);
 				return {
 					output: [{ type: "text", text: serializeBoardResult(value) }],
+					structuredOutput: value,
 					details: value,
 				};
 			}
@@ -128,8 +131,10 @@ export function createBoardTool(
 			}, context);
 			if (cancel !== undefined)
 				await requireBinding().harness.abortTask(cancel, context);
+			const visible = boardToolValue(value, args.action);
 			return {
-				output: [{ type: "text", text: serializeBoardResult(value) }],
+				output: [{ type: "text", text: serializeBoardResult(visible) }],
+				structuredOutput: visible,
 				details: value,
 			};
 		},

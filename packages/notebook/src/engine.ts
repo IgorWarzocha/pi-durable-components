@@ -43,6 +43,7 @@ const NotebookNamespace = defineDoc<{ id: string }>({
 	kind: "howaboua.notebook.namespace",
 	version: 1,
 	scope: "session",
+	checkpointWhen: () => true,
 	initial: () => ({ id: randomUUID() }),
 });
 

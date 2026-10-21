@@ -20,6 +20,7 @@ export const CellStateDoc = defineDocFamily<InvocationState, null>({
 	scope: "conversation",
 	history: "latest",
 	fork: "initial",
+	checkpointWhen: () => true,
 	initial: () => ({ result: {} }),
 	migrate: (value) => ({
 		...value,

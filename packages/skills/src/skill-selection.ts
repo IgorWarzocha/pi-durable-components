@@ -69,14 +69,14 @@ interface SkillSelection {
 	skill: CatalogSkill;
 }
 
-export interface ReferenceSelection {
+interface ReferenceSelection {
 	kind: "reference";
 	skill: CatalogSkill;
 	reference: string;
 	path: string;
 }
 
-export type ReadSelection = SkillSelection | ReferenceSelection;
+type ReadSelection = SkillSelection | ReferenceSelection;
 type ReferenceCatalog = Map<CatalogSkill, Map<string, string>>;
 
 async function findReference(

@@ -245,10 +245,12 @@ async function invoke(
 async function board(conversation: Conversation, args: JsonObject) {
 	const answer = await invoke(conversation, "board", args);
 	assert.equal(answer.isError, false, textOf([answer]));
-	const value = object(answer.details);
-	assert.ok(Buffer.byteLength(JSON.stringify(value)) <= 8000);
+	const details = object(answer.details);
+	const value = object(JSON.parse(textOf([answer])));
+	assert.ok(Buffer.byteLength(JSON.stringify(details)) <= 8000);
 	assert.ok(Buffer.byteLength(textOf([answer])) <= 8000);
-	assert.deepEqual(JSON.parse(textOf([answer])), value);
+	for (const [key, field] of Object.entries(value))
+		assert.deepEqual(field, details[key]);
 	return value;
 }
 async function pending(harness: Harness, conversation: Conversation) {

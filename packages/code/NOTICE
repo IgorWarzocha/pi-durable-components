@@ -4,6 +4,8 @@ adapted from @howaboua/pi-codex-conversion, revision
 b2006db9def12c373ae48e70044d30f7d6b7e34f.
 Official host assets, cancellation and help-backed discovery refreshed against
 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32, including local source commits.
+Completed nested-call identities and successful-cell termination follow
+3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff
 Modifications: Durable-native lifecycle, ordinary-tool dispatch, original-name
 projection, Node proxy transport, explicit host paths and cache location,

@@ -4,3 +4,4 @@
 - Deno runs only in the explicitly matched native execution namespace. Keep kernel startup, bridge lifetime and checkpoint files under that owner.
 - Bootstrap generators emit source for a separate Deno lexical environment. Keep its state and hook scope there, not in Node closures. Preserve begin, flush, finish and cancellation ordering when moving generators.
 - Deno idle can precede queued output and reattribute it to the next request. Keep collection open through the FIFO marker and drain idle, including after errors. Do not rewrite user source or add history for the drain.
+- Startup inventories bindings and unchanged metadata, not sampled memory, ages or checkpoint bookkeeping. Keep full status diagnostics on demand and example tutorials in help.

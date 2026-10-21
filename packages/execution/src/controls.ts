@@ -1,13 +1,15 @@
 import type { ToolControl } from "@earendil-works/pi-durable";
 
-/** Built-in round policy: union additions, any termination, first handoff in call order. */
+/** Nested-cell policy: union additions, any successful termination, first handoff in call order. */
 export function combineControls(
 	controls: readonly (ToolControl | undefined)[],
+	allowTermination = true,
 ): ToolControl | undefined {
 	const addTools = [
 		...new Set(controls.flatMap((control) => control?.addTools ?? [])),
 	];
-	const terminate = controls.some((control) => control?.terminate === true);
+	const terminate =
+		allowTermination && controls.some((control) => control?.terminate === true);
 	const handoff = controls.find(
 		(control) => control?.handoff !== undefined,
 	)?.handoff;

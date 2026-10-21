@@ -168,9 +168,15 @@ export function createCellTask(
 				}
 				const finished = await invocation?.finish(result);
 				const finalResult = finished?.result ?? result;
-				const control = combineControls([...controls, finalResult.control]);
+				const control = combineControls(
+					[...controls, finalResult.control],
+					ending === "completed" && !finalResult.isError,
+				);
+				const { control: _driverControl, ...withoutControl } = finalResult;
 				const final =
-					control === undefined ? finalResult : { ...finalResult, control };
+					control === undefined
+						? withoutControl
+						: { ...withoutControl, control };
 				try {
 					await runtime.commit(async (tx) => {
 						(await tx.doc(InvocationDoc, runtime.taskId)).result =

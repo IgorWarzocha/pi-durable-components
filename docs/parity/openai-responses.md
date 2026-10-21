@@ -2,9 +2,15 @@
 
 The reference is `packages/pi-codex-conversion/src/providers` in `IgorWarzocha/howaboua-pi-stuff` at `5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb`. The checkout was read-only. Its uncommitted context-management changes did not affect the extracted provider files. The package preserves the source MIT notices and credits the Pi-derived protocol code.
 
-This is a pi-ai 1.0.2 Provider consumed by Durable's Models collection. It is not a Pi ExtensionAPI compatibility layer. Codex remains the default. Explicit direct mode replaces the ordinary `openai` registration only in the host's Models collection.
+This is a pi-ai 1.4.0 Provider consumed by Durable's Models collection. It is not a Pi ExtensionAPI compatibility layer. Codex remains the default. Explicit direct mode replaces the ordinary `openai` registration only in the host's Models collection.
 
 ## Upstream refresh
+
+The 2026-10-22 refresh compares read-only source `3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281` with prior pin `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`. Pi 1.4 transcript resolution uses `"additions"` or `"none"` and honours `foldedSystemMessages`. Initial tools remain top-level. Removals and redeclarations fold through the last non-additive change, while later additions retain their chronological position. The stock `"changes"` policy and removal notices are deliberately not adopted.
+
+Hosts may select a diagnostic sink with `getDiagnostics(sessionId)`. The native session ID, not cache affinity, selects the sink once at stream creation and once per prewarm operation. Existing fixed `diagnostics` sinks remain supported. Events accept the source's optional session or auxiliary scope. Pi footer and logger policy remain excluded. Main and auxiliary socket cleanup already belongs to the provider instance's `resetSession` and `close`, so no process-global cleanup callback is registered.
+
+Disposable provider probes used local SSE and WebSocket transports for both Codex and Direct mode. They checked removal, redeclaration and subsequent addition with additional-tools, tool-search and top-level-only capabilities. They also verified frozen native-session diagnostic selection despite a different routing affinity, prewarm and keepalive selection, and owned socket reset. All three retained provider workflows and focused strict TypeScript checking passed. No live account was contacted and no permanent tests were added.
 
 The 2026-10-19 alignment inspects the read-only source at exact pin `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including its local commits, against baseline `036dc876da5afc4ec27b64878ebb1cfb30c8211d`.
 

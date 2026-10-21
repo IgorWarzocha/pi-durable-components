@@ -38,6 +38,7 @@ export const NotesState = defineDoc<NotesCatalog>({
 	kind: "howaboua.context.notes-state",
 	version: 1,
 	scope: "conversation",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	history: "rewindable",
 	fork: "asOf",
 	initial: () => ({ files: [], totalBytes: 0 }),
@@ -47,6 +48,7 @@ const NoteFile = defineDocFamily<{ text: string }, null>({
 	version: 1,
 	family: true,
 	scope: "conversation",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	history: "rewindable",
 	fork: "asOf",
 	initial: () => ({ text: "" }),
@@ -57,6 +59,7 @@ const WriteReceipt = defineDoc<{
 	kind: "howaboua.context.note-write-receipt",
 	version: 1,
 	scope: "task",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({}),
 });
 

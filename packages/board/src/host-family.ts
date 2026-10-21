@@ -64,6 +64,7 @@ const HostPostReceipt = defineDocFamily<
 	kind: "howaboua.board.host-post",
 	version: 1,
 	scope: "session",
+	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	family: true,
 	initial: () => ({ saved: null }),
 });
