@@ -106,6 +106,14 @@ export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 	let active = 0,
 		maxActive = 0,
 		effects = 0;
+	let releaseEffects!: () => void;
+	let releaseConcurrent!: () => void;
+	const effectsReleased = new Promise<void>((resolve) => {
+		releaseEffects = resolve;
+	});
+	const concurrentEffects = new Promise<void>((resolve) => {
+		releaseConcurrent = resolve;
+	});
 	const observations: ToolResultMessage[] = [];
 	const tool = defineTool({
 		name: "ordinary-tool",
@@ -127,8 +135,11 @@ export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 			effects++;
 			active++;
 			maxActive = Math.max(maxActive, active);
+			if (active === 2) releaseConcurrent();
 			try {
-				await new Promise((resolve) => setTimeout(resolve, 20));
+				// Hold real nested work through the zero-wait observation, independent of model-turn timing.
+				await concurrentEffects;
+				await effectsReleased;
 				return {
 					details: { doubled: args.n * 2 },
 				};
@@ -206,6 +217,7 @@ export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 			if (result?.role !== "toolResult")
 				throw new Error("Missing running result");
 			observations.push(result);
+			releaseEffects();
 			const details = result.details;
 			if (!details || typeof details !== "object" || !("cellId" in details))
 				throw new Error("Missing cell details");
@@ -252,6 +264,8 @@ export async function durableWorkflow(wasmModule: WebAssembly.Module) {
 			budget: component.budget(),
 		};
 	} finally {
+		releaseConcurrent();
+		releaseEffects();
 		await component.close();
 		await harness.close(context);
 	}
