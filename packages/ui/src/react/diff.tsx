@@ -30,6 +30,7 @@ export function createDiffOptions<Annotation = undefined, Caret = undefined>(
 		overflow: "wrap",
 		theme: diffThemes,
 		themeType: "system",
+		preferredHighlighter: "highlights",
 		lineHoverHighlight: "both",
 		itemMetrics: {
 			lineHeight: 20,
@@ -82,7 +83,11 @@ export function DiffWorkerProvider({
 	return (
 		<WorkerPoolContextProvider
 			poolOptions={poolOptions}
-			highlighterOptions={{ theme: diffThemes, tokenizeMaxLineLength: 1000 }}
+			highlighterOptions={{
+				theme: diffThemes,
+				tokenizeMaxLineLength: 1000,
+				preferredHighlighter: "highlights",
+			}}
 		>
 			{children}
 		</WorkerPoolContextProvider>
