@@ -12,12 +12,16 @@ export function createRequestLifecycle() {
 	const resetting = new Map<string, Promise<void>>();
 	let closed = false;
 	let closing: Promise<void> | undefined;
+	const assertAvailable = (sessionId: string | undefined) => {
+		if (closed) throw new Error("OpenAI Responses provider is closed");
+		if (sessionId && resetting.has(sessionId))
+			throw new Error("OpenAI Responses session is being reset");
+	};
 
 	return {
+		assertAvailable,
 		begin(sessionId: string | undefined, signal: AbortSignal | undefined) {
-			if (closed) throw new Error("OpenAI Responses provider is closed");
-			if (sessionId && resetting.has(sessionId))
-				throw new Error("OpenAI Responses session is being reset");
+			assertAvailable(sessionId);
 			const controller = new AbortController();
 			let settle!: () => void;
 			const done = new Promise<void>((resolve) => {

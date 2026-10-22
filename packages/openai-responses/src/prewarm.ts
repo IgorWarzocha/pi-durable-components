@@ -42,7 +42,7 @@ import {
 export type PrewarmOptions = OpenAICodexStreamOptions & {
 	apiKey: string;
 	sessionId: string;
-	/** Keepalive generates a billable response on an isolated socket lane. Never automatic. */
+	/** Keepalive generates a billable response on an isolated socket lane. Explicit opt-in only. */
 	mode?: "prepare" | "keepalive";
 	retainSocket?: boolean;
 };
@@ -56,13 +56,15 @@ export async function prewarmPrepared(
 	turnState: CodexTurnState,
 	diagnostics?: CodexDiagnosticsSink,
 ) {
+	const transport = getEffectiveCodexTransport(
+		state,
+		options.transport,
+		config,
+		options.sessionId,
+	);
 	if (
-		getEffectiveCodexTransport(
-			state,
-			options.transport,
-			config,
-			options.sessionId,
-		) === "sse"
+		transport === "sse" ||
+		(transport === "websocket" && options.mode !== "keepalive")
 	)
 		return;
 	if (!options.apiKey || !options.sessionId)

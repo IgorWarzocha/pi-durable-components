@@ -236,7 +236,7 @@ export function getEffectiveCodexTransport(
 ): Transport {
 	const configuredTransport = transport ?? "auto";
 	const preferredTransport =
-		config?.forceCachedWebSockets !== false &&
+		config?.forceCachedWebSockets === true &&
 		configuredTransport === "websocket"
 			? "websocket-cached"
 			: configuredTransport;
@@ -426,7 +426,6 @@ export function createCodexTransportStream<TApi extends Api>(
 			// Only the handshake overlaps payload rewrites and image preparation.
 			if (
 				effectiveTransport !== "sse" &&
-				runtimeConfig?.forceCachedWebSockets !== false &&
 				effectiveOptions.sessionId &&
 				!effectiveOptions.canonicalCompaction &&
 				effectiveOptions.cacheRetention !== "none"

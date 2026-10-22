@@ -11,6 +11,10 @@ import {
 } from "@earendil-works/pi-ai";
 import { buildBaseOptions } from "@earendil-works/pi-ai/api/simple-options";
 import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
+import {
+	type CacheKeepaliveOptions,
+	createCacheKeepalive,
+} from "./cache-keepalive.ts";
 import type { CompletionObserver } from "./completion.ts";
 import { createRequestLifecycle } from "./lifecycle.ts";
 
@@ -53,6 +57,10 @@ import {
 } from "./protocol.ts";
 
 export type {
+	CacheKeepaliveOptions,
+	CacheKeepalivePolicy,
+} from "./cache-keepalive.ts";
+export type {
 	CodexDiagnosticsEvent,
 	CodexDiagnosticsSink,
 	CodexPrewarmResult,
@@ -79,6 +87,7 @@ export interface OpenAIResponsesProviderOptions<
 	/** Codex account eligibility. Undefined makes no catalog request. */
 	daybreak?: boolean;
 	transport?: Transport;
+	/** Explicitly upgrade plain WebSockets to cached continuation. Default false. */
 	forceCachedWebSockets?: boolean;
 	originator?: string;
 	diagnostics?: CodexDiagnosticsSink;
@@ -106,6 +115,12 @@ export interface OpenAIResponsesProvider<
 		body: ResponsesBody,
 		options: PrewarmOptions,
 	): Promise<CodexPrewarmResult | undefined>;
+	/** Opt-in billable idle refresh of a host-authoritative final prepared snapshot. */
+	armCacheKeepalive(
+		model: Model<Api>,
+		body: ResponsesBody,
+		options: CacheKeepaliveOptions,
+	): () => void;
 	/** A validated snapshot for host-owned native checkpoint requests. Input excludes Lite's request prefix. */
 	getCanonicalRequest(
 		model: Model<Api>,
@@ -149,7 +164,7 @@ export function createOpenAIResponsesProvider(
 	const lifecycle = createRequestLifecycle();
 	const config = {
 		websocketFallback,
-		forceCachedWebSockets: options.forceCachedWebSockets ?? true,
+		forceCachedWebSockets: options.forceCachedWebSockets ?? false,
 		originator: options.originator ?? "pi-durable-openai-responses",
 	};
 	const daybreak = createDaybreakAccessResolver(config.originator);
@@ -225,6 +240,13 @@ export function createOpenAIResponsesProvider(
 			codexCacheKeepaliveSocketSessionId(sessionId),
 		);
 	};
+	const keepalive = createCacheKeepalive(
+		(model, body, request) => warm(model, { body }, request),
+		(sessionId) =>
+			options.getDiagnostics
+				? options.getDiagnostics(sessionId)
+				: options.diagnostics,
+	);
 
 	function stream(
 		model: Model<Api>,
@@ -233,6 +255,7 @@ export function createOpenAIResponsesProvider(
 	) {
 		let operation: ReturnType<typeof lifecycle.begin> | undefined;
 		try {
+			if (streamOptions?.sessionId) keepalive.cancel(streamOptions.sessionId);
 			const diagnostics = options.getDiagnostics
 				? options.getDiagnostics(streamOptions?.sessionId)
 				: options.diagnostics;
@@ -372,10 +395,20 @@ export function createOpenAIResponsesProvider(
 					? { ...request, ...buildBaseOptions(model, context, request) }
 					: request,
 			),
-		prewarm: (model, context, warmOptions) =>
-			warm(model, { context }, warmOptions),
-		prewarmPrepared: (model, body, warmOptions) =>
-			warm(model, { body }, warmOptions),
+		prewarm: (model, context, warmOptions) => {
+			keepalive.cancel(warmOptions.sessionId);
+			return warm(model, { context }, warmOptions);
+		},
+		prewarmPrepared: (model, body, warmOptions) => {
+			keepalive.cancel(warmOptions.sessionId);
+			return warm(model, { body }, warmOptions);
+		},
+		armCacheKeepalive(model, body, armOptions) {
+			lifecycle.assertAvailable(armOptions.sessionId);
+			if (mode !== "codex")
+				throw new Error("Automatic cache keepalive requires Codex mode");
+			return keepalive.arm(model, body, armOptions);
+		},
 		getCanonicalRequest(model, sessionId, apiKey, reconstructedInput) {
 			const identity = {
 				url: responsesWebSocketUrl(mode, model.baseUrl),
@@ -404,9 +437,11 @@ export function createOpenAIResponsesProvider(
 			};
 		},
 		resetSession(sessionId) {
+			keepalive.cancel(sessionId);
 			return lifecycle.reset(sessionId, async () => {
 				clearSession(sessionId);
 				await Promise.all([
+					keepalive.drain(sessionId),
 					waitForCodexTransportClose(transportState, sessionId),
 					waitForCodexTransportClose(
 						transportState,
@@ -416,10 +451,14 @@ export function createOpenAIResponsesProvider(
 			});
 		},
 		close() {
+			keepalive.close();
 			return lifecycle.close(async () => {
 				daybreak.clear();
 				closeOpenAICodexWebSocketSessions(transportState);
-				await waitForCodexTransportClose(transportState);
+				await Promise.all([
+					keepalive.drain(),
+					waitForCodexTransportClose(transportState),
+				]);
 			});
 		},
 	};

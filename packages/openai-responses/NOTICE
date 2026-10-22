@@ -35,6 +35,13 @@ follow snapshot 3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281.
 Modifications: transport cleanup remains provider-instance owned. No Pi-global
 session cleanup callback, footer or logging adapter is installed.
 
+Opt-in generated-current keepalive scheduling and current transport selection
+follow snapshot 12c4357b2c401fe9be8c6c82d2ae252c0f986937, including d08c31c9.
+Source owners: adapter/activation/cache-keepalive.ts and extension/runtime.ts.
+Modifications: explicit host-prepared snapshot and currentness callbacks,
+session-scoped provider-owned scheduling, cancellation and usage reporting.
+No Pi idle hooks, configuration UI, global paths or automatic adoption.
+
 Portions of the Responses conversion and streaming implementation derive
 from Pi, Copyright (c) 2025 Mario Zechner, MIT licensed.
 

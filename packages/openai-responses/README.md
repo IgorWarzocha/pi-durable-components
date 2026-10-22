@@ -58,6 +58,8 @@ Cached continuation, grammar tools, native input items, explicit prewarm, usage 
 
 Configure Codex defaults with `transport`, `responsesLite`, `forceCachedWebSockets`, `originator` and `diagnostics`. Set `responsesLite: false` to disable Lite, or `true` only for a route known to support it. Per-request pi-ai options supply reasoning effort, service tier, verbosity, cancellation, timeouts and retries. Codex deliberately omits `maxTokens` because its endpoint rejects an output-token cap. Deferred generation is not supported. Named tool selection is available in direct mode, but not Codex mode.
 
+Explicit `transport: "websocket"` sends full requests without cached continuation. The default remains `"websocket-cached"`. Only explicit `forceCachedWebSockets: true` upgrades a plain WebSocket preference. Connection preconnect follows WebSocket availability independently of that override. Ordinary prewarm skips plain WebSockets and SSE.
+
 Codex accepts `serviceTier: "ultrafast"`. Cost estimates use the final sent payload's tier and model after payload hooks. Ultrafast applies the source's sixfold multiplier only to `gpt-6-astra` and `gpt-6.1-sol`. Other models retain a base-rate estimate because no Ultrafast multiplier is known for them.
 
 A payload hook that changes the model must select an ID registered in this provider's `models` catalog. Its pricing metadata replaces the original model's rates without changing the authorized endpoint or headers. An unknown target fails before generation rather than reporting another model's prices.
@@ -89,9 +91,17 @@ await provider.close();
 
 `provider.prewarm(model, context, options)` prepares a complete request and warms its WebSocket. Options require resolved `apiKey` and `sessionId`. `provider.prewarmPrepared(model, body, options)` accepts an already prepared final payload. The host must run its normal prompt and tool preparation first. Neither method knows about pending host edits.
 
-Default prewarm uses `generate: false`. `mode: "keepalive"` explicitly generates a billable response on an isolated socket lane without advancing the main conversation. No idle timer or automatic generated keepalive is installed. Returned usage belongs to the caller's accounting, not a Durable generation task.
+Default prewarm uses `generate: false`. `mode: "keepalive"` explicitly generates a billable response on an isolated socket lane without advancing the main conversation. Nothing schedules generated keepalive by default. Returned usage belongs to the caller's accounting, not a Durable generation task.
 
 Generated keepalive also returns `billedUsage`, a cost estimate based on its actual sent model and tier. Ordinary preparation returns token usage only. Daybreak selection applies to both prewarm methods when explicitly configured.
+
+Codex hosts can opt into `provider.armCacheKeepalive(model, preparedBody, options)`, which returns a cancellation function. Options extend `PrewarmOptions` without `mode` and require `policy`, synchronous `isCurrent()`, `onResult(result)` and `onError(error)`. Result and error callbacks may return promises. The host supplies resolved credentials, headers, session ID and an optional cancellation signal. `onResult` owns billable accounting, including results received during cancellation. Callback promises must settle before session reset or provider close can finish.
+
+Capture the final body through `onPreparedRequest` after normal prompt and tool preparation. Arm only after the host settles idle, with no quota block or pending continuation or rollover. The provider copies and validates the snapshot, rejecting continuation-only bodies and `cacheRetention: "none"`. `isCurrent` must confirm idle state, credentials, model, settings and snapshot identity before each refresh. Returning false stops the arm. The host must rearm with a new authoritative snapshot after relevant changes. This API does not infer readiness from a completed response or reconstruct host context.
+
+All policy defaults are off: `cacheKeepalive` defaults to false and `lunaCacheKeepaliveMinutes` to 0. Explicit `cacheKeepalive: true` refreshes Astra, Sol and Terra every 25 minutes, or 55 with `cacheKeepaliveIntervalMinutes: 55`. Luna, including `gpt-reserve`, accepts a 5, 10 or 15 minute duration cap and a 2.5 minute default interval, or 4.5 with `lunaCacheKeepaliveIntervalMinutes: 4.5`. Its attempt cap is the duration divided by the interval, rounded down. Other models do not arm.
+
+Refreshes use the isolated billable lane. Successful and failed attempts rearm within the policy caps. Errors reach `onError`; a skipped transport or stale snapshot stops scheduling. A failing error callback stops scheduling and logs the failure. Ordinary streams and explicit prewarms cancel only their session's arm. `resetSession` cancels and drains that session; `close` cancels and joins all arms and requests. Cancellation never retries an uncertain paid request. The host must install this provider and explicitly adopt this API before any automatic refresh can run.
 
 `provider.getCanonicalRequest(model, sessionId, apiKey, reconstructedInput)` exposes a validated completed-request snapshot for host-owned native checkpoints. `reconstructedInput` excludes Lite's leading tool and instruction items. Account, endpoint, model and history must match. A mismatch returns a decision without a body. This does not install a compaction policy, persist encrypted checkpoints or replace Durable's context management.
 
