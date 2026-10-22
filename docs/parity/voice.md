@@ -10,6 +10,14 @@ Each provider owns its transport, dictation protocol, native helper and LAN cont
 
 Both packages receive the same application-owned exclusive microphone lease. Voice and dictation reserve ownership before asynchronous startup and release it only after confirmed teardown. Interrupted service tasks report uncertainty rather than reopening microphones or replaying provider calls after restart.
 
+GipPity retains the pinned source's bounded 32-entry context-summary cache. Keys
+include the native conversation, effective history, context boundary, selected
+model and reasoning. Only successful, still-current summaries are cached. Rebinding
+or closing the component clears the cache. Native Durable compaction summaries
+are user-message contributions and therefore remain included in both voice
+products' existing context builders. Pi-only summary roles are not required to
+retain that history.
+
 Transfers require an authenticated, ordered host channel authorized for the target conversation and compatible media transport. Grok uses PCM24 and GipPity uses WebRTC. The source retains its physical audio ownership while forwarding media. The destination receives channel permission, not implied native hardware access. Alternating voice selection survives reconnect and context refresh. Cross-provider media conversion is not supplied.
 
 ## Buffered server dictation

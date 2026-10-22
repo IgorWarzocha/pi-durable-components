@@ -43,7 +43,12 @@ import {
 	validateGippityPreferences,
 } from "./preferences.ts";
 import { resolveCodexVoiceAuth } from "./voice/auth.ts";
-import { initialVoiceItems, summarizeVoiceContext } from "./voice/context.ts";
+import {
+	initialVoiceItems,
+	summarizeVoiceContext,
+	VoiceContextSummaryCache,
+	voiceContextSummaryInput,
+} from "./voice/context.ts";
 import { NativeCodexRealtimePeer } from "./voice/conversation/native-peer.ts";
 import type { CodexRealtimePeer } from "./voice/conversation/peer.ts";
 import { CodexRealtimeConversation } from "./voice/conversation/session.ts";
@@ -188,6 +193,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 	let removeTransferEvents: (() => void) | undefined;
 	let working = false;
 	const remoteApps = new GippityRemoteApps();
+	const contextSummaryCache = new VoiceContextSummaryCache();
 	const listeners = new Set<(event: string, data: unknown) => void>();
 	const publish = (event: GippityPresentation) => {
 		options.present?.(event);
@@ -540,25 +546,41 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 				"Context summary export requires explicit host permission",
 			);
 		const view = await conversation.context(context);
-		const result = await summarizeVoiceContext(
-			runtime.models,
+		const input = voiceContextSummaryInput(
+			runtime.conversationId,
 			view,
 			settings,
-			signal,
 		);
+		if (input) signal.throwIfAborted();
+		const cached = input ? contextSummaryCache.get(input.key) : undefined;
+		const result =
+			cached ??
+			(input
+				? await summarizeVoiceContext(runtime.models, settings, input, signal)
+				: undefined);
 		const latest = await conversation.context(context);
 		const boundary = (entries: typeof view.entries) =>
 			entries.findLast(
 				(entry) =>
 					entry.model?.length && entry.kind !== "gippity.voice.lifecycle",
 			)?.id;
+		const latestInput = voiceContextSummaryInput(
+			runtime.conversationId,
+			latest,
+			settings,
+		);
 		if (
 			view.head?.id !== latest.head?.id ||
-			boundary(view.entries) !== boundary(latest.entries)
+			boundary(view.entries) !== boundary(latest.entries) ||
+			input?.key !== latestInput?.key
 		)
 			throw new Error(
 				"Conversation changed while preparing voice context; retry explicitly",
 			);
+		if (input && result) signal.throwIfAborted();
+		if (cached === undefined && input && result) {
+			contextSummaryCache.set(input.key, result);
+		}
 		return result;
 	}
 	async function resolveAuth(signal: AbortSignal) {
@@ -847,8 +869,10 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 		bindHarness(value: Harness, target: ConversationId) {
 			if (taskId || runtime || serviceStart)
 				throw new Error("Stop voice before switching conversation");
-			if (harness !== value || conversationId !== target)
+			if (harness !== value || conversationId !== target) {
 				providerSessionId = randomUUID();
+				contextSummaryCache.clear();
+			}
 			harness = value;
 			conversationId = target;
 		},
@@ -1121,6 +1145,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					);
 			} else await cleanup();
 			remoteApps.close();
+			contextSummaryCache.clear();
 		},
 		get summary() {
 			return summary;
