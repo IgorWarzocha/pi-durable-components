@@ -18,13 +18,12 @@ const registry = createRegistry();
 registry.install(skills({
   globalRoot: "/shared/skills",
   sessionRoot: ".agent/skills",
-  guidance: true,
 }));
 ```
 
 Pass this registry to your Durable harness and provide its `env` factory. All reads, directory traversal, symlink resolution, and relative paths use the calling conversation's environment. There is no host filesystem fallback and no implicit global directory. Without roots or a catalog, listing returns `No skills available.`
 
-`guidance` defaults to false. Enable it for a short progressive-discovery prompt section. `createSkillsTool(options)` also returns the tool registration on its own. Code and Notebook can discover that registration without an adapter.
+The short progressive-discovery prompt section is enabled by default. Set `guidance: false` to omit it. `createSkillsTool(options)` also returns the tool registration on its own. Code and Notebook can discover that registration without an adapter.
 
 ## Commands
 

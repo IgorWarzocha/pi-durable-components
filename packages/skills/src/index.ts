@@ -96,7 +96,7 @@ export function skills(options: SkillsOptions = {}) {
 	return defineExtension({
 		name: "skills",
 		tools: [tool],
-		...(options.guidance
+		...(options.guidance !== false
 			? {
 					sections: [
 						section("skills_guidance", (input) =>
