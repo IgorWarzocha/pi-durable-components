@@ -1,3 +1,6 @@
+- Pi Durable Components owns reusable agent capabilities, tools, resources and prompt sections, including their implementation, state and lifecycle. They must work without Howcode.
+- Howcode Components in `../howcode-components` owns Howcode-specific feature UI, backend services, adapters, settings, state and cleanup, plus the public host SDK.
+- Howcode core in `../howcode` owns host transport, runtime composition, execution-environment grants, native identity, global user paths and capability selection. Expose public package contracts and explicit host options rather than depending on private host source or paths.
 - Ship Durable-native TypeScript components. Do not emulate Pi's `ExtensionAPI`, import its TUI, or wrap the old extensions as a compatibility layer.
 - Treat Pi Durable itself as unchanged upstream. Implement integration and lifecycle fixes in these components or the consuming app through public APIs; do not patch, fork, or vendor changes to Durable here.
 - When upgrading Pi Durable, publish a corresponding rebuilt release and update the install links. Pushing source alone does not finish the upgrade.
@@ -9,4 +12,3 @@
 - Source checkouts used for parity are read-only. Preserve upstream license notices and record source revisions when carrying code across.
 - Tests are a contract spine, not a feature museum. Add no tests by default. Keep only independent checks of consequential persistence, replay, concurrency, cancellation, resource, security or protocol boundaries that types, builds and existing checks do not cover.
 - Cull before adding. Do not increase the permanent test count without Igor's approval, merge unrelated scenarios to disguise growth, or retain bug-specific regression tours, API-shape checks and upstream behavior tests. Validate retained boundaries through Durable and the real runtimes; keep live-provider acceptance opt-in.
-- Parallel workers own assigned package subtrees. Root manifests, dependency installation, lockfiles, cross-package contracts, and Git operations belong to the coordinating agent.

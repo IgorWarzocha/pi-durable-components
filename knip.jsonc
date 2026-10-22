@@ -63,6 +63,10 @@
 			"entry": [],
 			"project": ["src/**/*.ts"]
 		},
+		"packages/project-instructions": {
+			"entry": [],
+			"project": ["src/**/*.ts"]
+		},
 		"packages/pulses": {
 			"entry": [],
 			"project": ["src/**/*.ts"]

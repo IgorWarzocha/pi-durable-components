@@ -40,6 +40,7 @@ The runtime upgrade uses published Durable, pi-ai and Chord 1.4.0, with upstream
 | Guardian | Explicit tool rules and one-shot review of genuine pending Codex actions | [Provider completion and nested-admission evidence](parity/guardian.md) |
 | Grok and GipPity Voice | Separate native voice, dictation, browser control and authorized transfer integrations | [Pinned sources, native artifacts and offline lifecycle evidence](parity/voice.md) |
 | Settings | Native component-owned defaults, global and project overrides with explicit storage | [Settings contract and persistence guarantees](../packages/settings/README.md) |
+| Project instructions | Environment-scoped cwd guidance and lazy structured-file scope discovery | [Native loading contract and boundaries](../packages/project-instructions/README.md) |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 
@@ -67,6 +68,8 @@ OpenAI Responses is the provider exception. It registers with the host's pi-ai M
 Code and Notebook ship separately. Their shell implementation is shared internally, not offered as a standalone shell product. Durable task persistence does not imply restoration of external processes or an arbitrary JavaScript heap.
 
 The prompt-ownership correction restores Apply Patch's promoted syntax and editing guidance from `adapter/code-mode.ts` and `prompt/build-system-prompt.ts` at the pinned Pi Stuff revision `7f3295e6`. The ordinary registration owns that metadata, with the native `{ input: string }` call shape. Skills guidance follows both model-offered and nested-callable availability. Notebook retains approval for additional internal Deno npm imports and explicitly excludes repository dependencies from that rule. Disposable real-Harness captures against the emitted packages verified the model-bound Code and Notebook sections, selected tool schemas and removal after disablement or deselection. No permanent tests or live-provider acceptance were added.
+
+Project Instructions is a new native component rather than a Pi compatibility port. Its public section rereads guidance through the conversation's execution environment. Wrappers merge directory scopes only after file operations return, preserving results, throws and replay policy. Native conversation documents own scope history, environment isolation and fork-at-position behaviour. Structured patch receipts identify committed changes without parsing patch text. JavaScript, shell commands and tool-specific path aliases are outside discovery. Global user policy and host paths remain consumer-owned. Scoped TypeScript, formatting, dependency analysis, build and archive-import checks passed against published Durable 1.4.0. No new permanent tests or live-provider checks were run for this component.
 
 [Shared execution](parity/execution.md) records task ownership, projection and recovery. [Shell](parity/shell.md) records native process behavior and platform limits. `test/toolkit.test.ts` checks native-only context rollover and retained state while switching Code and Notebook in an existing conversation. The default suite keeps consequential boundary contracts, not feature tours. Optional differential probes require the pinned reference binaries and are not part of the ordinary gate.
 
