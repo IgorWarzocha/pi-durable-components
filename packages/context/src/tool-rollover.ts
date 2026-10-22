@@ -1,4 +1,6 @@
+import type { Context } from "@earendil-works/chord";
 import {
+	type ConversationId,
 	defineDoc,
 	defineTool,
 	GenerationTask,
@@ -29,7 +31,17 @@ const ToolWindow = defineDoc<{
 });
 
 /** A tool-requested cut stays inside its native input, so every submission waiter sees the final answer. */
-export function createToolRollover(host: () => ContextHost, now: () => number) {
+export function createToolRollover(
+	host: () => ContextHost,
+	now: () => number,
+	policy: {
+		newContextRequests: "off" | "pi-limits" | "unrestricted";
+		hasEligibleContextHistory?: (
+			conversationId: ConversationId,
+			context: Context,
+		) => boolean | Promise<boolean>;
+	},
+) {
 	const tool = defineTool({
 		name: "new_context",
 		description:
@@ -39,6 +51,40 @@ export function createToolRollover(host: () => ContextHost, now: () => number) {
 		callers: ["model"],
 		executionMode: "sequential",
 		async execute(_args, api, context) {
+			if (policy.newContextRequests === "pi-limits") {
+				// An admitted request must rejoin before consulting mutable host policy.
+				const live = await api.snapshot(LiveDoc, api.conversationId, context);
+				if (
+					!live?.run ||
+					live.tools?.length !== 1 ||
+					live.tools[0]?.taskId !== api.taskId
+				)
+					throw new Error("Call new_context alone in its native tool round");
+				const prior = live?.run
+					? await api.snapshot(ToolWindow, live.run.taskId, context)
+					: undefined;
+				const hasEligibleContextHistory = policy.hasEligibleContextHistory;
+				if (!hasEligibleContextHistory)
+					throw new Error(
+						"pi-limits requires hasEligibleContextHistory from the host",
+					);
+				if (
+					!prior?.request &&
+					!(await hasEligibleContextHistory(api.conversationId, context))
+				)
+					return {
+						output: [
+							{
+								type: "text",
+								text: JSON.stringify({
+									status: "limit_not_reached",
+									message:
+										"The host reports no eligible history for a new context window. The window is unchanged.",
+								}),
+							},
+						],
+					};
+			}
 			const result = await api.commit(async (tx) => {
 				const live = await tx.doc(LiveDoc, api.conversationId);
 				if (

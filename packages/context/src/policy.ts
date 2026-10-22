@@ -16,12 +16,26 @@ import {
 	ToolTask,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
+import { renderArchiveHistoryHint } from "./history-archive.ts";
 import { notesAreFresh, renderNotesThreadHint } from "./note-store.ts";
 import { contextUsage } from "./usage.ts";
 import { WindowState } from "./window-state.ts";
 
-const checkpoint =
-	"Notes are recovery state, not a diary. Keep one concise, authoritative note per task or topic at a stable path. Task checkpoints cover request, constraints, decisions, status, next steps and history IDs. Use write_file to replace stale state and mark completion. Link to existing notes instead of copying or summarising their contents. Recording isn't permission to implement.\n\nBatch saves at meaningful milestones, not every reply or intermediate step. Before new_context or handoff, save current state and wait for success; include the checkpoint path in handoffs. After rollover, read the checkpoint, then only needed links. Don't reread notes still in context unless they may have changed. Use history for missing details. If no checkpoint is available, use history to recover missing context.\n\nPrevious skill reads don't carry into this window. Read the skills needed for the current task.";
+function checkpointGuidance(
+	newContextRequests: "off" | "pi-limits" | "unrestricted",
+) {
+	const rollover =
+		newContextRequests === "off"
+			? "Agent-requested context windows are disabled."
+			: newContextRequests === "pi-limits"
+				? "Request a new context window only when the host reports eligible history."
+				: "Before requesting a new context window, save current state and wait for the write to succeed.";
+	return [
+		"Notes are recovery state, not a diary. Keep one concise, authoritative note per task or topic at a stable path. Task checkpoints cover request, constraints, decisions, status, next steps and history IDs. Use write_file to replace stale state and mark completion. Link to existing notes instead of copying or summarising their contents. Recording isn't permission to implement.",
+		`Batch saves at meaningful milestones, not every reply or intermediate step. ${rollover} For handoffs, save current state and wait for success; include the checkpoint path. After rollover, read the checkpoint, then only needed links. Don't reread notes still in context unless they may have changed. Use history for missing details. If no checkpoint is available, use history to recover missing context.`,
+		"Previous skill reads don't carry into this window. Read the skills needed for the current task.",
+	].join("\n\n");
+}
 
 // Durable's onYield continuation creates a successor GenerationTask. A task receipt
 // repeats the same answer's decision on recovery, not subsequent answers' decisions.
@@ -36,6 +50,8 @@ const YieldAdvisory = defineDoc<{ text?: string }>({
 export function createContextPolicy(options: {
 	models: Models;
 	taskBoundaryReminderTokens: number;
+	newContextRequests: "off" | "pi-limits" | "unrestricted";
+	archiveHistory?: boolean;
 	host: () => { harness: Harness; storage: Storage };
 	now: () => number;
 	ensureWindow: (id: ConversationId, context: Context) => Promise<void>;
@@ -55,10 +71,17 @@ export function createContextPolicy(options: {
 			]);
 			const window = state?.window;
 			return [
-				checkpoint,
-				`Current conversation ID: ${input.conversationId}. notes and history accept target with another conversation ID in this shared storage. Read any conversation's context; write only your own notes.`,
+				checkpointGuidance(options.newContextRequests),
+				`Current conversation ID: ${input.conversationId}. notes and history accept target with another conversation ID in this storage only when its Context visibility group matches yours. Write only your own notes.`,
 				window && `Current context window UUID: ${window.id}`,
 				window?.previous && `Previous context window UUID: ${window.previous}`,
+				options.archiveHistory &&
+					window &&
+					(await renderArchiveHistoryHint(
+						await conversation(input.conversationId, context),
+						window.id,
+						context,
+					)),
 				hints,
 			]
 				.filter(Boolean)
@@ -94,6 +117,7 @@ export function createContextPolicy(options: {
 		context: Context,
 		answer?: Parameters<typeof contextUsage>[3],
 	) {
+		if (options.newContextRequests === "off") return;
 		if (answer) {
 			const receipt = await api.snapshot(YieldAdvisory, api.taskId, context);
 			if (receipt?.text) return receipt.text;

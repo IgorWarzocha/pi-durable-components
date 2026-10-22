@@ -23,6 +23,14 @@ Modifications: Durable-native SQLite documents and tasks, one local notes
 policy, durable admission and cancellation, provider-independent model usage,
 and native-only rollover control through ordinary tool registrations.
 
+Tree archive recovery, Remote family routing and rollover policy were compared
+against canonical Pi Stuff revision 12c4357b. Native adaptations use Durable's
+public retained entries, fork ancestry and compaction-summary references, with
+bounded cancellable indexing and existing Context visibility checks. Optional
+host-owned family catalogues resolve agent names to Durable conversations.
+No Pi archive manifests, provider-private state or duplicate transcript store
+are carried. Notes-only rollover still creates no summary.
+
 MIT License
 
 Copyright (c) 2026 Igor Warzocha

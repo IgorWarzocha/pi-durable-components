@@ -1,6 +1,7 @@
-- Keep one notes-and-retained-history policy. Same-storage conversations share reads; note writes belong to the caller. Board membership is not a context permission boundary.
+- Keep one notes-and-retained-history policy. Same-group conversations in one storage share reads; note writes belong to the caller. Board membership is not a context permission boundary.
 - Use the host's Durable storage and public task, document and submission APIs. Do not add a transcript database, private Durable imports or an admission monkeypatch.
 - Cut a head only at native idle or in `afterTools` for the sole completed `new_context` round with no other foreground work or queued inbox items. Commit that proof, the window and the replay receipt together. Never terminate or replace the native input just to roll its context. Initialization must never cut existing history.
 - Persist original held input and cancellation intent before releasing admission. Observe real native settlement; never infer idle deadlines from assistant timestamps.
 - Replayed note writes must return their original receipt without refreshing freshness. Forks inherit notes as of the fork entry, not a running rollover or admission queue.
+- Foreign `notes` and `history` reads must check the shared Context visibility contract before reading target documents or entries. Same-group checks apply both directions; absent legacy records remain shared. Host snapshot helpers are privileged and do not widen tool access.
 - Source refreshes include model-facing guidance, tool descriptions, discovery help and continuation prompts, not just runtime mechanics. Adapt paths and identities to Durable without dropping the source's behavioral instructions.

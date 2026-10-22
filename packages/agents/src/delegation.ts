@@ -1,6 +1,7 @@
 import type { Context } from "@earendil-works/chord";
 import type { ToolExecutionApi, Tx } from "@earendil-works/pi-durable";
 import { configure, LiveDoc } from "@earendil-works/pi-durable";
+import { assignContextVisibility } from "../../../internal/context-visibility.ts";
 import type { AgentsOptions, Request, WorkRequest } from "./contract.ts";
 import { response } from "./contract.ts";
 import type { Delegation, WorkResult } from "./state.ts";
@@ -97,6 +98,12 @@ async function admitWork(
 			...profile.agent,
 			...(args.cwd === undefined ? {} : { cwd: args.cwd }),
 		});
+		await assignContextVisibility(
+			tx,
+			api.conversationId,
+			child.id,
+			options.shareContext === true && profile.shareContext !== false,
+		);
 		// Ensure the explicit-watch event source exists even before the child's first run.
 		await tx.doc(LiveDoc, child.id);
 		fleet.agents[String(child.id)] = {

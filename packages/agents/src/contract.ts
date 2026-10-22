@@ -12,9 +12,13 @@ export type AgentProfile = {
 	agent: AgentChange;
 	/** Overrides the call's blocking choice, as in the source profile policy. */
 	blocking?: boolean;
+	/** false isolates new workers; true or unset follows the controller's sharing setting. */
+	shareContext?: boolean;
 };
 export type AgentsOptions = {
 	profiles: Readonly<Record<string, AgentProfile>>;
+	/** Share Context reads with new workers; defaults to false. */
+	shareContext?: boolean;
 	/** Optional Board component; validates explicit thread handoffs in the spawn commit. */
 	board?: {
 		threadReference(
@@ -85,7 +89,7 @@ export const response = (details: JsonObject, isError = false) => ({
 	isError,
 });
 
-export function help(profiles: AgentsOptions["profiles"]) {
+export function help(options: AgentsOptions) {
 	return response({
 		actions: {
 			help: "",
@@ -97,20 +101,26 @@ export function help(profiles: AgentsOptions["profiles"]) {
 			watch: "target",
 			unwatch: "target",
 		},
+		controller_share_context: options.shareContext ?? false,
 		profiles: Object.fromEntries(
-			Object.entries(profiles).map(([name, profile]) => [
+			Object.entries(options.profiles).map(([name, profile]) => [
 				name,
 				{
 					description: profile.description,
 					...(profile.blocking === undefined
 						? {}
 						: { blocking: profile.blocking }),
+					...(profile.shareContext === undefined
+						? {}
+						: { share_context: profile.shareContext }),
 				},
 			]),
 		),
 		rules: {
 			target:
 				"Use the conversation ID from spawn/find, or an exact unique name",
+			share_context:
+				"Controller option defaults false; profile false isolates new workers, while true or unset follows the controller",
 			label: "Short agent label; prefer two words when useful",
 			prompt:
 				"Give each worker a distinct scope, desired outcome, relevant project context and issue references. Describe success rather than lists of forbidden investigations",

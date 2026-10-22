@@ -21,7 +21,8 @@
 				"packages/execution/src/**/*.ts",
 				"packages/execution/test/**/*.ts",
 				"internal/codex/**/*.ts",
-				"internal/settings/**/*.ts"
+				"internal/settings/**/*.ts",
+				"internal/context-visibility.ts"
 			]
 		},
 		"packages/*": {

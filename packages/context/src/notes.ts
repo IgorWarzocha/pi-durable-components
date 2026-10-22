@@ -1,11 +1,13 @@
 // Adapted from pi-codex-conversion, Copyright (c) 2026 Igor Warzocha, MIT.
 
-import type {
-	ConversationId,
-	JsonObject,
-	Tx,
+import {
+	type ConversationId,
+	defineTool,
+	type JsonObject,
+	type Storage,
+	type Tx,
 } from "@earendil-works/pi-durable";
-import { defineTool } from "@earendil-works/pi-durable";
+import { canReadContextTarget } from "../../../internal/context-visibility.ts";
 import { normalizeFilePath, normalizePrefix } from "./note-path.ts";
 import {
 	mutateNote,
@@ -14,64 +16,110 @@ import {
 	readNoteText,
 } from "./note-store.ts";
 import {
+	type ContextRemoteCatalog,
+	remoteContextHelp,
+	resolveContextTarget,
+} from "./remote.ts";
+import {
 	boundedInteger,
+	contextHelpText,
+	contextOutputLimits,
 	contextToolHelp,
 	type NotesArguments,
 	normalizeNotesArguments,
 	notesParameters,
 	prepareNotesArguments,
 	requiredString,
-	targetConversationId,
 	validateNotesArguments,
 } from "./tool-contract.ts";
 
-export function createNotesTool(options: { now: () => number }) {
+export function createNotesTool(options: {
+	now: () => number;
+	storage: () => Storage;
+	remote?: ContextRemoteCatalog | undefined;
+}) {
 	const tool = defineTool({
 		name: "notes",
 		description: "Persistent notes",
 		parameters: notesParameters,
 		prepareArguments: prepareNotesArguments,
 		replay: "safe",
+		outputLimits: contextOutputLimits,
 		async execute(args = {}, api, context) {
-			const help = contextToolHelp("notes", args);
+			let help = contextToolHelp("notes", args);
+			if (help)
+				help = {
+					...help,
+					...(await remoteContextHelp(
+						options.remote,
+						api.conversationId,
+						options.storage(),
+						context,
+					)),
+				};
 			if (help)
 				return {
-					output: [{ type: "text", text: JSON.stringify(help) }],
+					output: [{ type: "text", text: contextHelpText(help) }],
 					details: help,
 				};
 			args = normalizeNotesArguments(args);
 			validateNotesArguments(args);
 			context.abortSignal?.throwIfAborted();
-			const target = targetConversationId(args.target, api.conversationId);
+			const { target } = await resolveContextTarget(
+				options.remote,
+				args,
+				api.conversationId,
+				context,
+			);
 			const writing =
 				args.action === "append_to_file" || args.action === "write_file";
 			if (writing && target !== api.conversationId)
 				throw new Error("Notes writes may only target the caller conversation");
+			if (
+				!writing &&
+				target !== api.conversationId &&
+				!(await canReadContextTarget(
+					options.storage(),
+					api.conversationId,
+					target,
+					context,
+				))
+			)
+				throw new Error("This conversation's context is not visible here");
 			// tx.doc creates missing documents, even for reads. An absent catalog is
 			// an empty snapshot, not permission to initialize a foreign conversation.
 			const hasCatalog =
 				writing ||
 				(await api.snapshot(NotesState, target, context)) !== undefined;
-			const result = await api.commit(async (tx): Promise<JsonObject> => {
-				if (!(await tx.conversation(target)))
-					throw new Error(`Conversation ${target} does not exist`);
-				if (writing) {
-					const file = await mutateNote(tx, {
-						conversationId: api.conversationId,
-						taskId: api.taskId,
-						path: normalizeFilePath(args.path),
-						text: requiredString(
-							args.text,
-							`notes ${args.action} requires text`,
-							true,
-						),
-						append: args.action === "append_to_file",
-						now: options.now,
-					});
-					return { file: { path: file.path } };
-				}
-				return readNotes(tx, target, args, hasCatalog);
-			}, context);
+			const result = await api
+				.commit(async (tx): Promise<JsonObject> => {
+					if (!(await tx.conversation(target)))
+						throw new Error(`Conversation ${target} does not exist`);
+					if (writing) {
+						const file = await mutateNote(tx, {
+							conversationId: api.conversationId,
+							taskId: api.taskId,
+							path: normalizeFilePath(args.path),
+							text: requiredString(
+								args.text,
+								`notes ${args.action} requires text`,
+								true,
+							),
+							append: args.action === "append_to_file",
+							now: options.now,
+						});
+						return { file: { path: file.path } };
+					}
+					return readNotes(tx, target, args, hasCatalog);
+				}, context)
+				.catch((error: unknown) => {
+					if (writing && options.remote && context.abortSignal?.aborted)
+						throw new Error(
+							"Notes write was interrupted after dispatch; its outcome is uncertain. Read the note before another write",
+							{ cause: error },
+						);
+					throw error;
+				});
 			return {
 				output: [{ type: "text", text: JSON.stringify(result) }],
 				details: result,

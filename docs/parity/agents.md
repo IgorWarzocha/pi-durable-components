@@ -6,7 +6,15 @@ The source is [`@howaboua/pi-shepherdr` 0.2.12](https://github.com/IgorWarzocha/
 
 The Durable reference is revision `f5d20047b3ad43d068a8eb61bd4e1f193bedbce6` of [earendil-works/pi](https://github.com/earendil-works/pi/tree/f5d20047b3ad43d068a8eb61bd4e1f193bedbce6/packages/durable). [Example 22](https://github.com/earendil-works/pi/blob/f5d20047b3ad43d068a8eb61bd4e1f193bedbce6/packages/durable/test/examples/22-subagent-foreground.ts) establishes safe tool replay and child-input request IDs. [Example 23](https://github.com/earendil-works/pi/blob/f5d20047b3ad43d068a8eb61bd4e1f193bedbce6/packages/durable/test/examples/23-subagent-background.ts) establishes background anchors and idempotent report submissions. Implementation uses the installed public Durable 1.0.2 API, not private imports. Reference checkouts were read-only during implementation.
 
-Igor selected Durable-native delegation, profiles, messages, blocking and asynchronous results, and watches. Board was initially bundled here. The approved 2026-10-16 extraction moves it into an independent [Board package](board.md). Herdr machine, pane, process, SSH and terminal integration, shared-context attachment, and Ask answer actions remain excluded. There are no built-in review or btw workflows.
+Igor selected Durable-native delegation, profiles, messages, blocking and asynchronous results, and watches. Board was initially bundled here. The approved 2026-10-16 extraction moves it into an independent [Board package](board.md). Herdr machine, pane, process, SSH and terminal integration and Ask answer actions remain outside this package. There are no built-in review or btw workflows.
+
+## Context sharing correction
+
+The whole-package audit against read-only Pi Stuff `12c4357b2c401fe9be8c6c82d2ae252c0f986937` found that source `share_context` controls access to shared notes and history, not parent transcript copying or prompt-cache identity. Calling attachment a terminal-only exclusion had dropped that functional policy.
+
+`AgentsOptions.shareContext` now defaults to false, matching the source controller. A profile with `shareContext: false` always isolates its new worker. A profile with true or no override follows the controller. Before dispatch, the spawn transaction saves a private visibility group or inherits the parent's group. Context checks group equality before foreign notes or history reads in either direction. An already isolated parent cannot widen its group through a child. Writes still belong to the caller. Missing records retain legacy shared-storage behaviour; native forks inherit the saved policy and rewinds cannot erase it. This shared internal document is bundled independently into Agents and Context. It requires no host bridge, package dependency or component-specific execution adapter.
+
+A disposable real-Harness probe exercised the source default, explicit controller sharing, profile isolation, denied foreign writes, permitted and denied ordinary notes reads, denied history reads and native fork inheritance. No permanent tests or external provider calls were added. Consuming applications must choose their sharing policy explicitly when preserving a previously shared workspace.
 
 ## Preserved contracts
 

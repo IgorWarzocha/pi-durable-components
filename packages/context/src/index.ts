@@ -20,18 +20,34 @@ import {
 } from "./lifecycle.ts";
 import { createNotesTool } from "./notes.ts";
 import { createContextPolicy } from "./policy.ts";
+import type { ContextRemoteCatalog } from "./remote.ts";
 import { createRollover, scheduleRollover } from "./rollover.ts";
 import { createToolRollover } from "./tool-rollover.ts";
 import { WindowState } from "./window-state.ts";
 
 export type { InputResult } from "./lifecycle.ts";
 export { readSavedNotes, type SavedNote } from "./note-store.ts";
+export type { ContextRemoteCatalog } from "./remote.ts";
 export type { TransitionResult, WindowIdentity } from "./window-state.ts";
+
+/** Policy for model-requested context windows. */
+export type NewContextRequests = "off" | "pi-limits" | "unrestricted";
 
 /** Install the extension before opening. Bind the same Harness and storage before resuming it. */
 export function createContextManagement(options: {
 	models: Models;
+	/** Include retained fork branches and prioritise native summary search matches. Off by default. */
+	archiveHistory?: boolean;
+	/** Opt in to a host-owned stable family and agent namespace. No local fallback. */
+	remote?: ContextRemoteCatalog;
 	now?: () => number;
+	/** Agent-requested rollover policy. `pi-limits` requires the host's history-eligibility signal below. */
+	newContextRequests?: NewContextRequests;
+	/** Read-only host signal for history eligible for a new window; errors fail closed. */
+	hasEligibleContextHistory?: (
+		conversationId: ConversationId,
+		context: Context,
+	) => boolean | Promise<boolean>;
 	automaticIdleRollover?: boolean;
 	/** Minutes of observed idle time. Explicit policy overrides the legacy boolean. */
 	idleRolloverMinutes?: 0 | 5 | 15 | 25 | 55 | 115 | 355 | 715;
@@ -39,6 +55,16 @@ export function createContextManagement(options: {
 	taskBoundaryReminderTokens?: number;
 }) {
 	let binding: ContextHost | undefined;
+	if (
+		options.remote !== undefined &&
+		typeof options.remote?.catalog !== "function"
+	)
+		throw new Error("Remote Context requires a host-configured catalogue");
+	if (
+		options.archiveHistory !== undefined &&
+		typeof options.archiveHistory !== "boolean"
+	)
+		throw new Error("archiveHistory must be a boolean");
 	const host = () => {
 		if (!binding)
 			throw new Error(
@@ -73,6 +99,22 @@ export function createContextManagement(options: {
 			"taskBoundaryReminderTokens must be a non-negative safe integer",
 		);
 	const now = options.now ?? Date.now;
+	const newContextRequests = options.newContextRequests ?? "unrestricted";
+	if (
+		newContextRequests !== "off" &&
+		newContextRequests !== "pi-limits" &&
+		newContextRequests !== "unrestricted"
+	)
+		throw new Error(
+			"newContextRequests must be off, pi-limits or unrestricted",
+		);
+	if (
+		newContextRequests === "pi-limits" &&
+		options.hasEligibleContextHistory === undefined
+	)
+		throw new Error(
+			"pi-limits requires hasEligibleContextHistory from the host",
+		);
 	const ensureWindow = async (id: ConversationId, context: Context) => {
 		const conv = await conversation(host(), id, context);
 		await conv.commit((tx) => initializeWindow(tx, id, now()), context);
@@ -85,15 +127,34 @@ export function createContextManagement(options: {
 		now,
 		ensureWindow,
 		taskBoundaryReminderTokens,
+		newContextRequests,
+		archiveHistory: options.archiveHistory === true,
 	});
-	const notes = createNotesTool({ now });
+	const notes = createNotesTool({
+		now,
+		storage: () => host().storage,
+		remote: options.remote,
+	});
 	const history = createHistoryTool({
 		conversation: (id, context) => conversation(host(), id, context),
+		storage: () => host().storage,
+		remote: options.remote,
+		archiveHistory: options.archiveHistory === true,
 	});
-	const newContext = createToolRollover(host, now);
+	const newContext = createToolRollover(host, now, {
+		newContextRequests,
+		...(options.hasEligibleContextHistory === undefined
+			? {}
+			: { hasEligibleContextHistory: options.hasEligibleContextHistory }),
+	});
 	const extension = defineExtension({
 		name: "howaboua.context",
-		tools: [notes, history, policy.remainingTool, newContext.tool],
+		tools: [
+			notes,
+			history,
+			policy.remainingTool,
+			...(newContextRequests === "off" ? [] : [newContext.tool]),
+		],
 		tasks: [input, rollover],
 		sections: policy.sections,
 		hooks: [...newContext.hooks, ...policy.hooks],

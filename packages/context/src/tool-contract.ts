@@ -1,6 +1,6 @@
 // Adapted from pi-codex-conversion, Copyright (c) 2026 Igor Warzocha, MIT.
 
-import type { ConversationId } from "@earendil-works/pi-durable";
+import type { ConversationId, JsonObject } from "@earendil-works/pi-durable";
 import { type Static, Type } from "typebox";
 import { Check } from "typebox/value";
 
@@ -20,6 +20,18 @@ const NOTES_ACTIONS = [
 	"write_file",
 ] as const;
 
+/** Own the native output budget so discovery can reject oversize JSON before truncation. */
+export const contextOutputLimits = { maxBytes: 50 * 1024, maxLines: 2_000 };
+
+export function contextHelpText(help: JsonObject): string {
+	const text = JSON.stringify(help);
+	if (new TextEncoder().encode(text).byteLength > contextOutputLimits.maxBytes)
+		throw new Error(
+			"Remote Context discovery exceeds the tool output budget. Ask the host for a narrower catalogue. Known agent_name and numeric target operations remain available.",
+		);
+	return text;
+}
+
 const nullableString = Type.Union([Type.String(), Type.Null()]);
 const positiveInteger = Type.Integer({ minimum: 1 });
 const target = Type.Optional(
@@ -36,6 +48,7 @@ export const historyParameters = Type.Object(
 		),
 		target,
 		item_id: Type.Optional(Type.String()),
+		agent_name: Type.Optional(nullableString),
 		limit: Type.Optional(positiveInteger),
 		limit_chars: Type.Optional(positiveInteger),
 		max_chars_per_item: Type.Optional(positiveInteger),
@@ -70,6 +83,7 @@ export const notesParameters = Type.Object(
 		),
 		content: Type.Optional(Type.String()),
 		target,
+		agent_name: Type.Optional(nullableString),
 		file_order: Type.Optional(
 			Type.Union([Type.Literal("ascending"), Type.Literal("descending")]),
 		),
@@ -195,7 +209,8 @@ export function contextToolHelp(
 					.join(" "),
 			]),
 		),
-		target: "Durable conversation ID; defaults to caller; read any, write own",
+		target:
+			"Durable conversation ID; defaults to caller; reads require the same Context visibility group; write own",
 		...(namespace === "notes"
 			? {
 					writes: "write_file replaces; append_to_file adds",
@@ -259,7 +274,11 @@ function validateFields(
 	if (!fields || args.action === undefined)
 		throw new Error(`${namespace} requires a supported action`);
 	const unexpected = Object.keys(args).find(
-		(key) => key !== "action" && key !== "target" && !fields.includes(key),
+		(key) =>
+			key !== "action" &&
+			key !== "target" &&
+			key !== "agent_name" &&
+			!fields.includes(key),
 	);
 	if (unexpected)
 		throw new Error(

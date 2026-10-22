@@ -40,7 +40,7 @@ export function createAgents(options: AgentsOptions) {
 			switch (args.action) {
 				case undefined:
 				case "help":
-					return help(options.profiles);
+					return help(options);
 				case "list":
 				case "find":
 					return discoverAgents(args, api, context);

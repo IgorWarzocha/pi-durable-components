@@ -9,14 +9,14 @@
 		"node": ">=22.19.0"
 	},
 	"main": "./dist/index.js",
-	"types": "./dist/index.d.ts",
+	"types": "./dist/packages/agents/src/index.d.ts",
 	"exports": {
 		"./presentation": {
-			"types": "./dist/presentation.d.ts",
+			"types": "./dist/packages/agents/src/presentation.d.ts",
 			"import": "./dist/presentation.js"
 		},
 		".": {
-			"types": "./dist/index.d.ts",
+			"types": "./dist/packages/agents/src/index.d.ts",
 			"import": "./dist/index.js"
 		}
 	},

@@ -37,7 +37,9 @@ const root = await harness.root(context, {
 
 `storage`, `models`, `env`, `model`, and the Chord `context` belong to the host. Bind the exact Harness and storage passed to `Harness.open`. Watches use public submission scans and waits to follow actual completion, including tool rounds and continuation hooks. The component does not own or close either binding.
 
-Profiles can select models, thinking levels, instructions, tools, extensions, and an environment-relative cwd. Unset fields inherit the controller's stored configuration and host defaults. Install any extensions referenced by profiles in the same registry. A profile's `blocking` setting overrides the spawn request.
+Profiles can select models, thinking levels, instructions, tools, extensions, and an environment-relative cwd. Unset fields inherit the controller's stored configuration and host defaults. Install any extensions referenced by profiles in the same registry. A profile's `blocking` setting overrides the spawn request. Set `createAgents({ shareContext: true, ... })` to share Context reads with new workers; it defaults to false. Hosts migrating from the previous shared-read behavior should set it to true. Profile `shareContext: false` isolates that worker regardless of the controller setting, while `true` or unset follows the controller. A worker already in a private group cannot widen access by spawning with `true`.
+
+With the Context component installed, visibility groups govern its foreign-conversation notes/history reads. Existing conversations without a recorded group remain mutually visible, and Context without Agents is unchanged. This is not a storage or host-tool security boundary. It does not copy parent prompts or transcripts, and it does not change caller-only note writes.
 
 The extension registers only `agents`. Select `agents.extension` on controllers. Code and Notebook discover it without an adapter. Workers inherit the controller's selected extensions unless their profile changes the selection. Restrict the profile's tools or extensions when workers should not delegate further.
 

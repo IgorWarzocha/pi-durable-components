@@ -3,3 +3,4 @@
 - Watches follow settled input submissions, not completed generations or intermediate assistant entries. Reconcile idle document wakes inside the current task invocation.
 - Cancelling a blocking caller detaches its waiter, not its worker. Preserve background-subtree ownership and deterministic report request IDs, including deduplication between watches and delegation.
 - Board membership and notices belong to the standalone Board package. Keep optional thread handoff validation inside the spawn transaction and before creating owned work.
+- Persist a spawned profile's Context visibility group in the same admission transaction before dispatch. Controller sharing defaults off; profile false isolates, true/unset follows controller policy. Missing legacy groups mean shared; private ancestry is never widened. This gates Context reads, not other host tools or storage access.
