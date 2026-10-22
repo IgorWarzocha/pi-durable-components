@@ -20,10 +20,16 @@ before finalization and wired into the stream pipeline; an already-started
 atomic finalization is drained, not replayed. Redirect response bodies are
 cancelled before following the next URL.
 
-`PI_SHERPA_ONNX_MODEL_DIR`, `PI_DICTATION_MODEL_DIR`, and
-`PI_SHERPA_ONNX_{NUM_THREADS,PROVIDER,LANGUAGE}` take precedence over the existing
-`HOWCODE_` equivalents. Managed downloads always use the explicitly supplied
-directory; environment paths are additional model discovery locations.
+Explicit `modelSearchDirectories`, `language`, `numThreads` and `provider`
+options replace app-specific environment aliases in the portable engine.
+When those options are omitted, `PI_SHERPA_ONNX_MODEL_DIR`,
+`PI_DICTATION_MODEL_DIR` and `PI_SHERPA_ONNX_{NUM_THREADS,PROVIDER,LANGUAGE}`
+remain the portable environment defaults. The consuming adapter owns legacy
+app aliases and their precedence. An explicit discovery list replaces the
+environment roots and appends managed storage. Managed downloads always use
+the explicitly supplied directory. Selected managed model priority and
+language fallback remain unchanged. Explicit thread counts reject invalid
+values before creating the service.
 The former `numChats` configuration typo is corrected to sherpa's supported
 `numThreads` so the existing thread-count setting actually applies.
 

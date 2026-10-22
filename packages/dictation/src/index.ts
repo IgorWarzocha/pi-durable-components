@@ -10,10 +10,19 @@ export type * from "./contracts.ts";
 export function createDictationService(options: DictationServiceOptions) {
 	if (!options.modelDirectory.trim())
 		throw new Error("A dictation model directory is required.");
+	if (
+		options.numThreads !== undefined &&
+		(!Number.isSafeInteger(options.numThreads) || options.numThreads <= 0)
+	)
+		throw new Error("Dictation numThreads must be a positive safe integer.");
 	const resolution = createModelResolution(options);
-	const runtime = createSherpaRuntime();
+	const runtime = createSherpaRuntime(options);
 	const models = createModelManagement(options, resolution, runtime);
-	const transcription = createTranscriptionService(resolution, runtime);
+	const transcription = createTranscriptionService(
+		resolution,
+		runtime,
+		options,
+	);
 	const downloads = new AbortController();
 	const pending = new Set<Promise<unknown>>();
 	let stopping = false;

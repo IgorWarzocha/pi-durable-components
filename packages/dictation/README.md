@@ -41,12 +41,23 @@ definitions from `/models`, and language, PCM and duration helpers from
 
 ## Configuration
 
-Managed downloads use `modelDirectory`. Additional model discovery locations
-can be set with `PI_SHERPA_ONNX_MODEL_DIR` and `PI_DICTATION_MODEL_DIR`.
-`PI_SHERPA_ONNX_NUM_THREADS`, `PI_SHERPA_ONNX_PROVIDER` and
-`PI_SHERPA_ONNX_LANGUAGE` configure recognition. Each setting retains its
-`HOWCODE_` equivalent as a compatibility alias, with the `PI_` setting taking
-precedence.
+Managed downloads use `modelDirectory`. Pass `modelSearchDirectories` for an
+ordered list of additional discovery roots. If omitted, discovery uses
+`PI_SHERPA_ONNX_MODEL_DIR` followed by `PI_DICTATION_MODEL_DIR`. An explicit
+empty list disables those environment roots. The managed directory is appended
+and duplicate roots are removed. Selected managed models retain their existing
+priority over additional roots.
+
+Pass `language`, `numThreads` or `provider` to override
+`PI_SHERPA_ONNX_LANGUAGE`, `PI_SHERPA_ONNX_NUM_THREADS` or
+`PI_SHERPA_ONNX_PROVIDER`. Explicit thread counts must be positive safe integers.
+Without a thread setting, recognition uses available parallelism capped at four.
+The default provider is `cpu`. Language falls back to the resolved model's
+language, then the transcription request. Explicit blank language or provider
+values skip their environment setting and use those defaults.
+
+App-specific configuration names belong in the consuming adapter. Translate them
+to these options rather than relying on app environment aliases in this package.
 
 Supported native platforms are macOS arm64 and x64, Linux arm64 and x64, and
 Windows ia32 and x64. Missing models, unsupported platforms and native loading

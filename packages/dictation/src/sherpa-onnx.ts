@@ -1,4 +1,5 @@
 import type {
+	DictationServiceOptions,
 	DictationState,
 	DictationTranscriptionRequest,
 	DictationTranscriptionResult,
@@ -9,6 +10,7 @@ import type { createSherpaRuntime } from "./sherpa-runtime.ts";
 export function createTranscriptionService(
 	resolution: ReturnType<typeof createModelResolution>,
 	runtime: ReturnType<typeof createSherpaRuntime>,
+	options: Pick<DictationServiceOptions, "language">,
 ) {
 	const {
 		DEFAULT_DICTATION_MODEL_DIRECTORY,
@@ -17,10 +19,6 @@ export function createTranscriptionService(
 	} = resolution;
 	const { getRecognizer, getSherpaPlatformPackageName, loadSherpaOnnxModule } =
 		runtime;
-	function getProcessEnvironmentVariable(name: string) {
-		return process.env[name.replace("HOWCODE_", "PI_")] ?? process.env[name];
-	}
-
 	function buildUnavailableDictationState(
 		error: string,
 		reason: DictationState["reason"],
@@ -150,7 +148,7 @@ export function createTranscriptionService(
 		}
 
 		const language = normalizeWhisperLanguage(
-			getProcessEnvironmentVariable("HOWCODE_SHERPA_ONNX_LANGUAGE")?.trim() ||
+			(options.language ?? process.env["PI_SHERPA_ONNX_LANGUAGE"])?.trim() ||
 				modelFiles.language ||
 				request.language,
 		);

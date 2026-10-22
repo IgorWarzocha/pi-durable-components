@@ -73,6 +73,14 @@ export type DictationService = {
 export type DictationServiceOptions = {
 	/** Native filesystem directory owned by this service for managed Whisper models. */
 	modelDirectory: string;
+	/** Ordered discovery roots, replacing PI_* model directories when supplied. The managed root is appended. */
+	modelSearchDirectories?: readonly string[];
+	/** Overrides PI_SHERPA_ONNX_LANGUAGE. Blank uses the model or request language. */
+	language?: string;
+	/** Positive integer overriding PI_SHERPA_ONNX_NUM_THREADS. */
+	numThreads?: number;
+	/** Overrides PI_SHERPA_ONNX_PROVIDER. Blank uses cpu. */
+	provider?: string;
 	getSelectedModelId: () => DictationModelId | null;
 	onDownloadLog?: (event: DictationDownloadEvent) => void;
 };

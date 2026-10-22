@@ -1,11 +1,8 @@
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import type { DictationServiceOptions } from "./contracts.ts";
 import type { DictationModelFiles } from "./model-resolution.ts";
-
-function getProcessEnvironmentVariable(name: string) {
-	return process.env[name.replace("HOWCODE_", "PI_")] ?? process.env[name];
-}
 
 type SherpaOfflineStream = {
 	acceptWaveform: (input: {
@@ -36,7 +33,9 @@ type SherpaOnnxModule = {
 
 const require = createRequire(import.meta.url);
 
-export function createSherpaRuntime() {
+export function createSherpaRuntime(
+	options: Pick<DictationServiceOptions, "numThreads" | "provider">,
+) {
 	let sherpaOnnxModulePromise: Promise<SherpaOnnxModule> | null = null;
 	let recognizerCache: {
 		key: string;
@@ -118,8 +117,9 @@ export function createSherpaRuntime() {
 	}
 
 	function getRecognizerThreadCount() {
+		if (options.numThreads !== undefined) return options.numThreads;
 		const configured = Number.parseInt(
-			getProcessEnvironmentVariable("HOWCODE_SHERPA_ONNX_NUM_THREADS") ?? "",
+			process.env["PI_SHERPA_ONNX_NUM_THREADS"] ?? "",
 			10,
 		);
 		if (Number.isFinite(configured) && configured > 0) {
@@ -157,8 +157,8 @@ export function createSherpaRuntime() {
 				tokens: modelFiles.tokensPath,
 				numThreads: getRecognizerThreadCount(),
 				provider:
-					getProcessEnvironmentVariable(
-						"HOWCODE_SHERPA_ONNX_PROVIDER",
+					(
+						options.provider ?? process.env["PI_SHERPA_ONNX_PROVIDER"]
 					)?.trim() || "cpu",
 				debug: false,
 			},

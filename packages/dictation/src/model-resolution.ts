@@ -18,17 +18,15 @@ export function createModelResolution(options: DictationServiceOptions) {
 	const DEFAULT_DICTATION_MODEL_DIRECTORY = path.resolve(
 		options.modelDirectory,
 	);
-	const DICTATION_MODEL_DIR_ENV_KEYS = [
-		"PI_SHERPA_ONNX_MODEL_DIR",
-		"PI_DICTATION_MODEL_DIR",
-		"HOWCODE_SHERPA_ONNX_MODEL_DIR",
-		"HOWCODE_DICTATION_MODEL_DIR",
-	] as const;
-
 	function getDictationModelDirectories() {
-		const configuredDirectories = DICTATION_MODEL_DIR_ENV_KEYS.map((key) =>
-			process.env[key]?.trim(),
-		).filter((value): value is string => Boolean(value));
+		const configuredDirectories = (
+			options.modelSearchDirectories ?? [
+				process.env["PI_SHERPA_ONNX_MODEL_DIR"],
+				process.env["PI_DICTATION_MODEL_DIR"],
+			]
+		)
+			.map((directory) => directory?.trim())
+			.filter((value): value is string => Boolean(value));
 
 		return [
 			...new Set([...configuredDirectories, DEFAULT_DICTATION_MODEL_DIRECTORY]),
