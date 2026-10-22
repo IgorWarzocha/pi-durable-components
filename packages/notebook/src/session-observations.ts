@@ -1,12 +1,18 @@
 // Adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f, MIT. See ../NOTICE.
 
+import { existsSync } from "node:fs";
 import type { NotebookCheckpointIdentity } from "./checkpoint-format.ts";
-import { materializeNotebookJournal, type NotebookJournal } from "./journal.ts";
+import {
+	initializeNotebookJournal,
+	materializeNotebookJournal,
+	type NotebookJournal,
+} from "./journal.ts";
 import {
 	extractNotebookNpmImports,
 	recordNotebookNpmImports,
 } from "./npm-imports.ts";
 import type { NotebookMemoryUsage } from "./runtime-contract.ts";
+import type { NotebookStorageRetention } from "./storage-retention.ts";
 
 const MAX_NOTICE_CHARS = 16_384;
 /** Runtime observations are cleared independently of durable checkpoint identity. */
@@ -15,18 +21,26 @@ export class NotebookSessionObservations {
 	private memoryValue: NotebookMemoryUsage | undefined;
 	private journalValue: NotebookJournal | undefined;
 	private startedAtValue: number | undefined;
+	private completedCells = 0;
 	private readonly identity: () => NotebookCheckpointIdentity | undefined;
 	private readonly checkpointStatus: () => Record<string, unknown>;
+	private readonly storage: NotebookStorageRetention;
+	private readonly maxBytes: number;
 	constructor(
 		identity: () => NotebookCheckpointIdentity | undefined,
 		checkpointStatus: () => Record<string, unknown>,
+		storage: NotebookStorageRetention,
+		maxBytes: number,
 	) {
 		this.identity = identity;
 		this.checkpointStatus = checkpointStatus;
+		this.storage = storage;
+		this.maxBytes = maxBytes;
 	}
-	started(journal: NotebookJournal): void {
+	started(journal: NotebookJournal | undefined): void {
 		this.startedAtValue = Date.now();
 		this.journalValue = journal;
+		this.completedCells = journal?.completedCells ?? 0;
 	}
 	resetMemory(): void {
 		this.memoryValue = undefined;
@@ -39,12 +53,29 @@ export class NotebookSessionObservations {
 		this.resetMemory();
 		this.clearNotice();
 		this.journalValue = undefined;
+		this.completedCells = 0;
 	}
 	journal(): NotebookJournal | undefined {
+		if (this.storage.policy().journals === "off") return undefined;
+		const identity = this.identity();
+		if (
+			identity &&
+			(!this.journalValue || !existsSync(this.journalValue.path))
+		) {
+			this.journalValue = initializeNotebookJournal(
+				identity,
+				this.maxBytes,
+				this.storage,
+			);
+		}
 		return this.journalValue;
 	}
+	recordCompletedCell(): void {
+		this.completedCells++;
+	}
 	materializeJournal(): void {
-		if (this.journalValue) materializeNotebookJournal(this.journalValue);
+		const journal = this.journal();
+		if (journal) materializeNotebookJournal(journal);
 	}
 	recordMemory(memory: NotebookMemoryUsage | undefined): void {
 		this.memoryValue = memory;
@@ -82,7 +113,10 @@ export class NotebookSessionObservations {
 	} {
 		return {
 			startedAt: this.startedAtValue,
-			userCells: this.journalValue?.completedCells ?? 0,
+			userCells: Math.max(
+				this.completedCells,
+				this.journalValue?.completedCells ?? 0,
+			),
 			memory: this.memoryValue,
 			checkpoint: this.checkpointStatus(),
 		};

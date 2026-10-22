@@ -65,24 +65,26 @@ export class NotebookCellSettlement {
 				errorText: `${error instanceof Error ? error.message : String(error)}${recovery ? `\n${recovery}` : ""}`,
 			};
 		} finally {
-			const journal = session.observations.journal();
-			if (cell.result && journal) {
-				try {
+			session.observations.recordCompletedCell();
+			try {
+				const journal = session.observations.journal();
+				if (cell.result && journal) {
 					finishNotebookJournalCell(journal, {
 						id: cell.id,
 						source: cell.source,
 						items: cell.items,
 						result: cell.result,
 					});
-				} catch (error) {
-					this.reportJournalFailure(
-						error,
-						journaled ? "completion" : "update",
-						cell,
-					);
 				}
+			} catch (error) {
+				this.reportJournalFailure(
+					error,
+					journaled ? "completion" : "update",
+					cell,
+				);
+			} finally {
+				cell.markCompleted();
 			}
-			cell.markCompleted();
 		}
 	}
 

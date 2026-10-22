@@ -23,6 +23,7 @@ import type {
 } from "./runtime-contract.ts";
 import type { NotebookRuntimeHealth } from "./runtime-health.ts";
 import { notebookSessionIdentity } from "./session-identity.ts";
+import type { NotebookStorageRetention } from "./storage-retention.ts";
 
 interface NotebookRecoveryHost {
 	stopWithoutCheckpoint(): Promise<string | undefined>;
@@ -40,18 +41,21 @@ export class NotebookRecoveryController {
 	private readonly maxBytes: number;
 	private readonly profile: string | undefined;
 	private readonly host: NotebookRecoveryHost;
+	private readonly storage: NotebookStorageRetention;
 
 	constructor(
 		options: {
 			agentDir: string;
 			maxBytes: number;
 			profile?: string | undefined;
+			storage: NotebookStorageRetention;
 		},
 		host: NotebookRecoveryHost,
 	) {
 		this.agentDir = options.agentDir;
 		this.maxBytes = options.maxBytes;
 		this.profile = options.profile;
+		this.storage = options.storage;
 		this.host = host;
 	}
 
@@ -60,7 +64,17 @@ export class NotebookRecoveryController {
 		signal?: AbortSignal,
 	): Promise<NotebookControlResult> {
 		const identity = this.identity(context, "diagnostics");
-		const journal = initializeNotebookJournal(identity, this.maxBytes);
+		const journal = initializeNotebookJournal(
+			identity,
+			this.maxBytes,
+			this.storage,
+		);
+		if (!journal)
+			return {
+				message:
+					"Notebook diagnostics are unavailable while journals are off. Re-enable Notebook journals to diagnose newly recorded cells. Execution and saved binding recovery remain available",
+				details: { available: false, reason: "journals_off" },
+			};
 		const deno = await ensureNotebookDenoBinary(
 			{ agentDir: this.agentDir },
 			signal,

@@ -69,6 +69,11 @@ export type {
 	ExecutionToolRegistration,
 } from "../../execution/src/tool-contract.ts";
 export type { NotebookEngineOptions } from "./engine.ts";
+export type {
+	NotebookCheckpointRetention,
+	NotebookJournalRetention,
+	NotebookStoragePolicy,
+} from "./storage-retention.ts";
 
 export interface NotebookModeOptions extends NotebookEngineOptions {
 	shell: ShellRuntimeOptions;
@@ -245,6 +250,8 @@ export function createNotebookMode(options: NotebookModeOptions) {
 		extension,
 		/** Bind the owning Harness before execution to retain native nested display receipts and native-only tools. */
 		bind: coordinator.bind,
+		/** Apply current host storage policy immediately, including historical journals. */
+		maintainStorage: engine.maintainStorage,
 		close(): Promise<void> {
 			waitAttempts.clear();
 			return (closing ??= Promise.all([

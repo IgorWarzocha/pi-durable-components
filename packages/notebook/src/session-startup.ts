@@ -41,7 +41,7 @@ import { notebookSessionIdentity } from "./session-identity.ts";
 
 export interface StartedNotebookSession {
 	kernel: DenoJupyterKernel;
-	journal: NotebookJournal;
+	journal: NotebookJournal | undefined;
 	checkpointIdentity: NotebookCheckpointIdentity;
 	baselineNames: Set<string>;
 	projectBaseline: ProjectStateBaseline;
@@ -113,6 +113,7 @@ export async function startNotebookSession(options: {
 		const journal = initializeNotebookJournal(
 			checkpointIdentity,
 			options.checkpointMaxBytes,
+			runtime.storage,
 		);
 		const baselineNames = new Set(await kernel.complete("", 0, signal));
 		const projectState = await restoreProjectState(kernel, {
@@ -197,7 +198,10 @@ export async function startNotebookSession(options: {
 						checkpointIdentity,
 						options.checkpointMaxBytes,
 					),
-				metadata: () => ({ userCells: journal.completedCells, checkpoint: {} }),
+				metadata: () => ({
+					userCells: journal?.completedCells ?? 0,
+					checkpoint: {},
+				}),
 			},
 			"*",
 			signal,

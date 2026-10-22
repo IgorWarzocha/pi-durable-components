@@ -16,7 +16,7 @@ Disposable real-Harness and Deno probes checked nested termination, mixed nested
 
 The 2026-10-19 alignment inspected source revision `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including local commits. Explicit help-backed ordinary registrations now omit promoted signatures and retain no-argument discovery guidance. The inside-exec Notebook proxy advertises its existing empty-call help. Shared argument preparation preserves schema-valid nulls and translates the V8 host's omitted-input null only when an empty object is valid. Native Deno and checkpoint formats are unchanged.
 
-Source `storage-retention.ts` reads Pi-global preferences at write boundaries, defaults journals to one week, deletes all journals when disabled, and optionally expires session checkpoints by activity leases. Those host policies are deliberately excluded. Durable does not read Pi configuration or silently delete historical journals and checkpoints. Existing size bounds, explicit lifecycle operations and conversation-family checkpoint collection remain authoritative. A future host-selected retention API would require explicit namespace, cutoff and active-session policy. No speculative maintenance API or destructive default was added for parity. Source GPT prose switching is also excluded as Pi prompt policy.
+Journal and checkpoint retention now carry source revision `81d48c1e2937244991b9f054450215a95b8ea8c6`, inspected at `12c4357b`. The earlier exclusion confused Pi-specific configuration with portable functionality. `getStoragePolicy` replaces the Pi-global preference reader, preserving write-boundary policy reads, default one-week journal retention, indefinite recording, recording off with saved-journal deletion, and optional seven- or thirty-day checkpoint expiry. Checkpoint cleanup remains off by default. PID leases and cross-process locks protect active native sessions, including idle kernels and multiple owners of one session. Release records recent use before removing its lease. Project bindings and named profiles are never aged out. Coalesced maintenance is owned and drained on close, with an explicit `maintainStorage()` method for settings changes. Cleanup operates only inside the supplied state directory. Source GPT prose switching remains Pi prompt policy, separate from these runtime behaviours.
 
 The port carries the source Deno provisioning, authenticated HTTP kernel bridge, custom ZMTP sockets and signed Jupyter messages, injected TypeScript kernel helpers, checkpoint serialization, lifecycle state machine, project merge and conflict rules, cross-process leases, journal materialization and rotation, profile persistence, exact npm inventory scanner, historical diagnostics, and one-shot LSP transport. No ZeroMQ or MessagePack dependency replaces the proven source transport.
 
@@ -49,6 +49,16 @@ The port carries the source Deno provisioning, authenticated HTTP kernel bridge,
 - This native runtime is not a remote filesystem bridge. Environment mismatches fail explicitly. Deno execution has native host access granted by the factory. It does not claim surviving kernels or PTYs after a host restart.
 
 ## Validation
+
+Disposable filesystem validation exercised grouped journal freshness and expiry,
+live off/on changes through existing journal handles, independent checkpoint
+policy, concurrent maintenance, multiple active leases, release recency and
+preservation of project and profile files. A real Deno run executed and
+checkpointed with journals off, reported unavailable historical diagnostics,
+enabled recording without restarting the kernel, disabled it during a yielded
+cell without recreating files, protected an aged live checkpoint and restored
+bindings after shutdown and reopen. These checks used disposable storage, not
+the running user's journals. No permanent tests were added.
 
 The changelog and merged-PR coverage audit distinguished the optional GPT prose selector from functional operating guidance. The latter had been incompletely carried. Notebook now explicitly tells the model to run cells sequentially, reuse globals, keep one-offs block-local, pin valuable state before pruning, and recreate self-contained helpers' runtime dependencies after restart. Canonical artifacts and cross-call shell state belong in files or arguments. These instructions follow `src/prompt/build-system-prompt.ts` at `a06eae4d`; there is no model-name switch or Pi prompt adapter. A disposable real Deno/Harness run captured the emitted instructions while exercising an ordinary nested Skills call.
 

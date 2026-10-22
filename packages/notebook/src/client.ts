@@ -42,6 +42,7 @@ export class NotebookClient implements NotebookExecutionClient {
 				agentDir: options.agentDir,
 				maxBytes: session.checkpointMaxBytes,
 				profile: options.profile,
+				storage: session.storage,
 			},
 			{
 				stopWithoutCheckpoint: () => this.stopWithoutCheckpoint(),

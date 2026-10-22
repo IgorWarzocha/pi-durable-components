@@ -28,6 +28,10 @@ import type {
 	RuntimeResponse,
 	ToolExecutionContext,
 } from "./runtime-contract.ts";
+import {
+	type NotebookStoragePolicy,
+	NotebookStorageRetention,
+} from "./storage-retention.ts";
 
 export interface NotebookEngineOptions {
 	stateDirectory: string;
@@ -35,6 +39,8 @@ export interface NotebookEngineOptions {
 	native: { environmentId: string; env?: NodeJS.ProcessEnv | undefined };
 	maxHeapMiB?: number | undefined;
 	profile?: string | undefined;
+	/** Read at journal write and maintenance boundaries. Defaults: one week of journals, no checkpoint expiry. */
+	getStoragePolicy?: () => NotebookStoragePolicy;
 }
 
 // Conversation ids are numeric within one storage. The durable namespace prevents
@@ -55,6 +61,7 @@ export function createNotebookEngine(
 		api: ToolExecutionApi,
 		context: Context,
 	): Promise<NotebookControlResult>;
+	maintainStorage(): Promise<void>;
 } {
 	if (!options.stateDirectory || !options.native?.environmentId)
 		throw new Error(
@@ -64,6 +71,11 @@ export function createNotebookEngine(
 	if (!Number.isSafeInteger(maxHeapMiB) || maxHeapMiB < 128)
 		throw new Error("Notebook maxHeapMiB must be an integer of at least 128");
 	const clients = new Map<string, NotebookClient>();
+	const storage = new NotebookStorageRetention(
+		options.stateDirectory,
+		options.getStoragePolicy,
+	);
+	storage.policy();
 	let closed = false;
 	async function session(api: ToolExecutionApi, hostContext: Context) {
 		if (closed) throw new Error("Notebook host is closed");
@@ -84,6 +96,7 @@ export function createNotebookEngine(
 				maxHeapMiB,
 				profile: options.profile,
 				env: options.native.env,
+				storage,
 			});
 			clients.set(sessionId, client);
 		}
@@ -94,6 +107,10 @@ export function createNotebookEngine(
 		return { client, context };
 	}
 	return {
+		maintainStorage() {
+			if (closed) return Promise.reject(new Error("Notebook host is closed"));
+			return storage.maintain();
+		},
 		async control(request, api, context) {
 			const current = await session(api, context);
 			return current.client.controlNotebook(
@@ -204,10 +221,13 @@ export function createNotebookEngine(
 		async close() {
 			if (closed) return;
 			closed = true;
-			await Promise.all(
+			const settled = await Promise.allSettled(
 				[...clients.values()].map((client) => client.shutdown()),
 			);
 			clients.clear();
+			await storage.drain();
+			const failed = settled.find((result) => result.status === "rejected");
+			if (failed?.status === "rejected") throw failed.reason;
 		},
 	};
 }

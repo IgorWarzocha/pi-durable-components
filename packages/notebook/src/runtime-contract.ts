@@ -1,4 +1,5 @@
 // Adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f, MIT. See ../NOTICE.
+import type { NotebookStorageRetention } from "./storage-retention.ts";
 export interface NotebookSessionContext {
 	cwd: string;
 	sessionId: string;
@@ -8,6 +9,7 @@ export interface NotebookRuntimeOptions {
 	agentDir: string;
 	profile?: string | undefined;
 	env?: NodeJS.ProcessEnv | undefined;
+	storage?: NotebookStorageRetention | undefined;
 }
 export interface ToolExecutionContext {
 	cwd: string;

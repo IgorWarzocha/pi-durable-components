@@ -80,6 +80,23 @@ Deno 2.9.7 downloads only when execution or diagnostics first needs it. Archives
 
 Each conversation has a private kernel. Project bindings merge under cross-process locks. Other live kernels are not mutated. Checkpoints restore by value, not by replay. Imported modules, promises, weak collections, and live resource handles must be recreated after restart. Function restoration requires self-contained definitions. Durable pins protect bindings from release and pruning. Startup and tool-result hooks are deliberately awaited, and hook calls do not recursively trigger hooks.
 
+Notebook journals expire after one week without updates by default. Session
+checkpoint expiry is off by default. Supply `getStoragePolicy` to read live host
+settings, using `journals: 'off' | 'week' | 'on'` and
+`checkpointCleanup: 'never' | 'month' | 'week'`. `on` keeps journals indefinitely.
+`off` stops recording and removes saved journals when maintenance runs. Execution,
+checkpoints and binding recovery still work with journals off. Historical
+diagnostics report that recording must be re-enabled.
+
+Call `await notebook.maintainStorage()` after a settings change to apply it
+immediately. Automatic maintenance otherwise runs at most daily when the Notebook
+is used. Journal writes also check the current policy, including during a running
+cell. Checkpoint expiry uses seven or thirty days of inactivity. Cross-process
+leases protect active native sessions even while their kernels are idle, and
+closing a session records its final use. Project bindings and named profiles are
+never aged out. Cleanup is confined to this factory's `stateDirectory` and is
+drained on close.
+
 This is native Deno, with filesystem, network, process, and codec capabilities. It is not a JavaScript-only substitute or a security sandbox. `native.environmentId` must match the execution environment. Remote and container environments must explicitly provision the harness and Deno in the same native namespace. A mismatch fails rather than falling back to host files. `native.env` selects the kernel process environment when supplied.
 
 Only one exec cell can be active per conversation. `wait` observes that cell without replaying it. Termination cancels owned nested work and invalidates the active kernel. External side effects are not rolled back. After a host restart, interrupted work is reported instead of being executed again. Live kernels and PTYs do not survive a host restart.

@@ -10,7 +10,10 @@ fa9e42d577f9a2739a2cf14909b56bb3e8b89aea, inspected in snapshot
 036dc876da5afc4ec27b64878ebb1cfb30c8211d.
 Help-backed discovery and nested argument preparation refreshed against
 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32, including local source commits.
-Pi-global destructive storage retention is not carried into this component.
+Journal retention and activity-protected checkpoint expiry follow revision
+81d48c1e2937244991b9f054450215a95b8ea8c6, inspected at
+12c4357b2c401fe9be8c6c82d2ae252c0f986937. Storage policy is supplied through
+public factory options rather than Pi-global configuration files.
 Stable startup binding inventories and lifecycle help refreshed against
 3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281.
 Operating guidance also follows src/prompt/build-system-prompt.ts at

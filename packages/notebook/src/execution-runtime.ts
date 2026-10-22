@@ -102,10 +102,8 @@ export class NotebookExecutionRuntime {
 		await session.checkpoints.flush();
 		const { code, yieldTimeMs, maxOutputTokens } = parseExecSource(source);
 		const effectiveYieldTime = yieldTimeMs ?? DEFAULT_CODE_MODE_EXEC_YIELD_MS;
-		this.nextCellId = Math.max(
-			this.nextCellId,
-			(session.observations.journal()?.cells ?? 0) + 1,
-		);
+		const journal = session.observations.journal();
+		this.nextCellId = Math.max(this.nextCellId, (journal?.cells ?? 0) + 1);
 		const id = `notebook-${this.nextCellId++}`;
 		session.observations.recordMemory(undefined);
 		const cell = new NotebookCell({
@@ -124,7 +122,6 @@ export class NotebookExecutionRuntime {
 			new Map(tools.map((tool) => [tool.name, tool])),
 		);
 		let journaled = false;
-		const journal = session.observations.journal();
 		if (journal) {
 			try {
 				beginNotebookJournalCell(journal, { id, source: cell.source });

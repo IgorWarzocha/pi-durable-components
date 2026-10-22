@@ -23,11 +23,18 @@ import {
 } from "./journal-document.ts";
 import type { KernelExecutionResult } from "./jupyter-kernel.ts";
 import type { RuntimeContentItem } from "./runtime-contract.ts";
+import {
+	NotebookStorageRetention,
+	notebookJournalsDirectory,
+	removeExpiredNotebookJournalFiles,
+} from "./storage-retention.ts";
 
 const MAX_CELL_OUTPUT_CHARS = 16 * 1024 * 1024;
 const JOURNAL_DOCUMENT_OVERHEAD_BYTES = 4_096;
 
 export interface NotebookJournal {
+	agentDir: string;
+	storage: NotebookStorageRetention;
 	path: string;
 	eventsPath: string;
 	project: string;
@@ -47,23 +54,31 @@ export interface NotebookJournalCodeCell {
 export function initializeNotebookJournal(
 	identity: { project: string; session: string; agentDir: string },
 	maxBytes: number,
-): NotebookJournal {
+	storage = new NotebookStorageRetention(identity.agentDir),
+): NotebookJournal | undefined {
+	storage.schedule();
+	if (storage.policy().journals === "off") return undefined;
 	const project = resolve(identity.project);
 	const projectKey = createHash("sha256").update(project).digest("hex");
 	const sessionKey = createHash("sha256")
 		.update(identity.session)
 		.digest("hex");
 	const directory = join(
-		identity.agentDir,
-		"cache",
-		"pi-durable-notebook",
-		"journals",
+		notebookJournalsDirectory(identity.agentDir),
 		projectKey,
 	);
 	mkdirSync(directory, { recursive: true });
 	const path = join(directory, `${sessionKey}.ipynb`);
 	const eventsPath = journalEventsPath(path);
 	const previousPath = previousJournalPath(path);
+	if (storage.policy().journals === "week") {
+		removeExpiredNotebookJournalFiles([
+			path,
+			eventsPath,
+			previousPath,
+			`${path}.replacement`,
+		]);
+	}
 	for (const candidate of [path, eventsPath, previousPath]) {
 		if (fileSize(candidate) > maxBytes) rmSync(candidate, { force: true });
 	}
@@ -75,6 +90,8 @@ export function initializeNotebookJournal(
 		);
 	if (!existsSync(eventsPath)) writeFileSync(eventsPath, "", { mode: 0o600 });
 	const journal = {
+		agentDir: identity.agentDir,
+		storage,
 		path,
 		eventsPath,
 		project,
@@ -95,13 +112,14 @@ export function initializeNotebookJournal(
 	journal.completedCells =
 		document?.cells.filter((cell) => notebookCellStatus(cell) !== "running")
 			.length ?? 0;
-	return journal;
+	return journalRecordingEnabled(journal) ? journal : undefined;
 }
 
 export function beginNotebookJournalCell(
 	journal: NotebookJournal,
 	cell: { id: string; source: string },
 ): void {
+	if (!prepareJournalWrite(journal)) return;
 	if (!journal.writable)
 		throw new Error(`Notebook journal requires diagnostics: ${journal.path}`);
 	appendEvent(journal, {
@@ -111,6 +129,7 @@ export function beginNotebookJournalCell(
 		createdAt: new Date().toISOString(),
 	});
 	journal.cells += 1;
+	journalRecordingEnabled(journal);
 }
 
 function rotateNotebookJournalIfNeeded(
@@ -163,6 +182,7 @@ export function finishNotebookJournalCell(
 		result: KernelExecutionResult;
 	},
 ): void {
+	if (!prepareJournalWrite(journal)) return;
 	if (!journal.writable)
 		throw new Error(`Notebook journal requires diagnostics: ${journal.path}`);
 	const rotated = appendEvent(journal, {
@@ -190,9 +210,12 @@ export function finishNotebookJournalCell(
 	});
 	if (rotated) journal.cells = 1;
 	journal.completedCells += 1;
+	journalRecordingEnabled(journal);
 }
 
 export function materializeNotebookJournal(journal: NotebookJournal): void {
+	if (!journalRecordingEnabled(journal)) return;
+	if (!existsSync(journal.path)) return;
 	const document = readNotebookDocument(journal.path, journal.maxBytes);
 	if (!document)
 		throw new Error(`Notebook journal is invalid: ${journal.path}`);
@@ -202,6 +225,41 @@ export function materializeNotebookJournal(journal: NotebookJournal): void {
 	writeNotebookDocument(journal.path, document, journal.maxBytes);
 	writeFileSync(journal.eventsPath, "", { mode: 0o600 });
 	journal.writable = true;
+	journalRecordingEnabled(journal);
+}
+
+function prepareJournalWrite(journal: NotebookJournal): boolean {
+	if (!journalRecordingEnabled(journal)) return false;
+	if (journal.storage.policy().journals === "week") {
+		removeExpiredNotebookJournalFiles([
+			journal.path,
+			journal.eventsPath,
+			previousJournalPath(journal.path),
+			`${journal.path}.replacement`,
+		]);
+	}
+	if (!existsSync(journal.path)) {
+		const replacement = initializeNotebookJournal(
+			journal,
+			journal.maxBytes,
+			journal.storage,
+		);
+		if (!replacement) return false;
+		Object.assign(journal, replacement);
+	}
+	return true;
+}
+
+function journalRecordingEnabled(journal: NotebookJournal): boolean {
+	if (journal.storage.policy().journals !== "off") return true;
+	for (const path of [
+		journal.path,
+		journal.eventsPath,
+		previousJournalPath(journal.path),
+		`${journal.path}.replacement`,
+	])
+		rmSync(path, { force: true });
+	return false;
 }
 
 export function readNotebookJournalCodeCells(

@@ -2,6 +2,10 @@
 
 import type { NotebookBridgeServer } from "./bridge-server.ts";
 import { resolveNotebookCheckpointMaxBytes } from "./checkpoint.ts";
+import {
+	activateNotebookCheckpoint,
+	type NotebookCheckpointActivity,
+} from "./checkpoint-activity.ts";
 import type { NotebookCheckpointIdentity } from "./checkpoint-format.ts";
 import { NotebookCheckpointManager } from "./checkpoint-manager.ts";
 import type { DenoJupyterKernel } from "./jupyter-kernel.ts";
@@ -26,12 +30,14 @@ import {
 import { notebookSessionIdentity } from "./session-identity.ts";
 import { NotebookSessionObservations } from "./session-observations.ts";
 import { startNotebookSession } from "./session-startup.ts";
+import { NotebookStorageRetention } from "./storage-retention.ts";
 
 export class NotebookSessionRuntime {
 	readonly options: NotebookRuntimeOptions;
 	readonly checkpointMaxBytes: number;
 	readonly checkpoints: NotebookCheckpointManager;
 	readonly observations: NotebookSessionObservations;
+	readonly storage: NotebookStorageRetention;
 	private readonly bridge: NotebookBridgeServer;
 	private readonly runningCellId: () => string | undefined;
 	private kernelValue: DenoJupyterKernel | undefined;
@@ -42,13 +48,17 @@ export class NotebookSessionRuntime {
 	private startupAbort: AbortController | undefined;
 	private baseline = new Set<string>();
 	private profileLoaded = false;
+	private checkpointActivity: NotebookCheckpointActivity | undefined;
 
 	constructor(options: {
 		runtime: NotebookRuntimeOptions;
 		bridge: NotebookBridgeServer;
 		runningCellId(): string | undefined;
 	}) {
-		this.options = options.runtime;
+		this.storage =
+			options.runtime.storage ??
+			new NotebookStorageRetention(options.runtime.agentDir);
+		this.options = { ...options.runtime, storage: this.storage };
 		this.bridge = options.bridge;
 		this.runningCellId = options.runningCellId;
 		this.checkpointMaxBytes = resolveNotebookCheckpointMaxBytes(
@@ -65,6 +75,8 @@ export class NotebookSessionRuntime {
 		this.observations = new NotebookSessionObservations(
 			() => this.checkpointIdentityValue,
 			() => this.checkpoints.status(),
+			this.storage,
+			this.checkpointMaxBytes,
 		);
 	}
 
@@ -86,6 +98,8 @@ export class NotebookSessionRuntime {
 			this.beginStartup(extension, signal);
 		}
 		await this.startup;
+		this.checkpointActivity?.touch();
+		this.storage.schedule();
 	}
 
 	async restart(
@@ -167,7 +181,13 @@ export class NotebookSessionRuntime {
 		this.baseline.clear();
 		this.profileLoaded = false;
 		await kernel?.shutdown().catch(() => undefined);
-		await this.bridge.shutdown();
+		try {
+			this.checkpointActivity?.release();
+			this.checkpointActivity = undefined;
+		} finally {
+			await this.bridge.shutdown();
+			await this.storage.drain();
+		}
 	}
 
 	kernel(): DenoJupyterKernel | undefined {
@@ -202,17 +222,33 @@ export class NotebookSessionRuntime {
 	): Promise<void> {
 		this.identityValue = sessionIdentity(context);
 		this.observations.recordMemory(undefined);
-		const started = await startNotebookSession({
-			context,
-			runtime:
-				skipProfile && this.options.profile
-					? { ...this.options, profile: undefined }
-					: this.options,
-			bridge: this.bridge,
-			checkpointMaxBytes: this.checkpointMaxBytes,
-			onKernelFailure: (kernel) => this.handleKernelFailure(kernel),
-			...(signal ? { signal } : {}),
-		});
+		this.checkpointActivity?.release();
+		this.checkpointActivity = await activateNotebookCheckpoint(
+			{
+				project: resolveNotebookProject(context.cwd),
+				session: notebookSessionIdentity(context),
+				agentDir: this.options.agentDir,
+			},
+			signal,
+		);
+		let started: Awaited<ReturnType<typeof startNotebookSession>>;
+		try {
+			started = await startNotebookSession({
+				context,
+				runtime:
+					skipProfile && this.options.profile
+						? { ...this.options, profile: undefined }
+						: this.options,
+				bridge: this.bridge,
+				checkpointMaxBytes: this.checkpointMaxBytes,
+				onKernelFailure: (kernel) => this.handleKernelFailure(kernel),
+				...(signal ? { signal } : {}),
+			});
+		} catch (error) {
+			this.checkpointActivity.release();
+			this.checkpointActivity = undefined;
+			throw error;
+		}
 		this.kernelValue = started.kernel;
 		this.observations.started(started.journal);
 		this.checkpointIdentityValue = started.checkpointIdentity;
