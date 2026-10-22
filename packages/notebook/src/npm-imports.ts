@@ -83,7 +83,7 @@ export async function recordNotebookNpmImports(
 
 export function formatNotebookNpmImportsNotice(imports: string[]): string {
 	const prefix = `Available npm imports in this notebook: ${imports.length === 0 ? "none" : boundedImportList(imports)}`;
-	return `${prefix}. Ask before adding another, then use an exact-version npm: specifier`;
+	return `${prefix}. Ask before adding another npm import inside this Deno notebook, then use an exact-version npm: specifier. This rule does not govern repository dependencies`;
 }
 
 function npmImportPaths(identity: { project: string; agentDir: string }) {

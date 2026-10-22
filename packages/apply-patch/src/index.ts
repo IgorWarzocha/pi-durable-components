@@ -15,10 +15,12 @@ export type {
 } from "./patch-outcome.ts";
 export { ExecutePatchError } from "./patch-outcome.ts";
 
+const patchSyntax =
+	"*** Begin Patch / *** End Patch; actions: *** Add File: path | *** Update File: path | *** Delete File: path. *** Move to: path must immediately follow its Update File header and needs a nonempty @@ hunk (one unchanged context line for pure moves). Update hunks follow file order; copy exact context and indentation. @@ text is context, not a line range; reread a file before patching if it changed since your last read";
+
 const parameters = Type.Object({
 	input: Type.String({
-		description:
-			"*** Begin Patch / *** End Patch; Add/Update/Delete File sections. *** Move to: path immediately follows its Update File header; requires a nonempty @@ hunk (one unchanged context line for pure moves). Hunks follow file order; indentation is literal",
+		description: patchSyntax,
 	}),
 });
 export type ApplyPatchToolDetails = {
@@ -103,7 +105,7 @@ export function createApplyPatchTool() {
 		process.env["PI_EXPERIMENTAL"] === "1"
 			? ({ type: "json_schema", strict: "prefer" } as const)
 			: undefined;
-	return defineTool<typeof parameters, ApplyPatchToolDetails>({
+	const tool = defineTool<typeof parameters, ApplyPatchToolDetails>({
 		name: "apply_patch",
 		description: "Patch files",
 		parameters,
@@ -149,6 +151,13 @@ export function createApplyPatchTool() {
 			}
 		},
 	});
+	return {
+		...tool,
+		executionHints: {
+			deferLoading: false,
+			usage: `await tools.apply_patch({ input: patch }) // ${patchSyntax}\nUse apply_patch for text edits, creates, deletes and moves. Patch each file in one call; split oversized patches sequentially and batch independent files with Promise.allSettled. Reserve shell/Python for formatting and bulk rewrites.`,
+		},
+	};
 }
 
 export const ApplyPatch = defineExtension({

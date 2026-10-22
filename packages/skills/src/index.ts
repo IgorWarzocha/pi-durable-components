@@ -100,7 +100,7 @@ export function skills(options: SkillsOptions = {}) {
 			? {
 					sections: [
 						section("skills_guidance", (input) =>
-							input.agent.tools.some(
+							[...input.agent.tools, ...input.agent.callable].some(
 								(registered) => registered.name === tool.name,
 							)
 								? "List once at session start. Read always-applicable and task-relevant skills before work."

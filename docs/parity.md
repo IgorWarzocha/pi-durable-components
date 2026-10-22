@@ -66,6 +66,8 @@ OpenAI Responses is the provider exception. It registers with the host's pi-ai M
 
 Code and Notebook ship separately. Their shell implementation is shared internally, not offered as a standalone shell product. Durable task persistence does not imply restoration of external processes or an arbitrary JavaScript heap.
 
+The prompt-ownership correction restores Apply Patch's promoted syntax and editing guidance from `adapter/code-mode.ts` and `prompt/build-system-prompt.ts` at the pinned Pi Stuff revision `7f3295e6`. The ordinary registration owns that metadata, with the native `{ input: string }` call shape. Skills guidance follows both model-offered and nested-callable availability. Notebook retains approval for additional internal Deno npm imports and explicitly excludes repository dependencies from that rule. Disposable real-Harness captures against the emitted packages verified the model-bound Code and Notebook sections, selected tool schemas and removal after disablement or deselection. No permanent tests or live-provider acceptance were added.
+
 [Shared execution](parity/execution.md) records task ownership, projection and recovery. [Shell](parity/shell.md) records native process behavior and platform limits. `test/toolkit.test.ts` checks native-only context rollover and retained state while switching Code and Notebook in an existing conversation. The default suite keeps consequential boundary contracts, not feature tours. Optional differential probes require the pinned reference binaries and are not part of the ordinary gate.
 
 ## Accepted native differences
