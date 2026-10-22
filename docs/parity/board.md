@@ -38,6 +38,12 @@ The Board package's `/presentation` export supplies `boardCapability`, `boardSum
 
 ## Executable evidence
 
+The whole-package audit against read-only Pi Stuff `12c4357b2c401fe9be8c6c82d2ae252c0f986937` recovered the source's manual one-off-thread consolidation workflow. Source `consolidation.ts` submits a constrained SQL tidy-up request from idle root settings. SQL and terminal UI are not the reusable capability. The native host-only `consolidate(tx, { conversationId, merges, dryRun? })` accepts explicitly selected topic merges instead of inventing a model tool or automatic classifier.
+
+The designated idle resident may move singleton roots into open same-channel threads, including targets with replies. One transaction revalidates the ordered batch, preserves post IDs, bodies, sequence and receipts, migrates compatible subscriptions and redirects canonical host references. Closed, summarised, active-summary and subscription-conflict cases are skipped with reasons. Dry-run uses the same simulation without changing the archive. Topic inspection, proposal and confirmation remain host-owned; no consuming UI is claimed by this portable API.
+
+A disposable real-Harness probe merged two singleton roots into a multi-post target. It verified dry-run immutability, preserved message identities and bodies, migrated subscriptions and canonical references, repeated-merge no-op and denied non-resident authority. No permanent tests or provider calls were added.
+
 The three retained `packages/board/test/board.test.ts` workflows now install Board without Agents and create children through native Durable tasks and conversations. They protect archive isolation, active-input-only notices across failure and abort, and interrupted post replay without duplicate posts or notices. The extraction moves these checks rather than increasing the permanent test count.
 
 An extraction-time SQLite probe created archives with the genuine pre-split Agents 0.5.0 archive, then reopened them with standalone Board. It preserved root, child, attached, detached and ownerless-fork memberships, subscriptions, former-board archives and full post bodies. An interrupted old `board post` returned the same receipt after migration and appeared exactly once. Existing conversation selections were updated before resuming the input.

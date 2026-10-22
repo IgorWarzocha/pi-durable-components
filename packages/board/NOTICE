@@ -17,6 +17,10 @@ prompt adapted from standalone pi-agent-board at the approved local-commit pin.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/7f3295e67a8e6146b2a6922b56a06fa4db5c3a32/packages/pi-agent-board/src
 Revision: 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32
 
+Manual singleton-thread consolidation constraints adapted from pi-agent-board.
+Source: https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/12c4357b2c401fe9be8c6c82d2ae252c0f986937/packages/pi-agent-board/src/consolidation.ts
+Revision: 12c4357b2c401fe9be8c6c82d2ae252c0f986937
+
 Modifications: Durable-native conversation ownership and board membership,
 transactional archive and replay receipts, active-input-scoped notifications,
 subscription catch-up, native background summary tasks and headless presentations. No Pi compatibility API,

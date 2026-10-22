@@ -6,6 +6,7 @@ import type {
 	Tx,
 } from "@earendil-works/pi-durable";
 import { defineExtension } from "@earendil-works/pi-durable";
+import { consolidate } from "./consolidation.ts";
 import {
 	designateResident,
 	enrol,
@@ -27,6 +28,10 @@ import {
 } from "./summarizer.ts";
 import { createBoardTool } from "./tool.ts";
 
+export type {
+	BoardConsolidation,
+	BoardThreadMerge,
+} from "./consolidation.ts";
 export type {
 	BoardCanonicalThread,
 	BoardEnrolment,
@@ -98,6 +103,7 @@ export function createBoard(
 		revokeParticipation,
 		ensureThread,
 		threads,
+		consolidate,
 		bind(harness: Harness, storage: Storage) {
 			if (
 				host !== undefined &&

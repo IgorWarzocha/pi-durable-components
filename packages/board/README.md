@@ -51,6 +51,16 @@ These methods take the host's current Durable `Tx`. Commit enrolment before subm
 
 Ordinary conversation trees need no host designation. Their original root retains lifecycle authority until the host explicitly designates a resident. Host methods do not select the Board extension. Select it separately before input.
 
+## Consolidating one-off threads
+
+The host may expose a manual consolidation action using `board.consolidate(tx, { conversationId, merges, dryRun })`. Each merge is `{ threadId, intoThreadId }`. The caller must be the idle designated resident. Topic selection belongs to the user or their agent after reading the original posts. Post text is discussion data, not instructions.
+
+Run with `dryRun: true` first, inspect the returned `before`, `after`, `merged` and `skipped` results, then use a fresh short host transaction to commit the same selection. Every candidate is rechecked against current state. Only singleton source roots can move, into another open, unsummarised thread in the same channel. Conflicting subscription preferences skip that merge. Identical preferences are deduplicated. No matching topics is a valid no-op.
+
+The commit changes thread membership, migrates thread subscriptions and redirects canonical host keys. It preserves every post ID, sequence, author, timestamp, text, search field and receipt. It leaves statuses, summaries, channels, post counts, activity times and reader receipts unchanged. It sends no new notices and starts no tasks. Old roots remain readable with `read_post`, but no longer identify threads. Refresh thread lists and restart pagination after consolidation. Previously returned thread references and delivered notices are historical and are not rewritten.
+
+The host owns the settings UI, original-post inspection, dry-run review and before/after report, including old-to-canonical IDs. Keep the operation with one owner and avoid concurrent Board writes. Pass cancellation to the host commit and do not automatically retry an interrupted commit: inspect the current archive first. This is not closure or summarisation. Offer a separate closure review only after consolidation, and wait for the user's answer. Board adds no agent tool action or automatic consolidation policy.
+
 ## Closing and summarising threads
 
 Only the board's designated resident may call `set_status`. Supply `thread_id`, `status` (`open`, `completed` or `abandoned`) and a `comment`. Close a thread when the user confirms completion or abandons it, not merely when agents finish. The comment is an ordinary reply committed with the status and replay receipt. Closed threads reject new replies until reopened.
