@@ -26,7 +26,7 @@ Harness evidence below records port-time validation. The registration, descripti
 | GIF converted to first-frame PNG | Animated two-frame fixture compared by decoded dimensions, alpha and visible RGB pixels |
 | Four compiled formats only | Signature gate refuses BMP and extra native-codec formats; source Cargo enables only PNG, JPEG, GIF and WebP |
 | Full pixel validation before returning content | Truncated PNG and signature-only PNG rejected; napi metadata performs a complete Rust image decode, GIF explicitly decodes pixels |
-| Native vision image content | Actual Harness records `ImageContent` with no provider-specific fields |
+| Native vision image content | Original bytes use native `ImageContent`, with the owned `detail: "original"` field retained for providers that support it |
 | Text-model description opt-in, default `gpt-6-luna`, low reasoning and verbosity, empty/error failures | Harness routes through injected Models; low reasoning checked at provider boundary, supported Responses payload controls traced in source |
 | Description details retain image, supplied path and description | Harness result-entry assertions |
 | Cancellation and uncertain description outcomes | Source uses the invocation AbortSignal in Models and native codec APIs; description-enabled registration declares unsafe replay |
@@ -36,11 +36,13 @@ The 1 GiB `MAX_PROMPT_IMAGE_INPUT_BYTES` guard belongs to `load_data_url_for_pro
 
 GIF's Rust decoder exposes no ICC or EXIF metadata. Other formats retain all source bytes, so their metadata is unchanged. This implementation does not introduce EXIF rotation or resize-only color-profile copying.
 
-## Accepted native-provider difference
+## Image-detail transport
 
-Igor chose Durable provider compatibility rather than a literal old image-detail transport flag. Native pi-ai `ImageContent` contains `type`, `data` and `mimeType`, but no `detail`. The tool accepts `detail: "original"` and preserves original source bytes. It does not add an unsupported image property or rewrite the caller's provider payload.
+The codec now preserves `detail: "original"` on its structurally extended native image content, including cached images. Both direct vision results and optional description requests pass that same image through unchanged. The repository's OpenAI Responses provider already maps this field for user images and tool-result images. No upstream patch or payload interception is needed for that route. The earlier claim that the tool could not preserve the field through Durable was incorrect.
 
-Pi-ai `1.0.2` owns the Responses serialization in `api/openai-responses-shared.ts`. `convertToolResultOutput` and the user-image branch of `convertResponsesMessages` choose `detail: "auto"`. This is not exact old transport parity. The description request uses native image content too. Its own supported `onPayload` callback only adds low verbosity and automatic reasoning summaries on Responses APIs.
+A disposable real-Harness probe decoded an actual generated PNG and called the ordinary tool with vision and text-only models. Original bytes and detail survived the native tool result, the next provider request, local Responses preparation and the optional description request. A separate codec cache read retained the same fields. No external model request or permanent test was added.
+
+Stock pi-ai providers may ignore additional image fields. The installed pi-ai 1.4 Responses serializer still chooses `detail: "auto"`. That provider boundary remains explicit rather than being presented as byte-level or transport parity. Description payload controls continue to add only low verbosity and automatic reasoning summaries on supported Responses APIs.
 
 Provider authentication, stream handling and model capability lookup belong to injected pi-ai Models. The old private Codex SSE/auth helpers and Pi TUI renderer are not carried across. Description usage is returned to Durable's tool-usage accounting.
 

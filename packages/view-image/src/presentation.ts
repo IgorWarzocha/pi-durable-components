@@ -23,7 +23,12 @@ function parseState(value: unknown): ViewImagePresentationState {
 		if (image["type"] !== "image" || image["mimeType"] !== mimeType)
 			throw new TypeError("Invalid viewed image");
 		detail = {
-			image: { type: "image", mimeType, data: string(image["data"]) },
+			image: {
+				type: "image",
+				mimeType,
+				data: string(image["data"]),
+				detail: "original",
+			},
 			description:
 				body["description"] === null ? null : string(body["description"]),
 		};

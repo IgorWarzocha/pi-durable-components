@@ -22,7 +22,7 @@ The tool accepts `{ path: string, detail?: "original" }`. Relative paths resolve
 
 PNG, JPEG and WebP return their original bytes after Rust image decoding validates the image through `@napi-rs/image@1.15.0`. GIF returns the first frame as PNG through `sharp@0.35.5`. Images are not resized or EXIF-rotated. Both native codecs receive bytes from the execution environment and do not read host paths.
 
-Vision models receive native pi-ai image content. The Durable provider controls image detail on the wire. The accepted `detail: "original"` argument selects unchanged image bytes, not a transport override.
+Returned images carry `detail: "original"` alongside pi-ai image content. The `@howaboua/pi-durable-openai-responses` provider forwards it for both tool-result images and optional description requests. Other providers may ignore this per-image setting; pi-ai's stock Responses serializer uses `auto`. The marker does not alter the encoded image bytes.
 
 ## Text-only models
 

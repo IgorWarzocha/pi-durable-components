@@ -1,11 +1,14 @@
 import { createHash } from "node:crypto";
+import type { ImageContent } from "@earendil-works/pi-ai";
 import { Transformer } from "@napi-rs/image";
 import sharp from "sharp";
 
 export type ViewImageContent = {
-	type: "image";
+	type: ImageContent["type"];
 	data: string;
 	mimeType: string;
+	/** Preserved by the local Responses provider; other providers may ignore it. */
+	detail: "original";
 };
 
 const CACHE_ENTRIES = 32;
@@ -60,6 +63,7 @@ export function createImageCodec() {
 			type: "image",
 			data: encoded.toString("base64"),
 			mimeType: format === "gif" ? "image/png" : `image/${format}`,
+			detail: "original",
 		};
 		if (encoded.byteLength <= CACHE_BYTES) {
 			// Parallel calls can finish decoding the same digest before either caches it.
