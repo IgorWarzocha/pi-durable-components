@@ -27,7 +27,6 @@ import {
 
 export const INPUT_TASK = "howaboua.context.input";
 export const ROLLOVER_TASK = "howaboua.context.rollover";
-export const IDLE_MS = 25 * 60 * 1000;
 export type ContextHost = { harness: Harness; storage: Storage };
 export type InputResult = SubmissionSettlement & { submission: SubmissionId };
 

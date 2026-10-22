@@ -64,4 +64,6 @@ Compared read-only Pi Stuff `3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281` against `
 
 The ordinary Durable result carries that metadata without a Code or Notebook bridge. The public `runSkills` helper retains its text return value. Existing arguments, output text, selection rules, byte budgets and environment boundaries remain unchanged. The source's compressed GPT wording remains excluded as an alternate prompt mode.
 
+The release-coverage audit caught a nested-result regression in the first 1.4 build: adding host read metadata made the generic execution projection return an object instead of the source's plain skill text. Skills now declares its ordinary structured program result as a string, retaining read receipts only in host details. Real Harness calls through both V8 Code and Deno Notebook verified string operations on the returned text and intact host read evidence. No component-specific execution path was added.
+
 A disposable real SQLite/Harness probe captured empty-call evidence, a body read, a reference-only read, a truncated body page and an inventory-only continuation. It verified instruction attribution without claiming whole-file exposure. Strict TypeScript passed with installed Durable, Pi AI and Chord 1.4.0. No permanent tests or live-provider acceptance were added. The coordinator owns the final repository gate.

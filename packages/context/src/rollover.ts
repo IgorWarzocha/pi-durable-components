@@ -6,7 +6,13 @@ import type {
 	TaskId,
 	Tx,
 } from "@earendil-works/pi-durable";
-import { defineTask } from "@earendil-works/pi-durable";
+import { defineTask, LiveDoc } from "@earendil-works/pi-durable";
+import {
+	instructionAnswer,
+	instructionOutcome,
+	startInstruction,
+	waitInstruction,
+} from "./instruction-run.ts";
 import {
 	type ContextHost,
 	cancelHeldInputs,
@@ -33,8 +39,10 @@ type RolloverInput = {
 type RolloverState =
 	| { phase: "prepare" }
 	| { phase: "checkpoint"; submission: SubmissionId }
+	| { phase: "instruction"; generation: TaskId }
 	| { phase: "rotate" }
-	| { phase: "continue"; window: WindowIdentity };
+	| { phase: "continue"; window: WindowIdentity }
+	| { phase: "continued"; window: WindowIdentity; generation: TaskId };
 
 const checkpointPrompt =
 	"Save the task state in notes, then finish your reply. A new window opens automatically after your reply; do not call new_context. If saving fails, report the error.";
@@ -126,22 +134,22 @@ export function createRollover(host: () => ContextHost) {
 					}, context);
 					return;
 				}
-				const submission = await conv.submit(
-					{
-						type: "input",
-						content: checkpointPrompt,
-						requestId: key(task.id),
-						whenBusy: "followUp",
-					},
-					context,
-				);
-				await runtime.commit(
-					() => ({
+				await runtime.commit(async (tx) => {
+					const generation = await startInstruction(
+						tx,
+						conv.id,
+						task.id,
+						"howaboua.context.checkpoint",
+						checkpointPrompt,
+						runtime.now(),
+					);
+					if (!generation)
+						return { status: "running", checkpoint: { phase: "prepare" } };
+					return {
 						status: "running",
-						checkpoint: { phase: "checkpoint", submission: submission.id },
-					}),
-					context,
-				);
+						checkpoint: { phase: "instruction", generation },
+					};
+				}, context);
 			},
 			checkpoint: async (task, runtime, context) => {
 				const submission = await host().harness.submission(
@@ -173,6 +181,45 @@ export function createRollover(host: () => ContextHost) {
 													? "Checkpoint finished without saving fresh notes"
 													: `Checkpoint was unanswered: ${result.reason}`,
 										},
+						},
+					};
+				}, context);
+			},
+			instruction: async (task, runtime, context) => {
+				await waitInstruction(
+					host(),
+					task.conversationId,
+					task.state.checkpoint.generation,
+					context,
+				);
+				await runtime.commit(async (tx) => {
+					const outcome = await instructionOutcome(
+						tx,
+						task.conversationId,
+						task.state.checkpoint.generation,
+					);
+					if (!outcome) return;
+					const aborted = outcome === "aborted";
+					const fresh = await notesAreFresh(tx, task.conversationId);
+					if (
+						outcome === "completed" &&
+						fresh &&
+						(await instructionAnswer(tx, task.conversationId))
+					)
+						return { status: "running", checkpoint: { phase: "rotate" } };
+					const state = await tx.doc(WindowState, task.conversationId);
+					if (aborted) await cancelHeldInputs(tx, task.conversationId);
+					if (state.transition === task.id) delete state.transition;
+					return {
+						status: "terminal",
+						outcome: {
+							status: "completed",
+							result: aborted
+								? { status: "cancelled" }
+								: {
+										status: "failed",
+										reason: "Checkpoint finished without saving fresh notes",
+									},
 						},
 					};
 				}, context);
@@ -248,34 +295,81 @@ export function createRollover(host: () => ContextHost) {
 				}, context);
 			},
 			continue: async (task, runtime, context) => {
-				const conv = await conversation(host(), task.conversationId, context);
-				const submission = await conv.submit(
-					{
-						type: "input",
-						content: "Read your saved notes and resume the task.",
-						requestId: `context:continue:${task.id}`,
-						whenBusy: "followUp",
-					},
+				// Recover legacy tool-transition receipts without manufacturing a user input.
+				await runtime.commit(async (tx) => {
+					const generation = await startInstruction(
+						tx,
+						task.conversationId,
+						task.id,
+						"howaboua.context.continuation",
+						"Read your saved notes and resume the task.",
+						runtime.now(),
+					);
+					if (!generation)
+						throw new Error("Conversation changed before legacy continuation");
+					return {
+						status: "running",
+						checkpoint: {
+							phase: "continued",
+							window: task.state.checkpoint.window,
+							generation,
+						},
+					};
+				}, context);
+			},
+			continued: async (task, runtime, context) => {
+				await waitInstruction(
+					host(),
+					task.conversationId,
+					task.state.checkpoint.generation,
 					context,
 				);
 				await runtime.commit(async (tx) => {
+					const outcome = await instructionOutcome(
+						tx,
+						task.conversationId,
+						task.state.checkpoint.generation,
+					);
+					if (!outcome) return;
 					const state = await tx.doc(WindowState, task.conversationId);
 					if (state.transition === task.id) delete state.transition;
+					const answer = await instructionAnswer(tx, task.conversationId);
 					return {
 						status: "terminal",
 						outcome: {
 							status: "completed",
-							result: {
-								status: "done",
-								window: task.state.checkpoint.window,
-								continuation: submission.id,
-							},
+							result:
+								outcome === "completed" && answer !== undefined
+									? {
+											status: "done",
+											window: task.state.checkpoint.window,
+											answer,
+										}
+									: {
+											status: "failed",
+											reason:
+												"Context continuation did not finish successfully",
+										},
 						},
 					};
 				}, context);
 			},
 		},
 		abort: async (task, runtime, context) => {
+			if (
+				task.state.checkpoint.phase === "instruction" ||
+				task.state.checkpoint.phase === "continued"
+			) {
+				const live = await runtime.snapshot(
+					LiveDoc,
+					task.conversationId,
+					context,
+				);
+				if (live?.run && live.run.inputs.length === 0) {
+					await host().harness.abortTask(live.run.taskId, context);
+					await host().harness.waitForTask(live.run.taskId, context);
+				}
+			}
 			await cancelInput(host(), task.conversationId, key(task.id), context);
 			await cancelInput(
 				host(),

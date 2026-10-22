@@ -43,6 +43,21 @@ The runtime upgrade uses published Durable, pi-ai and Chord 1.4.0, with upstream
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 
+## Upstream release coverage
+
+The source pins above identify inspected trees. They do not establish complete coverage by themselves. The release audit also reads the extension changelogs and merged PR descriptions, then traces each applicable behaviour into its native owner. The following ledger covers the release work behind the latest two alignments, including omissions discovered after 0.7.0 shipped.
+
+| Upstream release work | Native disposition |
+|---|---|
+| PCC 4.0.1, [#529](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/529) | Official Code host, ordinary callable registrations, empty arguments, cancellation and `exit`, bounded shell draining and continuation diagnostics. Component evidence identifies the native equivalents. Pi reload and duplicate-session UI are not Durable recovery mechanisms. |
+| PCC 4.0.2 and related extensions, [#534](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/534) | Bounded WebSocket/SSE recovery, developer base instructions, separate native lanes with explicit routing affinity, help-backed discovery, Board status/summaries and Pulses schedule semantics. The coverage correction carries missed chronological Board/Context instructions and Notebook operating guidance. |
+| PCC 4.0.3, Board 0.0.3, Shepherdr 0.2.23, Skills 0.0.11 and Notes 0.0.9, [#543](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/543) | Nested termination and call identities, stable Notebook startup, scoped diagnostics, parallel delegation, exact worker roles, compact receipts, summary opt-in, read attribution and skill-reload guidance. Skills keeps its nested string result while exposing attribution to hosts. |
+| PCC and Notes idle settings, [#545](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/545) | Host-configurable Context intervals carry the buffered hour presets and legacy values. The fixed-25-minute-only exclusion was not a native limitation. Context evidence also distinguishes configurable task-boundary reminders from capacity warnings. |
+| PCC 4.0.4, [#549](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/549) | Published Pi 1.4 transcript-tool additions and folded-system-message boundaries, with the existing Codex request semantics retained. |
+| Browser 0.0.9 and 0.0.10, Web 0.0.8, Imagegen 0.0.11 and Sites 0.0.2 | Ordinary help discovery is carried. Alternate GPT wording does not require a global mode. Browser operations and Sites guides are unchanged by those releases. Removed unused Rust reference payloads are not runtime functionality. |
+
+The optional GPT mode broker, Pi terminal views, usage-ledger workers and Pi session projection are host-specific. That does not exclude useful operating instructions merely because they appear in a prompt builder. Notebook's destructive global retention preferences are not applied to Durable state directories. Routing-affinity policy and auxiliary-provider cleanup remain explicit host responsibilities through the provider's supported headers, payload and lifecycle APIs, not automatic Agents integration. Observatory and Suggestions are separate products outside the accepted component set. Their exclusion does not exclude shared read evidence or provider cleanup contracts. Guardian and the voice packages have no newer functional releases in this audited range.
+
 ## Shared integration
 
 Components register ordinary Durable tools. Code and Notebook must discover the same registrations automatically, including third-party tools. They must preserve validation, hooks, results, cancellation, and ownership without component-specific bridges.
@@ -63,6 +78,10 @@ Code and Notebook ship separately. Their shell implementation is shared internal
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+On 2026-10-22, the release-coverage correction passed independent review after fixing a legacy Context continuation that could report an earlier successful answer despite a failed successor generation. Persisted native task receipts now prove final settlement, including after reopen. The final `bun run check` passed lint, twenty-two builds, strict TypeScript, Knip, all 28 retained workflows and dry-pack checks. No permanent tests were added. Component evidence records disposable chronological-instruction, idle-deadline, token-budget, nested-result and recovery probes.
+
+All twenty-two archives were rebuilt and installed in a fresh external npm consumer with lifecycle scripts disabled. Forty public declaration exports passed strict checking with `skipLibCheck: false`. Installed Board preserved the chronological developer instruction without promoting peer content, and installed Code and Notebook returned plain Skills text while retaining host read receipts. The Notebook request also contained the restored operating guidance. Thirteen public archives have matching release checksums. These checks do not revalidate live providers, audio devices or non-Linux platforms.
 
 On 2026-10-21, the Durable 1.4 refresh passed independent review after correcting Board's compact acknowledgements for nested execution. All delivery-gate stages passed: lint, twenty-two package builds, strict TypeScript, Knip, all 28 retained workflows and dry-pack checks. The initial gate exposed inferred Pulse declarations that leaked a transitive telemetry import, an undeclared Knip exception for Grok's existing bundled validation dependency, and a Board test helper that still equated compact text with full host details. Explicit native return types, a scoped dependency exception and the updated helper resolved those failures. No permanent tests were added.
 

@@ -10,10 +10,10 @@ The source tree requires Pi Durable 1.4.0. Most components require a Node.js hos
 
 Durable 1.4 automatically migrates SQLite storage to schema version 2. Older Durable versions cannot reopen it. Upgrade the host and its components together, and plan recovery before opening an existing database. Older versions also cannot resume the new sleeping tasks in JSONL storage.
 
-[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Release 0.7.0 targets Durable 1.4.0, with matching pi-ai and Chord versions. For example, install Apply Patch:
+[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Release 0.7.1 targets Durable 1.4.0, with matching pi-ai and Chord versions. For example, install Apply Patch:
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.0/howaboua-pi-durable-apply-patch-0.7.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.1/howaboua-pi-durable-apply-patch-0.7.0.tgz
 ```
 
 Then add it to the registry passed to your Harness:
@@ -58,7 +58,7 @@ Each component's guide includes its install command and host configuration.
 | [GipPity Voice](packages/gippity-voice) | Use Codex subscription voice, dictation and browser audio controls |
 | [Settings](packages/settings) | Persist component-owned global and project preferences with revision checks |
 
-Git, the UI SDK, Sites, Guardian, Pulses, Settings and both voice integrations are local-development packages, not part of release 0.7.0. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
+Git, the UI SDK, Sites, Guardian, Pulses, Settings and both voice integrations are local-development packages, not part of release 0.7.1. The UI SDK works with component-defined state and interactions, without importing React or the Durable runtime. Hosts supply authorized capabilities and transport. See the [interactive Git review host](examples/component-ui). The optional React diff renderer is one consumer, not the SDK's integration boundary.
 
 The tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
 

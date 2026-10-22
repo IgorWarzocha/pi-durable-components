@@ -33,6 +33,10 @@ export function createContextManagement(options: {
 	models: Models;
 	now?: () => number;
 	automaticIdleRollover?: boolean;
+	/** Minutes of observed idle time. Explicit policy overrides the legacy boolean. */
+	idleRolloverMinutes?: 0 | 5 | 15 | 25 | 55 | 115 | 355 | 715;
+	/** Once-per-window suggestion for contexts larger than 272k. Zero disables it. */
+	taskBoundaryReminderTokens?: number;
 }) {
 	let binding: ContextHost | undefined;
 	const host = () => {
@@ -42,22 +46,45 @@ export function createContextManagement(options: {
 			);
 		return binding;
 	};
+	if (
+		options.automaticIdleRollover !== undefined &&
+		typeof options.automaticIdleRollover !== "boolean"
+	)
+		throw new Error("automaticIdleRollover must be a boolean");
+	const idleMinutes =
+		options.idleRolloverMinutes !== undefined
+			? options.idleRolloverMinutes
+			: options.automaticIdleRollover
+				? 25
+				: 0;
+	if (![0, 5, 15, 25, 55, 115, 355, 715].includes(idleMinutes))
+		throw new Error(
+			"idleRolloverMinutes must be 0, 5, 15, 25, 55, 115, 355 or 715",
+		);
+	const taskBoundaryReminderTokens =
+		options.taskBoundaryReminderTokens === undefined
+			? 0
+			: options.taskBoundaryReminderTokens;
+	if (
+		!Number.isSafeInteger(taskBoundaryReminderTokens) ||
+		taskBoundaryReminderTokens < 0
+	)
+		throw new Error(
+			"taskBoundaryReminderTokens must be a non-negative safe integer",
+		);
 	const now = options.now ?? Date.now;
 	const ensureWindow = async (id: ConversationId, context: Context) => {
 		const conv = await conversation(host(), id, context);
 		await conv.commit((tx) => initializeWindow(tx, id, now()), context);
 	};
 	const rollover = createRollover(host);
-	const input = createInput(
-		host,
-		rollover,
-		options.automaticIdleRollover ?? false,
-	);
+	const input = createInput(host, rollover, idleMinutes * 60 * 1000);
 	const policy = createContextPolicy({
 		models: options.models,
 		host,
 		now,
 		ensureWindow,
+		taskBoundaryReminderTokens,
 	});
 	const notes = createNotesTool({ now });
 	const history = createHistoryTool({

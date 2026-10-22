@@ -52,6 +52,7 @@ export function createSkillsTool(options: SkillsOptions = {}) {
 		name: "skills",
 		description: "Load skill instructions and references",
 		parameters: SkillsParameters,
+		structuredOutputSchema: Type.String(),
 		prepareArguments: prepareSkillsInput,
 		replay: "safe",
 		// Source output has its own byte continuation. Do not cut off its continuation footer or long lines.
@@ -82,6 +83,7 @@ export function createSkillsTool(options: SkillsOptions = {}) {
 			);
 			return {
 				output: [{ type: "text", text: output }],
+				structuredOutput: output,
 				details: { skillReads },
 			};
 		},

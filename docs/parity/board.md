@@ -96,6 +96,12 @@ A disposable real SQLite/Harness probe verified the default-off help and closure
 
 Independent review found that the initial compact text still exposed full acknowledgement details through execution cells. The fix declares an ordinary structured output schema and returns the same compact value for models and programs while retaining host details. A disposable real-Harness probe exercised channel creation, posting and status changes natively and through both the real V8 Code runtime and Deno Notebook runtime. All nine results matched their compact structured values, while ordinary tool hooks retained the original timestamp and author or creator metadata. No permanent tests or component-specific dispatch changes were added.
 
+## Release-coverage correction
+
+The merged [PR #534](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/534), released as Board 0.0.2, moved unread catch-up instructions to chronological developer messages. The earlier port missed that distinction and used a user message. Catch-up now appends an ordinary Durable entry carrying a positional system message, which the Responses provider serialises as a developer instruction in place. Actual peer-post notifications remain user content. Legacy interrupted catch-up receipts retain their original role rather than changing already-recorded history during recovery.
+
+A disposable real SQLite/Harness probe captured the instruction after the triggering input, verified developer-role Responses serialisation, and observed exactly one persisted instruction across the next turn. The catch-up contains archive references, not elevated peer-authored post bodies.
+
 ## Attribution
 
 The MIT source notices and pinned revisions are retained in `packages/board/NOTICE`. The extraction keeps the original board implementation's copyright and licence.

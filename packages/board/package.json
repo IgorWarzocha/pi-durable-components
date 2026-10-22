@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-board",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Persistent discussion boards for Durable conversations",
 	"type": "module",
 	"license": "MIT",

@@ -13,6 +13,8 @@ Help-backed discovery and nested argument preparation refreshed against
 Pi-global destructive storage retention is not carried into this component.
 Stable startup binding inventories and lifecycle help refreshed against
 3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281.
+Operating guidance also follows src/prompt/build-system-prompt.ts at
+a06eae4d141fae421a8d0108a4a560013d6508a8.
 
 Custom command discovery uses explicit trusted roots and an environment-bound
 process backend. Shared command factories publish ordinary Durable registrations.

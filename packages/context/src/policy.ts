@@ -35,6 +35,7 @@ const YieldAdvisory = defineDoc<{ text?: string }>({
 
 export function createContextPolicy(options: {
 	models: Models;
+	taskBoundaryReminderTokens: number;
 	host: () => { harness: Harness; storage: Storage };
 	now: () => number;
 	ensureWindow: (id: ConversationId, context: Context) => Promise<void>;
@@ -105,8 +106,15 @@ export function createContextPolicy(options: {
 				: usage.percentage >= 90
 					? 90
 					: 85;
-		if (level === 0) return;
+		const boundary =
+			options.taskBoundaryReminderTokens > 0 &&
+			usage.contextWindow !== null &&
+			usage.contextWindow > 272_000 &&
+			usage.usedTokens !== null &&
+			usage.usedTokens >= options.taskBoundaryReminderTokens;
+		if (level === 0 && !boundary) return;
 		const remaining = Math.max(0, 100 - Math.round(usage.percentage ?? 0));
+		const boundaryText = `Suggested context budget reached; ${remaining}% remains. For a sequence of tasks, finish the current task, save notes and call new_context before the next. Otherwise, continue here.`;
 		const text = `${level === 90 ? "Urgent: " : ""}${remaining}% context remaining${usage.estimated ? " (estimated tail included)" : " (last reported usage)"}. Save the task state in notes, then call new_context ${level === 90 ? "now, before other work" : "before continuing work"}.`;
 		return current.commit(async (tx) => {
 			const receipt = answer
@@ -115,7 +123,14 @@ export function createContextPolicy(options: {
 			if (receipt?.text) return receipt.text;
 			const fresh = await notesAreFresh(tx, api.conversationId);
 			const state = await tx.doc(WindowState, api.conversationId);
-			if (!state.window || fresh || state.reminded >= level) return;
+			if (!state.window) return;
+			const threshold = level > 0 && !fresh && state.reminded < level;
+			if (
+				!threshold &&
+				(!boundary || state.taskBoundaryReminded === state.window.id)
+			)
+				return;
+			const advisory = threshold ? text : boundaryText;
 			// The remark and deduplication level survive hook recovery together.
 			await tx.appendEntry(api.conversationId, {
 				kind: "howaboua.context.advisory",
@@ -125,16 +140,17 @@ export function createContextPolicy(options: {
 							model: [
 								{
 									role: "user" as const,
-									content: text,
+									content: advisory,
 									timestamp: options.now(),
 								},
 							],
 						}),
 				data: { windowId: state.window.id, level, observedAt: options.now() },
 			});
-			state.reminded = level;
-			if (receipt) receipt.text = text;
-			return text;
+			if (threshold) state.reminded = level;
+			else state.taskBoundaryReminded = state.window.id;
+			if (receipt) receipt.text = advisory;
+			return advisory;
 		}, context);
 	}
 

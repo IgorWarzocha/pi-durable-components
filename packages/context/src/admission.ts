@@ -15,7 +15,6 @@ import {
 	cancelPlacedInput,
 	conversation,
 	foreignTasks,
-	IDLE_MS,
 	INPUT_TASK,
 	type InputResult,
 	nativeIdle,
@@ -42,7 +41,7 @@ type InputState =
 export function createInput(
 	host: () => ContextHost,
 	rollover: ReturnType<typeof createRollover>,
-	automaticIdleRollover: boolean,
+	idleMs: number,
 ) {
 	return defineTask<InputSubmissionDraft, InputState, InputResult>({
 		name: INPUT_TASK,
@@ -75,13 +74,13 @@ export function createInput(
 					const state = await tx.doc(WindowState, conv.id);
 					const gate = await tx.doc(Admission, conv.id);
 					const due =
-						automaticIdleRollover &&
+						idleMs > 0 &&
 						idle &&
 						tasks.length === 0 &&
 						state.settlement !== undefined &&
 						state.settlement.completed === true &&
 						state.settlement.userEntry === userEntry &&
-						runtime.now() - state.settlement.observedAt >= IDLE_MS &&
+						runtime.now() - state.settlement.observedAt >= idleMs &&
 						(await notesAreFresh(tx, conv.id));
 					const transition =
 						state.transition ??
@@ -194,6 +193,20 @@ export function createInput(
 						continuation.task,
 						context,
 					);
+					if (result.status === "done" && result.answer !== undefined) {
+						const answer = result.answer;
+						await runtime.commit(
+							() => ({
+								status: "terminal",
+								outcome: {
+									status: "completed",
+									result: { status: "done", answer, submission: submission.id },
+								},
+							}),
+							context,
+						);
+						return;
+					}
 					if (result.status === "done" && result.continuation !== undefined) {
 						const next = result.continuation;
 						await runtime.commit(

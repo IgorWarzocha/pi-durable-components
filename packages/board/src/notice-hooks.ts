@@ -57,13 +57,18 @@ export function createBoardNoticeHooks(
 								const catchup = await prepareBoardCatchup(tx, api);
 								return [notice, catchup] as const;
 							}, context);
-				const additions = [notice, catchup]
+				const additions = [
+					notice === undefined
+						? undefined
+						: { role: "user" as const, ...notice },
+					catchup,
+				]
 					.filter((item) => item !== undefined)
 					.filter(
 						(item) =>
 							!request.messages.some(
 								(message) =>
-									message.role === "user" &&
+									message.role === item.role &&
 									message.content === item.content &&
 									message.timestamp === item.timestamp,
 							),
@@ -76,7 +81,7 @@ export function createBoardNoticeHooks(
 						...additions.map(
 							(item) =>
 								({
-									role: "user",
+									role: item.role,
 									content: item.content,
 									timestamp: item.timestamp,
 								}) as const,

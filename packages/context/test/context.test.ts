@@ -103,7 +103,12 @@ async function fixture(path: string, state: ReturnType<typeof driver>) {
 			assert.equal(last.isError, false, textOf(last));
 			return fauxAssistantMessage("FINAL answer");
 		}
-		if (input.startsWith(checkpoint)) {
+		if (
+			request.messages.some(
+				(message) =>
+					message.role === "system" && textOf(message).startsWith(checkpoint),
+			)
+		) {
 			await state.checkpointGate?.wait(options?.signal);
 			if (state.failCheckpoint)
 				return fauxAssistantMessage("checkpoint rejected", {

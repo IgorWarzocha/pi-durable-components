@@ -19,7 +19,12 @@ export const WindowEntry = defineEntry<WindowIdentity>(
 );
 
 export type TransitionResult =
-	| { status: "done"; window: WindowIdentity; continuation?: SubmissionId }
+	| {
+			status: "done";
+			window: WindowIdentity;
+			continuation?: SubmissionId;
+			answer?: EntryId;
+	  }
 	| { status: "failed"; reason: string }
 	| { status: "skipped"; reason: string }
 	| { status: "cancelled" };
@@ -35,6 +40,7 @@ export const WindowState = defineDoc<{
 	};
 	transition?: TaskId<TransitionResult>;
 	reminded: number;
+	taskBoundaryReminded?: string;
 }>({
 	kind: "howaboua.context.window-state",
 	version: 1,

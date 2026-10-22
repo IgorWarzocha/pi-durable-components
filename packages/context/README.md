@@ -5,7 +5,7 @@ Continue long conversations through saved notes and clean context windows. Notes
 Requires Node 22.19 or newer and Durable 1.4.0.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.0/howaboua-pi-durable-context-0.7.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.1/howaboua-pi-durable-context-0.7.1.tgz
 ```
 
 ## Connect your host
@@ -45,8 +45,20 @@ With Code or Notebook, also call `code.bind(harness)` or `notebook.bind(harness)
 - `notes` reads and writes virtual paths under `/notes`. Relative paths resolve there. Notes are not workspace files. Each file is limited to 1 MB, with 10 MB of note content per conversation. Supply `target` with another conversation's numeric ID as a string to read its notes. Writes can only target the calling conversation.
 - `history` searches retained entries by window and item ID, with bounded retrieval. Its optional `target` selects another conversation in the same storage. Searches are case-sensitive literal matches. Old history is never automatically reinserted into the prompt. Conversations without Context windows use `conversation:<id>` as their window ID.
 - `new_context` requires fresh notes and a standalone native tool round. Without fresh notes it returns `checkpoint_required`, asking the model to save its checkpoint and call again. Once the round completes, it cuts the context and continues within the same native input. If queued input or other foreground work prevents a safe cut, the model receives an explicit skipped-rollover message and the window stays intact. The prompt lists recent note paths, not their contents.
-- At 85% and 90% context usage, advisory reminders ask for a checkpoint. `get_context_remaining` reports provider usage plus an estimated tail, or explicitly reports an unknown budget.
+- At 85% and 90% context usage, advisory reminders ask for a checkpoint. An optional token budget suggests finishing the current task and starting a fresh window before the next task. `get_context_remaining` reports provider usage plus an estimated tail, or explicitly reports an unknown budget.
 - Automatic idle rollover defaults off. Enable it with `createContextManagement({ models, automaticIdleRollover: true })`. After 25 minutes of observed inactivity, the next managed input rolls only if the latest completed run saved fresh notes. Otherwise it is admitted normally, without a synthetic checkpoint. Its content, attachments and busy policy remain intact.
+
+Set `idleRolloverMinutes` to `0`, `25`, `55`, `115`, `355` or `715` to choose the idle interval. Legacy `5` and `15` minute intervals are also supported. An explicit interval overrides `automaticIdleRollover`, including `0` to disable it. The boolean API still uses 25 minutes when enabled.
+
+For models with a context larger than 272,000 tokens, `taskBoundaryReminderTokens` enables a once-per-window suggestion at a token budget. It defaults to `0`, disabled. Source presets are `250_000`, `300_000`, `400_000` and `450_000`; any non-negative safe integer is accepted. The suggestion does not force a rollover or replace the 85% and 90% reminders. Invalid configuration throws when creating the component.
+
+```ts
+const management = createContextManagement({
+  models,
+  idleRolloverMinutes: 55,
+  taskBoundaryReminderTokens: 300_000,
+});
+```
 
 The idle clock starts when this component observes actual input settlement. It does not use Durable's task timestamps. Recovery can delay the idle deadline, but cannot move it earlier by guessing from an assistant timestamp.
 
@@ -54,7 +66,7 @@ Keep each task checkpoint at a stable note path and update it in place, includin
 
 All conversations in the same storage can be read, including host-created peers. Board membership does not grant or restrict this access. Keep private conversations in a separate storage boundary. Use conversation IDs returned by Agents or the host. For example, `history` with `{"action":"search_contents","target":"42","query":"deployment"}` searches conversation 42 without waking it. These reads do not copy its context into the caller's prompt beyond the requested results.
 
-Normal threshold and manual compaction are declined. Overflow compaction remains an emergency fallback using the configured model, within the same logical window. For a host-initiated rollover, call `management.newContext(conversation.id, ctx)` and await its task. It saves a checkpoint when needed but does not send an extra continuation message.
+Normal threshold and manual compaction are declined. Overflow compaction remains an emergency fallback using the configured model, within the same logical window. For a host-initiated rollover, call `management.newContext(conversation.id, ctx)` and await its task. It requests a checkpoint through native instructions when needed, without inventing a user message or sending an extra continuation after the cut. Rollover instructions remain chronological system messages in Durable, projected to developer messages by providers that support that role. User and peer messages retain their original roles.
 
 ## Resume and recover
 

@@ -4,7 +4,7 @@ import type {
 	SubmissionId,
 	Tx,
 } from "@earendil-works/pi-durable";
-import { defineDoc, LiveDoc, UserEntry } from "@earendil-works/pi-durable";
+import { defineDoc, defineEntry, LiveDoc } from "@earendil-works/pi-durable";
 import { boardAddresses } from "./membership.ts";
 import { BoardCatalog, BoardIndex } from "./store-model.ts";
 
@@ -22,6 +22,7 @@ const BoardAwareness = defineDoc<{
 });
 const CatchupReceipt = defineDoc<{
 	saved: {
+		role?: "system";
 		scope: string;
 		input: SubmissionId;
 		content: string;
@@ -34,6 +35,7 @@ const CatchupReceipt = defineDoc<{
 	checkpointWhen: (_value, _ops, { deltasSinceBase }) => deltasSinceBase >= 64,
 	initial: () => ({ saved: null }),
 });
+const CatchupEntry = defineEntry("howaboua.board.catchup");
 
 export async function markBoardSeen(
 	tx: Tx,
@@ -78,6 +80,8 @@ export async function prepareBoardCatchup(
 		receipt.saved.input === input
 	)
 		return {
+			// Older interrupted receipts were user messages. Preserve their recorded role.
+			role: receipt.saved.role ?? ("user" as const),
 			content: receipt.saved.content,
 			timestamp: receipt.saved.timestamp,
 		};
@@ -127,20 +131,25 @@ export async function prepareBoardCatchup(
 	}
 	if (references.length === 0) return undefined;
 	const delivery = {
+		role: "system" as const,
 		scope,
 		input,
 		content: `Unread board updates available; read if relevant to the current task: ${references.join("; ")}`,
 		timestamp: Date.now(),
 	};
 	receipt.saved = delivery;
-	await tx.appendEntry(UserEntry, api.conversationId, {
+	await tx.appendEntry(CatchupEntry, api.conversationId, {
 		model: [
 			{
-				role: "user",
+				role: delivery.role,
 				content: delivery.content,
 				timestamp: delivery.timestamp,
 			},
 		],
 	});
-	return { content: delivery.content, timestamp: delivery.timestamp };
+	return {
+		role: delivery.role,
+		content: delivery.content,
+		timestamp: delivery.timestamp,
+	};
 }

@@ -6,7 +6,6 @@ import {
 	InboxDoc,
 	LiveDoc,
 	type TaskId,
-	UserEntry,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 import { type ContextHost, conversation, foreignTasks } from "./lifecycle.ts";
@@ -119,10 +118,11 @@ export function createToolRollover(host: () => ContextHost, now: () => number) {
 						state.reminded = 0;
 						delete state.settlement;
 					}
-					await tx.appendEntry(UserEntry, api.conversationId, {
+					await tx.appendEntry(api.conversationId, {
+						kind: "howaboua.context.continuation",
 						model: [
 							{
-								role: "user",
+								role: "system",
 								content: safe
 									? "Read your saved notes and resume the task."
 									: "Context rollover was skipped because the conversation changed or foreground work is still running. The window is unchanged. Save fresh notes and retry new_context after that work settles.",
