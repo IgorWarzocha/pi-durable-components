@@ -1,6 +1,6 @@
 # Functionality parity
 
-The target is the accepted tool functionality in `howaboua-pi-stuff` at `b2006db9`. The original Durable reference is `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. The source tree now pins Durable, pi-ai and Chord 1.4.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
+The current audit covers all 23 existing packages against `howaboua-pi-stuff` at `12c4357b`. The original extraction used source `b2006db9` and Durable reference `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. This repository now pins Durable, pi-ai and Chord 1.4.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
 
 Tool arguments, outputs, errors, cancellation, state, and recovery are part of parity. Pi-specific TUI rendering and slash commands are not being shipped as a compatibility layer. Missing functionality must stay visible here until implemented and validated.
 
@@ -10,7 +10,7 @@ The 2026-10-15 refresh inspects the read-only source at `036dc876da5afc4ec27b648
 
 The 2026-10-19 alignment compares that pin with `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, including the approved local Skills-reference and Chill Actions commits. Accepted changes cover bounded provider recovery and request serialization, routing affinity without shared session lanes, Board closure and summaries, native runtime cancellation and resumed-call provenance, help-backed discovery, Context and Skills guidance, and Pulses schedule edits and result guidance. Component evidence separates carried behavior, existing native equivalents and exclusions. The reference checkout remains read-only.
 
-The experimental PCC GPT prose switch remains Pi prompt policy, not a new component-wide mode. Components retain one concise discovery contract and the applicable behavioral guidance. Pi V2 session projection, usage ledgers, terminal viewers, Chill Actions, GitHub Watch, remote process control and destructive global Notebook retention remain outside these accepted packages. The official Code host advances to the source's pinned `rust-v0.163.0`; Durable, pi-ai and Chord remain unchanged at 1.3.0. This alignment neither activates components in Howcode nor changes host profiles.
+The experimental PCC GPT prose switch remains Pi prompt policy, not a new component-wide mode. Components retain one concise discovery contract and the applicable behavioral guidance. Pi V2 session projection, usage ledgers, terminal viewers, Chill Actions, GitHub Watch and remote process control remain outside that historical alignment. The official Code host advances to the source's pinned `rust-v0.163.0`; Durable, pi-ai and Chord remain unchanged at 1.3.0. This alignment neither activates components in Howcode nor changes host profiles.
 
 The source advanced during validation to `9cc01aa0d9c99d8121a1dfe77a3bf933952559bf`. That follow-up fixes Shepherdr SSH pipe failures and terminal reconnect notices only; inspection found no applicable component delta. The carried-code pin remains `7f3295e6`.
 
@@ -18,29 +18,35 @@ The 2026-10-21 refresh compares that carried pin with source release commit `753
 
 The runtime upgrade uses published Durable, pi-ai and Chord 1.4.0, with upstream release reference `earendil-works/pi` at `4a080252f06caf63a525d7873c5d94d3c23887e0`. SQLite opening automatically migrates to schema version 2, which older Durable versions cannot reopen. Older runtimes also cannot resume sleeping tasks in JSONL. Hosts must upgrade their runtime and installed components together and plan recovery before opening existing storage. Components use native document checkpoint policies and durable sleep phases rather than patching upstream. New telemetry and client identity capabilities remain host-controlled.
 
-| Component | Accepted scope | Evidence |
+## Whole-package audit
+
+The 2026-10-22 audit compares all 23 existing public packages with read-only Pi Stuff `12c4357b2c401fe9be8c6c82d2ae252c0f986937`. It examines existing workflows, configuration defaults, errors, persistence, cancellation and prompt policy, not just release deltas. Earlier exclusions are historical scope statements, not proof that useful portable behaviour may be omitted. Native capability and consuming-app activation are separate claims. External services, audio devices and non-Linux platforms have not been revalidated by this audit.
+
+| Package | Functional owner and disposition | Evidence and remaining host boundary |
 |---|---|---|
-| Patch | TypeScript implementation of `apply_patch` | [Native-helper differential and actual tool use](parity/apply-patch.md) |
-| Image viewing | `view_image`, including description for non-multimodal models | [Codec differential and Durable image delivery](parity/view-image.md) |
-| Skills | Discovery and reading | [Source comparison and actual skill reading](parity/skills.md) |
-| Web | Search and navigation | [Real authenticated search and returned-reference navigation](parity/web-imagegen.md) |
-| Image generation | Generation, editing, recent images, artifacts | [Real generation, viewing and recent-image editing](parity/web-imagegen.md) |
-| Browser | Logged-in browser control | [CDP lifecycle and output contracts](parity/browser.md) |
-| Agents | Durable-native delegation, completion reports and watches | [Real Harness delegation and recovery](parity/agents.md) |
-| Board | Independent discussion archive, native conversation membership and active-input notices | [Standalone Board contracts and recovery](parity/board.md) |
-| Pulses | Folder-owned Markdown definitions and scheduling with native conversation execution and passive parent results | [Pinned sources, schedule edits and native responsibility](parity/pulses.md) |
-| Code | Code execution with included `exec_command` and `write_stdin` | [Actual V8 execution and tool dispatch](parity/code.md) |
-| Notebook | Persistent notebook execution with included `exec_command` and `write_stdin` | [Actual Deno execution and by-value recovery](parity/notebook.md) |
-| Context | Shared same-storage notes and history reads, own-note writes, explicit checkpoint rollover and opt-in fresh-note idle rollover | [SQLite recovery and real execution-mode rollover](parity/context.md) |
-| OpenAI Responses | OpenAI and Codex subscription provider, cached transport, explicit Worker runtime, Lite and replay | [Protocol extraction and runtime evidence](parity/openai-responses.md) |
-| Worker Code | Separate bounded Worker execution, not native Code or Notebook parity | [QuickJS WASM and ordinary Durable tool dispatch](parity/worker-code.md) |
-| Git and UI SDK | Git read capability and a component-independent interactive UI contract, with the diff renderer as one consumer | [Source extraction and independent host evidence](parity/git-ui.md) |
-| Headless presentations | Package-owned summary/detail contracts across the tool components | [Real receipts, lazy detail and host integration](parity/presentations.md) |
-| Sites | Structured ChatGPT Sites tools, committed-source saves and explicit deployments | [Offline Harness, Git, binding and recovery evidence](parity/sites.md) |
-| Guardian | Explicit tool rules and one-shot review of genuine pending Codex actions | [Provider completion and nested-admission evidence](parity/guardian.md) |
-| Grok and GipPity Voice | Separate native voice, dictation, browser control and authorized transfer integrations | [Pinned sources, native artifacts and offline lifecycle evidence](parity/voice.md) |
-| Settings | Native component-owned defaults, global and project overrides with explicit storage | [Settings contract and persistence guarantees](../packages/settings/README.md) |
-| Project instructions | Environment-scoped cwd guidance and lazy structured-file scope discovery | [Native loading contract and boundaries](../packages/project-instructions/README.md) |
+| Apply Patch | PCC patch grammar, atomic edits and structured receipts retained | [Patch](parity/apply-patch.md). Explicit execution filesystem. |
+| View Image | Original bytes, original-detail hint and optional description retained; missing detail corrected | [Images](parity/view-image.md). Stock providers may ignore the hint; the local Responses provider preserves it. |
+| Skills | Source discovery, package reading and progressive guidance retained; guidance now on by default | [Skills](parity/skills.md). Host selects roots or an authoritative catalog. |
+| Web | Source authenticated search, navigation, references and bounds retained | [Web](parity/web-imagegen.md). Explicit authenticated service capability. |
+| Imagegen | Source generation, edits, artifacts and recent-image history retained | [Imagegen](parity/web-imagegen.md). Host binds conversation history and authorised artifact storage. |
+| Browser | Source CDP operations, routing, SSH worker and lifecycle retained; normalised atomic route persistence added | [Browser](parity/browser.md). Host selects native paths, route controls and browser capability. |
+| Agents | Native delegation, profiles, messages, reports and watches retained; source sharing policy restored | [Agents](parity/agents.md). Controller sharing defaults off; a consuming workspace may explicitly enable it. |
+| Board | Independent discussion, subscriptions, notices and summaries retained; manual one-off-thread consolidation added | [Board](parity/board.md). Host owns topic proposals, confirmation and the manual control. |
+| Pulses | Native folder scheduling, owned execution and results retained; ordinary run/discovery tool and portable authoring resource restored | [Pulses](parity/pulses.md). Host provides exact caller binding and lazy admission authority. |
+| Code | PCC execution, controls, outputs and included shell tools retained through the official V8 host | [Code](parity/code.md), [execution](parity/execution.md), [shell](parity/shell.md). Host supplies explicit shell and environment policy. |
+| Notebook | PCC persistent execution, controls, outputs, recovery and included shell tools retained; live journal/checkpoint retention restored | [Notebook](parity/notebook.md). Host settings feed the live policy callback; native processes do not survive restart. |
+| Context | Native notes, history, checkpoint and idle rollover retained; request policy, visibility groups, optional fork archive and explicit remote catalog added | [Context](parity/context.md). Host configures remote identity resolution and optional history eligibility. |
+| OpenAI Responses | Source provider protocol, replay, transport and prewarm retained; default-off scheduled keepalive and explicit plain WebSocket selection corrected | [Provider](parity/openai-responses.md). Exact prepared input, quota/idle authority and usage accounting remain host requirements. Built-in Howcode providers do not acquire these features automatically. |
+| Worker Code | Native bounded QuickJS execution and ordinary dispatch | [Worker](parity/worker-code.md). Separate Worker product, not a reduced Code/Notebook port. |
+| Git | Reusable source Git read capability retained | [Git](parity/git-ui.md). Explicit environment and Git grant. |
+| UI | Component-independent interactive capability contract retained | [UI](parity/git-ui.md), [presentations](parity/presentations.md). Rendering and authorised host invocation remain consuming-app work. |
+| Sites | Source structured site operations, guides, committed-source saves and deployment retained | [Sites](parity/sites.md). Host supplies authorised account, project, model and deployment capabilities. No new live deployment acceptance. |
+| Guardian | Source one-shot review of genuine pending actions retained | [Guardian](parity/guardian.md). Host must use the supported provider completion/provenance boundary. |
+| Grok Voice | Source native voice, browser and transfer workflows retained | [Voice](parity/voice.md). Audio, account, permissions and handoff channels remain explicit. |
+| GipPity Voice | Source voice/dictation workflows retained; bounded continuity-summary cache restored | [Voice](parity/voice.md). Native compaction already contributes its summary to effective history. |
+| Dictation | Native extracted recording/transcription and scoped settings retained | [Voice](parity/voice.md), [package](../packages/dictation/README.md). Explicit audio/transcription grant and host controls. |
+| Settings | Native scoped defaults and atomic explicit persistence | [Package](../packages/settings/README.md). Reusable extraction, not a replacement for every source product's settings UI. |
+| Project Instructions | Native environment-scoped guidance and structured-file discovery | [Package](../packages/project-instructions/README.md). New native capability, not a partial Pi port. |
 
 Semantic grep, Ask, isolated review, and side questions are excluded.
 
@@ -57,7 +63,7 @@ The source pins above identify inspected trees. They do not establish complete c
 | PCC 4.0.4, [#549](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/549) | Published Pi 1.4 transcript-tool additions and folded-system-message boundaries, with the existing Codex request semantics retained. |
 | Browser 0.0.9 and 0.0.10, Web 0.0.8, Imagegen 0.0.11 and Sites 0.0.2 | Ordinary help discovery is carried. Alternate GPT wording does not require a global mode. Browser operations and Sites guides are unchanged by those releases. Removed unused Rust reference payloads are not runtime functionality. |
 
-The optional GPT mode broker, Pi terminal views, usage-ledger workers and Pi session projection are host-specific. That does not exclude useful operating instructions merely because they appear in a prompt builder. Notebook's destructive global retention preferences are not applied to Durable state directories. Routing-affinity policy and auxiliary-provider cleanup remain explicit host responsibilities through the provider's supported headers, payload and lifecycle APIs, not automatic Agents integration. Observatory and Suggestions are separate products outside the accepted component set. Their exclusion does not exclude shared read evidence or provider cleanup contracts. Guardian and the voice packages have no newer functional releases in this audited range.
+The optional GPT mode broker, Pi terminal views, usage-ledger workers and Pi session projection are host-specific. That does not exclude useful operating instructions merely because they appear in a prompt builder. Notebook preserves journal and checkpoint retention through public live-policy options rather than reading Pi-global settings. Routing-affinity policy and auxiliary-provider cleanup remain explicit host responsibilities through the provider's supported headers, payload and lifecycle APIs, not automatic Agents integration. Observatory and Suggestions are separate products outside the accepted component set. Their exclusion does not exclude shared read evidence or provider cleanup contracts. Guardian and the voice packages have no newer functional releases in this audited range.
 
 ## Shared integration
 
@@ -75,14 +81,20 @@ Project Instructions is a new native component rather than a Pi compatibility po
 
 ## Accepted native differences
 
-- Agent delegation and board membership use Durable conversations. Board is independently installable and derives natural membership from native ownership rather than the Agents registry. Herdr machine and pane control, SSH routing and Ask answers are excluded. Context reads use conversation targets, not attachment permissions or an Agents transcript pager.
-- Images use native Durable image content. The provider owns transport detail selection. Original bytes and optional descriptions remain available.
+- Agent delegation and board membership use Durable conversations. Board is independently installable and derives natural membership from native ownership rather than the Agents registry. Herdr machine and pane control, SSH routing and Ask answers are excluded. Context reads use authorised conversation targets and optional host-resolved agent identities, not a terminal attachment protocol or Agents transcript pager.
+- Images use native Durable image content with the source original-detail hint. Original bytes and optional descriptions remain available. The local Responses provider preserves the hint; other provider serializers may ignore it.
 - Host configuration replaces ambient Pi directories, extension globals and terminal rendering. Code and Notebook consume ordinary registrations, not per-tool bridges.
-- Context management and OpenAI Responses follow the later source revisions pinned in their parity documents. Context uses one notes-and-history policy, without source backend or continuity-mode selectors.
+- Context management and OpenAI Responses follow the later source revisions pinned in their parity documents. Context uses native storage and explicit host ports rather than Pi backend transports or ambient account paths.
 
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+The 2026-10-22 whole-package closure audited all 23 existing packages rather than only release deltas. One independent cross-repository review found three material boundaries: Pulses needed its direct pinned TypeBox dependency, keepalive policy needed the final prepared model rather than the original model handle, and large Remote discovery needed a visible failure before JSON truncation. All three were corrected in their portable owners. Component evidence records the disposable native-runtime and filesystem probes, including the paid-policy and oversized-discovery cases. No new permanent tests were added.
+
+The delivery stages passed lint, all 23 builds, strict TypeScript, Knip, all 28 retained workflows and dry-pack checks. The first gate found an unnecessary export of the private visibility document. After that correction, the runtime gate exposed an existing Worker Code fixture's 20 ms race: its zero-wait observation legitimately arrived after completion. The same retained workflow now holds its two real nested calls through that observation with an explicit barrier, preserving the concurrency, running-output and cancellation assertions without increasing a timeout or changing production behaviour. The focused workerd run and subsequent complete 28-workflow run passed. The final type and packaging stages passed after that fixture correction.
+
+All 23 content-hashed archives were rebuilt through the supported pack command. A fresh external npm consumer installed them with lifecycle scripts disabled. All 23 installed public entry imports and 45 public declaration exports passed strict checking with `skipLibCheck: false`. `dist/artifacts.json` records their full SHA-256 values. These checks do not establish live provider, scheduled paid keepalive, audio-device, SSH or non-Linux acceptance. Host prerequisites remain explicit in the package ledger above.
 
 On 2026-10-22, the release-coverage correction passed independent review after fixing a legacy Context continuation that could report an earlier successful answer despite a failed successor generation. Persisted native task receipts now prove final settlement, including after reopen. The final `bun run check` passed lint, twenty-two builds, strict TypeScript, Knip, all 28 retained workflows and dry-pack checks. No permanent tests were added. Component evidence records disposable chronological-instruction, idle-deadline, token-budget, nested-result and recovery probes.
 
@@ -102,7 +114,7 @@ On 2026-10-15, the Durable 1.3.0 migration and selected source refresh passed in
 
 The published 1.3.0 release lists no breaking changes. Components use its native SQLite and operation coordination, corrected post-compaction baseline ordering and base64 handling without patching upstream. No custom Storage migration or component-specific Code/Notebook bridge is introduced. Local delivery now writes content-hashed archives and a full SHA-256 index at `dist/artifacts.json`; package versions alone do not distinguish these development builds.
 
-A follow-up source audit corrected missed Context guidance: persistence and recovery explanations, history search discipline, replacement versus append, notes range/default help, and concise checkpoint, capacity-reminder and continuation prompts. [Context evidence](parity/context.md) distinguishes those carried changes from the newer optional source policies that remain unimplemented. Native SQLite/Harness validation confirmed that window identity and recovery guidance survive overflow compaction and that shortened checkpoint requests still complete rollover.
+A follow-up source audit corrected missed Context guidance: persistence and recovery explanations, history search discipline, replacement versus append, notes range/default help, and concise checkpoint, capacity-reminder and continuation prompts. [Context evidence](parity/context.md) records those carried changes and the later policy corrections. Native SQLite/Harness validation confirmed that window identity and recovery guidance survive overflow compaction and that shortened checkpoint requests still complete rollover.
 
 On 2026-10-13, the Durable 1.2.0 migration passed `bun run check`: all 28 retained workflows, twenty-one package builds and dry-pack checks, lint, strict TypeScript and Knip. Frozen installation with lifecycle scripts disabled passed. An independent source review examined native nested admission, ownership, replay and result migration. Disposable Harness checks verified native child cancellation, abandonment flags and Guardian ancestry. A SQLite reopen check preserved version-one cell and invocation output, images, details and checkpoints without replaying completed work. No permanent tests were added. Live providers and non-Linux runtimes were not revalidated.
 
