@@ -10,6 +10,12 @@ The task prompt carries the source's result guidance: put substantive results in
 
 ## Evidence
 
+The whole-package audit against read-only Pi Stuff `12c4357b2c401fe9be8c6c82d2ae252c0f986937` found the ordinary source `pulses` registration missing from the scheduler-only extraction. The native extension now registers `{}` for discovery, `{run: "id"}` for immediate admission and `{skill: true}` for bundled portable authoring guidance. Authoring needs neither a host file path nor a binding resolver. Discovery and running require the caller's execution environment and explicit `resolveToolBinding`. Routing is memoised before admission, so replay cannot drift to another workspace.
+
+The optional `withToolRunAuthorization` establishes a lazy host caller scope outside the portable queue. A receipt lookup happens before that scope and repeats inside the queue before current definition or admission policy. Actual authorisation belongs to `admit`, while race-safe policy and credit remain in `admitTransaction` with task creation. The public `PulseRunRequest` preserves the exact request identity for this scope. Hosts must not infer authority from request IDs or charge before rejoining an accepted receipt.
+
+A disposable real-Harness probe called all three ordinary forms through the actual registration. It verified no binding lookup for bundled authoring, exact execution-environment binding, host-scope-before-portable-queue ordering by entering a second public queue operation, one admission transaction and receipt rejoining after deleting the definition. No permanent tests or live-provider calls were added.
+
 A disposable real SQLite/Harness probe checked cosmetic versus semantic schedule changes, legacy current-slot seeding, failed-admission rollback followed by a successful retry, active-task and history preservation across schedule edits, removed-definition request rejoining, and exactly one passive parent result without waking a parent generation. It also captured the actual task prompt. No permanent tests were added. Existing ownership and cancellation evidence remains in the [package contract](../../packages/pulses/README.md).
 
 ## Assistant-first scheduling

@@ -1,7 +1,12 @@
 import type { Context } from "@earendil-works/chord";
-import { defineExtension, type Harness } from "@earendil-works/pi-durable";
+import {
+	defineExtension,
+	type Harness,
+	type TaskId,
+	type ToolExecutionApi,
+} from "@earendil-works/pi-durable";
 import { admitted, createAdmission, validateConcurrency } from "./admission.ts";
-import type { PulsesOptions } from "./contract.ts";
+import type { PulseRunRequest, PulsesOptions } from "./contract.ts";
 import {
 	type PulseCatalogItem,
 	type PulseDefinition,
@@ -11,6 +16,7 @@ import { execution, type PulseExecutionRequest } from "./execution.ts";
 import { explicitReady, reconcileSchedules } from "./occurrences.ts";
 import { Checkpoints, pulseKey, restoreMissingReferences } from "./state.ts";
 import { Anchor, createRunTask } from "./tasks.ts";
+import { createPulsesTool } from "./tool.ts";
 
 export type {
 	PulseAdmission,
@@ -20,6 +26,7 @@ export type {
 	PulseOccurrence,
 	PulseOutcome,
 	PulseResultDelivery,
+	PulseRunRequest,
 	PulseSource,
 	PulsesOptions,
 	PulseTrigger,
@@ -86,22 +93,37 @@ export function createPulses(options: PulsesOptions) {
 		);
 		return result;
 	};
-	async function catalog(context: Context): Promise<PulseCatalogItem[]> {
+	async function catalog(
+		context: Context,
+		bindingKey?: string,
+	): Promise<PulseCatalogItem[]> {
 		const bindings = await options.getBindings(context);
 		if (
 			new Set(bindings.map((binding) => binding.key)).size !== bindings.length
 		)
 			throw new Error("Duplicate pulse binding key");
+		if (
+			bindingKey !== undefined &&
+			!bindings.some((binding) => binding.key === bindingKey)
+		)
+			throw new Error("Pulse not found");
 		return (
 			await Promise.all(
-				bindings.map(async (binding) => {
-					const sources = await options.readDefinitions(binding, context);
-					if (
-						new Set(sources.map((source) => source.id)).size !== sources.length
+				bindings
+					.filter(
+						(binding) => bindingKey === undefined || binding.key === bindingKey,
 					)
-						throw new Error(`Duplicate pulse ID in ${binding.key}`);
-					return sources.map((source) => parsePulseDefinition(binding, source));
-				}),
+					.map(async (binding) => {
+						const sources = await options.readDefinitions(binding, context);
+						if (
+							new Set(sources.map((source) => source.id)).size !==
+							sources.length
+						)
+							throw new Error(`Duplicate pulse ID in ${binding.key}`);
+						return sources.map((source) =>
+							parsePulseDefinition(binding, source),
+						);
+					}),
 			)
 		).flat();
 	}
@@ -166,11 +188,56 @@ export function createPulses(options: PulsesOptions) {
 		});
 		return scanFlight;
 	}
-	return {
+	async function manualRun(
+		request: PulseRunRequest,
+		context: Context,
+		api?: ToolExecutionApi,
+	): Promise<TaskId | undefined> {
+		if (!request.requestId.trim())
+			throw new Error("A stable requestId is required");
+		const requestId = `manual:${request.requestId}`;
+		const rejoin = () =>
+			host().commit(
+				(tx) => admitted(tx, request.bindingKey, request.pulseId, requestId),
+				context,
+			);
+		const run = () =>
+			exclusive(async () => {
+				const receipt = await rejoin();
+				if (receipt !== undefined) return receipt;
+				const definitions = await catalog(context);
+				await host().commit(
+					(tx) => reconcileSchedules(tx, definitions, Date.now()),
+					context,
+				);
+				const definition = definitions.find(
+					(value) =>
+						value.bindingKey === request.bindingKey &&
+						value.id === request.pulseId,
+				);
+				if (!definition) throw new Error("Pulse not found");
+				if (definition.status === "invalid") throw new Error(definition.error);
+				if (!definition.enabled)
+					throw new Error(`Pulse is disabled: ${definition.id}`);
+				return dispatch(definition, "manual", requestId, context);
+			});
+		if (!api || !options.withToolRunAuthorization) return run();
+		if (!accepting)
+			throw new Error("Pulses admission is not bound or has stopped");
+		const receipt = await rejoin();
+		if (receipt !== undefined) return receipt;
+		// Host caller scopes may serialize UI runs too: always acquire that scope
+		// before our queue. run() rejoins again before any lazy authorisation.
+		return options.withToolRunAuthorization(api, { ...request }, run, context);
+	}
+	const tool = createPulsesTool(options, { catalog, run: manualRun });
+	const component = {
 		extension: defineExtension({
 			name: "howaboua.pulses",
+			tools: [tool],
 			tasks: [Anchor, Run],
 		}),
+		tool,
 		catalog,
 		scan,
 		explicitReady,
@@ -190,35 +257,8 @@ export function createPulses(options: PulsesOptions) {
 				return { concurrency: limit };
 			});
 		},
-		async run(
-			request: { bindingKey: string; pulseId: string; requestId: string },
-			context: Context,
-		) {
-			if (!request.requestId.trim())
-				throw new Error("A stable requestId is required");
-			return exclusive(async () => {
-				const requestId = `manual:${request.requestId}`;
-				const receipt = await host().commit(
-					(tx) => admitted(tx, request.bindingKey, request.pulseId, requestId),
-					context,
-				);
-				if (receipt !== undefined) return receipt;
-				const definitions = await catalog(context);
-				await host().commit(
-					(tx) => reconcileSchedules(tx, definitions, Date.now()),
-					context,
-				);
-				const definition = definitions.find(
-					(value) =>
-						value.bindingKey === request.bindingKey &&
-						value.id === request.pulseId,
-				);
-				if (!definition) throw new Error("Pulse not found");
-				if (definition.status === "invalid") throw new Error(definition.error);
-				if (!definition.enabled)
-					throw new Error(`Pulse is disabled: ${definition.id}`);
-				return dispatch(definition, "manual", requestId, context);
-			});
+		run(request: PulseRunRequest, context: Context) {
+			return manualRun(request, context);
 		},
 		/** Native task and input receipt for the latest run of this exact job/target. No receipt means not yet submitted. */
 		execution(request: PulseExecutionRequest, context: Context) {
@@ -329,4 +369,5 @@ export function createPulses(options: PulsesOptions) {
 			harness = undefined;
 		},
 	};
+	return component;
 }

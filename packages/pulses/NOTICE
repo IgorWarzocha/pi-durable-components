@@ -10,3 +10,11 @@ in https://github.com/IgorWarzocha/howaboua-pi-stuff at revision
 Copyright (c) 2026 Igor Warzocha. MIT licensed.
 Native task receipts replace process-runner ownership and retry ledgers;
 the accepted folder layout and passive parent results remain unchanged.
+
+Agent-facing controls and bundled authoring guidance adapted from
+packages/pi-pulses/src/controls.ts, index.ts and skills/pulses/SKILL.md in
+https://github.com/IgorWarzocha/howaboua-pi-stuff at revision
+12c4357b2c401fe9be8c6c82d2ae252c0f986937.
+Copyright (c) 2026 Igor Warzocha. MIT licensed.
+Ordinary Durable registration and native task receipts replace Pi tool transport.
+Authoring guidance uses the existing Durable folder layout and admission rules.

@@ -3,6 +3,7 @@ import type {
 	ConversationId,
 	SettledSubmissionRecord,
 	TaskId,
+	ToolExecutionApi,
 	Tx,
 } from "@earendil-works/pi-durable";
 import type { PulseDefinition } from "./definitions.ts";
@@ -13,6 +14,11 @@ export type PulseBinding = {
 	parentConversationId?: ConversationId;
 };
 export type PulseSource = { id: string; text: string; error?: string };
+export type PulseRunRequest = {
+	bindingKey: string;
+	pulseId: string;
+	requestId: string;
+};
 export type PulseTrigger = "manual" | "scheduled";
 export type PulseOccurrence = { count: number; startAt: number; endAt: number };
 export type PulseAdmission = {
@@ -46,6 +52,15 @@ export type PulseResultDelivery = {
 	occurrence?: PulseOccurrence;
 };
 export interface PulsesOptions {
+	/** Resolve the caller's authorised binding in api.env. Never infer from global bindings or host paths. */
+	resolveToolBinding?(api: ToolExecutionApi, context: Context): Promise<string>;
+	/** After receipt lookup, outside the admission queue. Establish caller scope only; defer actual authorisation to admit, since run() rejoins receipts again. Never infer authority from request IDs. admitTransaction owns atomic policy/credit with task creation. Call run at most once and return its result; no external side effects. */
+	withToolRunAuthorization?(
+		api: ToolExecutionApi,
+		request: PulseRunRequest,
+		run: () => Promise<TaskId | undefined>,
+		context: Context,
+	): Promise<TaskId | undefined>;
 	/** Initial limit only. Persisted changes through setConcurrency survive rebinding. */
 	concurrency?: number;
 	getBindings(context: Context): Promise<readonly PulseBinding[]>;
