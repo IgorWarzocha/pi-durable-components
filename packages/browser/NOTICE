@@ -1,6 +1,11 @@
 Source alignment inspected at Pi Stuff revision 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32.
 See docs/parity for carried changes and explicit native-environment exclusions.
 
+Normalised atomic route persistence follows packages/pi-browser/src/browser/config.ts
+as inspected at 12c4357b2c401fe9be8c6c82d2ae252c0f986937.
+Modifications: explicit host-selected storage, private unique temporary files,
+and no ambient Pi configuration path.
+
 This package carries and adapts the CDP implementation, browser operations,
 request grammar, bounds, lifecycle and managed SSH worker from:
 https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-browser

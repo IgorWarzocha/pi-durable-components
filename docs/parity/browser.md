@@ -6,7 +6,15 @@ Pinned source: `howaboua-pi-stuff/packages/pi-browser` at `b2006db9def12c373ae48
 
 `packages/browser/src/index.ts` exports an ordinary Durable `ToolRegistration` and `createBrowserExtension`. The host explicitly supplies native private state and an artifact store and owns `close()`. The tool uses Durable conversation IDs as ownership IDs, Chord cancellation, running output/details and strict JSON results. It is replay-unsafe. There is no Pi `ExtensionAPI`, `ExtensionContext`, TUI, slash command or component-specific Code/Notebook bridge.
 
-The removed surfaces are Pi's `/browser` settings UI, automatic Pi config-file loading/writing, extension startup/shutdown wiring and legacy bridge metadata. Typed route configuration and the lifecycle factory replace those host integration surfaces. The agent-facing command grammar and operations remain.
+Pi's `/browser` settings UI, ambient Pi configuration path, extension startup/shutdown wiring and legacy bridge metadata are not emulated. Typed route configuration, explicit persistence and the lifecycle factory replace those host integration surfaces. The agent-facing command grammar and operations remain.
+
+## Route persistence correction
+
+The whole-package audit against read-only Pi Stuff `12c4357b2c401fe9be8c6c82d2ae252c0f986937` found that source `config.ts:111-161` owns reusable normalised atomic persistence as well as Pi settings wiring. The native package now exports `BrowserRouteConfigStore`, `createBrowserRouteConfigFileStore`, `readBrowserRouteConfig` and `writeBrowserRouteConfig`. Hosts select an absolute native file path or supply atomic complete-value storage. There is no implicit home-directory access.
+
+Missing configuration means local-only routing. Invalid JSON or invalid routes fail visibly. Writes normalise hosts, aliases and the remote Node path, use a unique private temporary file and atomic rename, and remove configuration when no remote hosts remain. Concurrent replacements retain source last-writer-wins semantics without an extra lock protocol. Hosts still own settings UI and runtime replacement.
+
+A disposable real-filesystem probe verified twelve concurrent complete replacements, consistent aliases, mode 0600, temporary-file cleanup, visible corruption and deletion back to the local-only default. It did not contact CDP or SSH. No permanent tests were added.
 
 ## Upstream refresh
 

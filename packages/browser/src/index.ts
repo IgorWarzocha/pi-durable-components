@@ -18,6 +18,12 @@ export {
 	type BrowserRouteConfig,
 	normalizeBrowserRouteConfig,
 } from "./browser/config.ts";
+export {
+	type BrowserRouteConfigStore,
+	createBrowserRouteConfigFileStore,
+	readBrowserRouteConfig,
+	writeBrowserRouteConfig,
+} from "./browser/config-store.ts";
 export type { BrowserOperation } from "./browser/operation.ts";
 export { type BrowserRequest, parseBrowserRequest } from "./browser/request.ts";
 export { BrowserRoutes, parseBrowserRoutes } from "./browser/routes.ts";

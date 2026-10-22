@@ -48,7 +48,31 @@ Interrupted browser mutations may already have succeeded. The tool is replay-uns
 
 Local discovery uses `CDP_HOST` and `CDP_PORT`, defaulting to `127.0.0.1:9222`, then supported `DevToolsActivePort` locations. `CDP_PORT_FILE` supplies a custom port file. The `start` action can launch Chromium through a Linux systemd user session. `CDP_BROWSER`, `CDP_PROFILE_DIRECTORY`, `CDP_SYSTEMCTL` and `CDP_SYSTEMD_RUN` configure that native launch.
 
-For SSH routing, pass `routes: parseBrowserRoutes({hosts: ["workstation", "laptop"], aliases: {"current-machine": "workstation"}, remoteNodePath: "node"}, "current-machine")`. Names must be SSH aliases already configured by the host. Routing is disabled unless configured. Use `host` on every follow-up call using remote references or continuation handles.
+For SSH routing, pass routes parsed from a saved configuration. The package owns its JSON format, defaults, validation and normalized writes; the host selects the settings namespace and storage implementation.
+
+Construct `createBrowserRouteConfigFileStore(absolutePath)` to opt into a native JSON file, or implement `BrowserRouteConfigStore` over the host's settings store. The path is explicit; Browser does not guess a home directory. A custom store's `write` must atomically replace the complete value. The native file store writes a uniquely named temporary file and renames it into place. Concurrent edits retain the source's last-writer-wins behavior; the package does not merge them or add revision checks.
+
+`readBrowserRouteConfig(store)` returns the default local-only config when no value exists and rejects malformed saved config. `writeBrowserRouteConfig(store, config)` validates and normalizes before saving; no configured hosts removes the saved value. Rebuild or replace the runtime after a successful write to use the returned config. The host selects the path or storage namespace and owns the settings UI and storage lifecycle.
+
+```ts
+import {
+  createBrowserRouteConfigFileStore,
+  parseBrowserRoutes,
+  readBrowserRouteConfig,
+  writeBrowserRouteConfig,
+} from "@howaboua/pi-durable-browser";
+
+// The host chooses and authorizes this native settings path.
+const routeStore = createBrowserRouteConfigFileStore(settingsPath);
+const saved = await readBrowserRouteConfig(routeStore);
+const next = await writeBrowserRouteConfig(
+  routeStore,
+  { ...saved.config, hosts: [...saved.config.hosts, "laptop"] },
+);
+const routes = parseBrowserRoutes(next);
+```
+
+Names must be SSH aliases already configured by the host. Routing is disabled unless configured. Use `host` on every follow-up call using remote references or continuation handles.
 
 Remote hosts need Node, SSH access and their own CDP browser. The shipped worker deploys atomically to `~/.cache/pi-durable-browser/worker.mjs`, refusing to replace an unowned file. Its private socket daemon reuses connections and retires after 20 minutes. Worker sockets and artifacts use `pi-durable-browser` under the remote XDG runtime directory, or a user-scoped temporary directory. These paths and the deployment marker are distinct from Pi Browser's installed helper and state. Screenshots return through SCP into the invocation's artifact store, then the remote screenshot is removed. Text continuation handles stay on the selected remote host.
 
