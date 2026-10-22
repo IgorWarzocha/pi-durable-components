@@ -1,4 +1,4 @@
-type JsonValue =
+export type JsonValue =
 	| null
 	| boolean
 	| number
@@ -107,7 +107,9 @@ function cell(value: JsonValue | undefined): ExecutionCellReference | null {
 	return { id, status };
 }
 
-function receipt(value: JsonValue | undefined): ExecutionResultReceipt | null {
+export function parseExecutionResultReceipt(
+	value: JsonValue | undefined,
+): ExecutionResultReceipt | null {
 	if (value === null) return null;
 	const fields = object(value);
 	const content = fields["content"] === undefined ? [] : fields["content"];
@@ -159,7 +161,10 @@ function parseExecutionPresentationState(
 	value: JsonValue,
 ): ExecutionPresentationState {
 	const fields = object(value);
-	return { cell: cell(fields["cell"]), result: receipt(fields["result"]) };
+	return {
+		cell: cell(fields["cell"]),
+		result: parseExecutionResultReceipt(fields["result"]),
+	};
 }
 
 export function executionCapability(id: string, actions: readonly string[]) {

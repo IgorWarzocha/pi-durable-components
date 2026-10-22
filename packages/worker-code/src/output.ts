@@ -1,4 +1,4 @@
-import type { JsonValue } from "@earendil-works/chord";
+import { copyJson, type JsonValue } from "@earendil-works/chord";
 import type { ToolExecutionResult } from "@earendil-works/pi-durable";
 import type { CellObservation } from "../../execution/src/cell-contract.ts";
 
@@ -79,6 +79,13 @@ export function observeWorkerCell(
 		details: {
 			...fields,
 			cellId: observation.cellId,
+			...(observation.forwardedToolCalls === undefined
+				? {}
+				: {
+						forwardedToolCalls: copyJson(observation.forwardedToolCalls, {
+							omitUndefinedProperties: true,
+						}),
+					}),
 			status: observation.status,
 		},
 	};

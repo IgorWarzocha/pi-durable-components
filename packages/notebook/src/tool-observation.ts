@@ -1,4 +1,4 @@
-import type { Context } from "@earendil-works/chord";
+import { type Context, copyJson } from "@earendil-works/chord";
 import {
 	defineDocFamily,
 	type TaskId,
@@ -74,6 +74,13 @@ export async function observeNotebookCell(
 		details: {
 			cell_id: String(observation.cellId),
 			status: observation.status,
+			...(observation.forwardedToolCalls === undefined
+				? {}
+				: {
+						forwardedToolCalls: copyJson(observation.forwardedToolCalls, {
+							omitUndefinedProperties: true,
+						}),
+					}),
 			...(result.details === undefined ? {} : { runtime: result.details }),
 		},
 		...(bounded.droppedBytes

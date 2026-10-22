@@ -11,13 +11,8 @@ import type { CellCoordinatorOptions, CellEngineApi } from "./cell-contract.ts";
 import { CellStateDoc } from "./cell-observation.ts";
 import { cellTools } from "./cell-tools.ts";
 import { combineControls } from "./controls.ts";
-import {
-	createInvocation,
-	errorText,
-	executionError,
-	InvocationDoc,
-	storeResult,
-} from "./invocation.ts";
+import { createInvocation, errorText, executionError } from "./invocation.ts";
+import { InvocationDoc, storeResult } from "./invocation-state.ts";
 import { cleanupNativeCalls } from "./native-tools.ts";
 import { createNestedToolTask } from "./nested.ts";
 import { readToolContract } from "./tool-contract.ts";

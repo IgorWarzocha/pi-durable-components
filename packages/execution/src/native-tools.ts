@@ -11,6 +11,8 @@ import {
 	type ToolTaskInput,
 } from "@earendil-works/pi-durable";
 import { Equal } from "typebox/value";
+import { captureNativeCalls, forwardCall } from "./forwarding.ts";
+import { InvocationDoc } from "./invocation-state.ts";
 
 export function nativeToolCalls<I, S, R, H extends object>(
 	runtime: TaskRuntime<I, S, R, H>,
@@ -86,6 +88,26 @@ export function nativeToolCalls<I, S, R, H extends object>(
 					arguments: call.arguments,
 					status: "pending",
 				});
+				const owner = await tx.doc(InvocationDoc, runtime.taskId);
+				if (owner.forwardingCellId !== undefined) {
+					(await tx.doc(InvocationDoc, slot.taskId)).forwardingCellId =
+						owner.forwardingCellId;
+					await forwardCall(
+						tx,
+						owner.forwardingCellId,
+						{
+							callId: call.id,
+							parentCallId: callId,
+							name,
+							arguments: call.arguments,
+							status: "pending",
+							result: null,
+							omittedFields: [],
+						},
+						true,
+						{ taskId: slot.taskId, ownerTaskId: runtime.taskId },
+					);
+				}
 			}
 			return undefined;
 		}, callContext);
@@ -103,6 +125,16 @@ export function nativeToolCalls<I, S, R, H extends object>(
 		const result = (
 			await runtime.snapshot(NestedCallDoc, runtime.taskId, key, callContext)
 		)?.result;
+		await runtime.commit(async (tx) => {
+			const owner = await tx.doc(InvocationDoc, runtime.taskId);
+			await captureNativeCalls(
+				tx,
+				runtime.conversationId,
+				runtime.taskId,
+				owner.forwardingCellId,
+			);
+			return undefined;
+		}, callContext);
 		return result === undefined
 			? {
 					taskId: slot.taskId,
@@ -137,6 +169,13 @@ export async function cleanupNativeCalls<I, S, R, H extends object>(
 			.map((child) => runtime.abortOwned(child.id, context)),
 	);
 	await runtime.commit(async (tx) => {
+		const owner = await tx.doc(InvocationDoc, runtime.taskId);
+		await captureNativeCalls(
+			tx,
+			runtime.conversationId,
+			runtime.taskId,
+			owner.forwardingCellId,
+		);
 		const live = await tx.doc(LiveDoc, runtime.conversationId);
 		const removed = new Set<TaskId>([runtime.taskId]);
 		for (const slot of live.nestedTools ?? [])

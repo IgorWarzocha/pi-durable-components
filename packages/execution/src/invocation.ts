@@ -1,61 +1,19 @@
-import {
-	type Context,
-	copyJson,
-	type JsonRepresentation,
-	type JsonValue,
-} from "@earendil-works/chord";
+import { type Context, copyJson, type JsonValue } from "@earendil-works/chord";
 import { awaitWithContext } from "@earendil-works/chord/context";
 import type { TextContent } from "@earendil-works/pi-ai";
 import {
-	defineDoc,
 	type TaskRuntime,
 	type ToolDiagnostic,
 	type ToolExecutionApi,
 	type ToolExecutionResult,
 	type ToolRegistration,
 } from "@earendil-works/pi-durable";
+import { forwardInvocationResult } from "./forwarding.ts";
+import { InvocationDoc, storeResult } from "./invocation-state.ts";
 import { nativeToolCalls } from "./native-tools.ts";
 import { boundOutput, OutputBuffer, type OutputLimits } from "./output.ts";
 import { PROGRESS_BYTES_PER_SECOND, Progress } from "./progress.ts";
 import { ToolOriginDoc } from "./tool-origin.ts";
-
-type StoredResult = JsonRepresentation<ToolExecutionResult>;
-export type InvocationState = {
-	result: StoredResult;
-	checkpoint?: JsonValue;
-	yieldCount?: number;
-	droppedBytes?: number;
-	droppedLines?: number;
-};
-export const InvocationDoc = defineDoc<InvocationState>({
-	kind: "howaboua.execution.invocation",
-	version: 2,
-	scope: "task",
-	checkpointWhen: () => false,
-	initial: () => ({ result: {} }),
-	migrate: (value) => ({
-		...value,
-		result: storeResult(
-			readStoredResult(value["result"] as ToolExecutionResult),
-		),
-	}),
-});
-
-/** Version-one task receipts remain readable after their task documents retire. */
-export function readStoredResult(
-	result: ToolExecutionResult,
-): ToolExecutionResult {
-	if (result.output !== undefined || !("content" in result)) return result;
-	const { content, ...rest } = result;
-	return {
-		...rest,
-		output: content as NonNullable<ToolExecutionResult["output"]>,
-	};
-}
-
-export function storeResult(result: ToolExecutionResult): StoredResult {
-	return copyJson(result, { omitUndefinedProperties: true }) as StoredResult;
-}
 
 export function executionError(
 	code: string,
@@ -115,6 +73,7 @@ export function createInvocation<I, S, R, H extends object>(
 				doc.result = result;
 				doc.droppedBytes = retained.droppedBytes;
 				doc.droppedLines = retained.droppedLines;
+				await forwardInvocationResult(tx, runtime.taskId, result, "running");
 				return undefined;
 			}, context);
 			return JSON.stringify(result).length;

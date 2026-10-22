@@ -131,7 +131,13 @@ export function createNotebookMode(options: NotebookModeOptions) {
 				context,
 			);
 			return observeNotebookCell(
-				await coordinator.wait(id, api, context, yieldTimeMs),
+				await coordinator.wait(
+					id,
+					api,
+					context,
+					yieldTimeMs,
+					parsed.maxOutputTokens ?? 10000,
+				),
 				parsed.maxOutputTokens ?? 10000,
 				api,
 				context,
@@ -161,7 +167,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 			const id = notebookCellTaskId(args.cell_id);
 			try {
 				const observation = args.terminate
-					? await coordinator.cancel(id, api, context)
+					? await coordinator.cancel(id, api, context, args.max_tokens ?? 10000)
 					: await coordinator.wait(
 							id,
 							api,
@@ -170,6 +176,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 								args.yield_time_ms ?? 10000,
 								waitAttempts.get(id) ?? 0,
 							),
+							args.max_tokens ?? 10000,
 						);
 				if (observation.status === "running")
 					waitAttempts.set(id, (waitAttempts.get(id) ?? 0) + 1);
@@ -236,7 +243,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 	let closing: Promise<void> | undefined;
 	return {
 		extension,
-		/** Bind the same Harness that owns this extension to retain native-only provider tools. */
+		/** Bind the owning Harness before execution to retain native nested display receipts and native-only tools. */
 		bind: coordinator.bind,
 		close(): Promise<void> {
 			waitAttempts.clear();

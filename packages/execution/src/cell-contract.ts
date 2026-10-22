@@ -8,6 +8,7 @@ import type {
 	ToolExecutionResult,
 	ToolRegistration,
 } from "@earendil-works/pi-durable";
+import type { ForwardedToolCalls } from "./forwarded-tools.ts";
 
 /** Drivers own language/runtime globals. The coordinator owns durable execution and tool calls. */
 export interface CellEngine {
@@ -52,6 +53,7 @@ export type CellObservation = {
 		| "aborted"
 		| "interrupted";
 	readonly result: ToolExecutionResult;
+	readonly forwardedToolCalls?: ForwardedToolCalls;
 	readonly checkpoint?: JsonValue;
 };
 

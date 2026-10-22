@@ -8,6 +8,10 @@
 	"main": "./dist/index.js",
 	"types": "./dist/worker-code/src/index.d.ts",
 	"exports": {
+		"./history": {
+			"types": "./dist/worker-code/src/history.d.ts",
+			"import": "./dist/history.js"
+		},
 		"./presentation": {
 			"types": "./dist/worker-code/src/presentation.d.ts",
 			"import": "./dist/presentation.js"

@@ -11,6 +11,14 @@
 	"main": "./dist/index.js",
 	"types": "./dist/notebook/src/index.d.ts",
 	"exports": {
+		"./history": {
+			"types": "./dist/notebook/src/history.d.ts",
+			"import": "./dist/history.js"
+		},
+		"./presentation": {
+			"types": "./dist/notebook/src/presentation.d.ts",
+			"import": "./dist/presentation.js"
+		},
 		".": {
 			"types": "./dist/notebook/src/index.d.ts",
 			"import": "./dist/index.js"

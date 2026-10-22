@@ -115,9 +115,19 @@ export function createCodeMode(options: CodeModeOptions) {
 				directToolYieldTime(parsed.code, contracts) ??
 				parsed.yieldTimeMs ??
 				30_000;
-			const id = await coordinator.start({ code: args.code }, api, context);
+			const id = await coordinator.start(
+				{ code: args.code, max_output_tokens: parsed.maxOutputTokens ?? 10000 },
+				api,
+				context,
+			);
 			return observeCodeCell(
-				await coordinator.wait(id, api, context, yieldMs),
+				await coordinator.wait(
+					id,
+					api,
+					context,
+					yieldMs,
+					parsed.maxOutputTokens ?? 10000,
+				),
 				parsed.maxOutputTokens ?? 10_000,
 				acknowledge,
 			);
@@ -139,7 +149,7 @@ export function createCodeMode(options: CodeModeOptions) {
 			const id = value as TaskId<ToolExecutionResult>;
 			try {
 				const observation = args.terminate
-					? await coordinator.cancel(id, api, context)
+					? await coordinator.cancel(id, api, context, args.max_tokens ?? 10000)
 					: await coordinator.wait(
 							id,
 							api,
@@ -148,6 +158,7 @@ export function createCodeMode(options: CodeModeOptions) {
 								args.yield_time_ms ?? 10_000,
 								waitAttempts.get(id) ?? 0,
 							),
+							args.max_tokens ?? 10000,
 						);
 				if (observation.status === "running")
 					waitAttempts.set(id, (waitAttempts.get(id) ?? 0) + 1);
@@ -165,6 +176,7 @@ export function createCodeMode(options: CodeModeOptions) {
 	});
 	return {
 		/** Bind the same Harness that owns this extension to retain native-only provider tools. */
+		/** Bind the owning Harness before execution to retain native nested display receipts. */
 		bind: coordinator.bind,
 		extension: {
 			...coordinator.extension,

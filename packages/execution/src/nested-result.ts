@@ -6,17 +6,14 @@ import {
 	type ToolExecutionResult,
 	UsageDoc,
 } from "@earendil-works/pi-durable";
-import {
-	executionError,
-	InvocationDoc,
-	storeResult,
-	truncation,
-} from "./invocation.ts";
+import { forwardCall, forwardInvocationResult } from "./forwarding.ts";
+import { executionError, truncation } from "./invocation.ts";
+import { InvocationDoc, storeResult } from "./invocation-state.ts";
 import { cleanupNativeCalls } from "./native-tools.ts";
 import type { Runtime } from "./nested-call.ts";
 
 /** An audit record, deliberately with no assistant or tool-result model contribution. */
-const NestedResultEntry = defineEntry<JsonObject>(
+export const NestedResultEntry = defineEntry<JsonObject>(
 	"howaboua.execution.nested-result",
 );
 
@@ -63,7 +60,30 @@ export async function settle(
 ): Promise<void> {
 	const stored = storeResult(result);
 	await runtime.commit(async (tx, current) => {
-		(await tx.doc(InvocationDoc, runtime.taskId)).result = stored;
+		const doc = await tx.doc(InvocationDoc, runtime.taskId);
+		if (
+			doc.forwardingCellId === undefined &&
+			current.input.cellId !== undefined
+		) {
+			doc.forwardingCellId = current.input.cellId;
+			await forwardCall(
+				tx,
+				current.input.cellId,
+				{
+					callId: call.id,
+					parentCallId:
+						current.input.parent?.callId ?? `nested-${current.input.cellId}`,
+					name: call.name,
+					arguments: current.input.arguments,
+					status: "pending",
+					result: null,
+					omittedFields: [],
+				},
+				true,
+			);
+		}
+		doc.result = stored;
+		await forwardInvocationResult(tx, runtime.taskId, result, ending);
 		await tx.appendEntry(NestedResultEntry, runtime.conversationId, {
 			data: {
 				taskId: runtime.taskId,

@@ -5,6 +5,13 @@ import {
 } from "../../execution/src/presentation.ts";
 
 export type {
+	ForwardedToolCall,
+	ForwardedToolCalls,
+	ForwardedToolStatus,
+} from "../../execution/src/forwarded-tools.ts";
+export { parseForwardedToolCalls } from "../../execution/src/forwarded-tools.ts";
+
+export type {
 	ExecutionCellReference,
 	ExecutionCellStatus,
 	ExecutionPresentationState as CodePresentationState,

@@ -3,6 +3,7 @@ import { withCancel } from "@earendil-works/chord/context";
 import {
 	type Agent,
 	defineExtension,
+	type Harness,
 	type JsonObject,
 	type TaskId,
 	type ToolExecutionApi,
@@ -13,7 +14,10 @@ import type {
 	CellObservation,
 } from "./cell-contract.ts";
 import { observeCell } from "./cell-observation.ts";
+import { observeCellProgress } from "./cell-progress.ts";
 import { createCellTask } from "./cell-task.ts";
+import { forwardingHook } from "./forwarding-hook.ts";
+import { InvocationDoc } from "./invocation-state.ts";
 import { createNestedToolTask } from "./nested.ts";
 import { providerProjection } from "./projection.ts";
 import { ToolOriginDoc } from "./tool-origin.ts";
@@ -39,17 +43,21 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 	const driver = createCellTask(options, nestedTask);
 	const task = driver.task;
 	const projection = providerProjection(options.surfaceTools);
+	const forwarding = forwardingHook();
 	const extension = defineExtension({
 		name: options.name,
 		tasks: [task, nestedTask],
-		hooks: [projection.hook],
+		hooks: [projection.hook, forwarding.hook],
 	});
 
 	return {
 		extension,
 		/** Shared nested dispatch for guest handlers owned by an ordinary tool task. */
 		nestedTask,
-		bind: projection.bind,
+		bind(harness: Pick<Harness, "conversation">) {
+			projection.bind(harness);
+			forwarding.bind(harness);
+		},
 		async start(
 			input: JsonObject,
 			api: ToolExecutionApi,
@@ -83,6 +91,18 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 				const id = await tx.createTask(task, copied, {
 					ownership: { kind: "conversation" },
 				});
+				const doc = await tx.doc(InvocationDoc, id);
+				doc.forwardingCellId = id;
+				doc.forwardingBudget =
+					typeof input["max_output_tokens"] === "number"
+						? input["max_output_tokens"] * 4
+						: 40000;
+				doc.forwardedToolCalls = {
+					version: 1,
+					cellId: String(id),
+					calls: [],
+					omittedCalls: 0,
+				};
 				const inherited = await tx.doc(ToolOriginDoc, api.taskId);
 				(await tx.doc(ToolOriginDoc, id)).origin = inherited.origin ?? {
 					conversationId: api.conversationId,
@@ -97,51 +117,94 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 			api: ToolExecutionApi,
 			context: Context,
 			yieldTimeMs = 10000,
+			maxTokens = 10000,
 		): Promise<CellObservation> {
 			if (!Number.isFinite(yieldTimeMs) || yieldTimeMs < 0)
 				throw new Error("yieldTimeMs must be non-negative and finite");
-			const initial = await observeCell(task.definition.name, id, api, context);
-			if (initial.status !== "running" || yieldTimeMs === 0) return initial;
-			// A resumed cell's new nested calls belong to this live observer admission,
-			// not the retired exec slot. createInvocation snapshots this at child creation.
-			await api.commit(async (tx) => {
-				const inherited = (await tx.doc(ToolOriginDoc, api.taskId)).origin;
-				(await tx.doc(ToolOriginDoc, id)).origin = inherited ?? {
-					conversationId: api.conversationId,
-					taskId: api.taskId,
-					callId: api.callId,
-				};
-			}, context);
-			const yielding = driver.observeYield(id);
-			if (yielding.consume()) {
-				return initial;
-			}
-			const wait = withCancel(context);
-			const timeout = new Error("Cell observation yielded");
-			const timer = setTimeout(
-				() => wait.cancel(timeout),
-				Math.min(yieldTimeMs, 2_147_483_647),
+			const initial = await observeCell(
+				task.definition.name,
+				id,
+				api,
+				context,
+				maxTokens * 4,
+			);
+			const stopProgress = await observeCellProgress(
+				id,
+				api,
+				context,
+				maxTokens * 4,
 			);
 			try {
-				await Promise.race([api.waitForTask(id, wait.context), yielding.wake]);
-				yielding.consume();
-			} catch (error) {
-				if (wait.context.abortSignal?.reason !== timeout) throw error;
+				if (initial.status !== "running" || yieldTimeMs === 0) return initial;
+				// A resumed cell's new nested calls belong to this live observer admission,
+				// not the retired exec slot. createInvocation snapshots this at child creation.
+				await api.commit(async (tx) => {
+					const inherited = (await tx.doc(ToolOriginDoc, api.taskId)).origin;
+					(await tx.doc(ToolOriginDoc, id)).origin = inherited ?? {
+						conversationId: api.conversationId,
+						taskId: api.taskId,
+						callId: api.callId,
+					};
+				}, context);
+				const yielding = driver.observeYield(id);
+				if (yielding.consume()) {
+					return initial;
+				}
+				const wait = withCancel(context);
+				const timeout = new Error("Cell observation yielded");
+				const timer = setTimeout(
+					() => wait.cancel(timeout),
+					Math.min(yieldTimeMs, 2_147_483_647),
+				);
+				try {
+					await Promise.race([
+						api.waitForTask(id, wait.context),
+						yielding.wake,
+					]);
+					yielding.consume();
+				} catch (error) {
+					if (wait.context.abortSignal?.reason !== timeout) throw error;
+				} finally {
+					clearTimeout(timer);
+					wait.cancel();
+				}
+				return observeCell(
+					task.definition.name,
+					id,
+					api,
+					context,
+					maxTokens * 4,
+				);
 			} finally {
-				clearTimeout(timer);
-				wait.cancel();
+				await stopProgress();
 			}
-			return observeCell(task.definition.name, id, api, context);
 		},
 		async cancel(
 			id: TaskId<ToolExecutionResult>,
 			api: ToolExecutionApi,
 			context: Context,
+			maxTokens = 10000,
 		): Promise<CellObservation> {
 			await observeCell(task.definition.name, id, api, context);
-			await options.cancelTask(id, context);
-			await api.waitForTask(id, context);
-			return observeCell(task.definition.name, id, api, context);
+			const stopProgress = await observeCellProgress(
+				id,
+				api,
+				context,
+				maxTokens * 4,
+			);
+			try {
+				await options.cancelTask(id, context);
+				await api.waitForTask(id, context);
+				return observeCell(
+					task.definition.name,
+					id,
+					api,
+					context,
+					maxTokens * 4,
+				);
+			} finally {
+				await stopProgress();
+			}
 		},
 
 		close: driver.close,

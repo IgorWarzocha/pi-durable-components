@@ -11,6 +11,10 @@
 	"main": "./dist/index.js",
 	"types": "./dist/code/src/index.d.ts",
 	"exports": {
+		"./history": {
+			"types": "./dist/code/src/history.d.ts",
+			"import": "./dist/history.js"
+		},
 		"./presentation": {
 			"types": "./dist/code/src/presentation.d.ts",
 			"import": "./dist/presentation.js"

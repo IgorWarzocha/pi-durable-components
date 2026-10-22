@@ -8,14 +8,15 @@ import {
 	type ToolRegistration,
 } from "@earendil-works/pi-durable";
 import { Compile } from "typebox/compile";
+import { forwardCall } from "./forwarding.ts";
 import {
 	boundResult,
 	createInvocation,
 	errorText,
 	executionError,
-	InvocationDoc,
 	truncation,
 } from "./invocation.ts";
+import { InvocationDoc } from "./invocation-state.ts";
 import {
 	type Checkpoint,
 	checked,
@@ -39,6 +40,26 @@ export function createNestedToolTask(name: string) {
 		phases: {
 			call: async (task, runtime, context) => {
 				const call = nestedCall(runtime, task.input);
+				await runtime.commit(async (tx) => {
+					const doc = await tx.doc(InvocationDoc, runtime.taskId);
+					if (task.input.cellId !== undefined)
+						doc.forwardingCellId = task.input.cellId;
+					await forwardCall(
+						tx,
+						task.input.cellId,
+						{
+							callId: call.id,
+							parentCallId: call.parent?.callId ?? `nested-${runtime.taskId}`,
+							name: call.name,
+							arguments: task.input.arguments,
+							status: "pending",
+							result: null,
+							omittedFields: [],
+						},
+						true,
+					);
+					return undefined;
+				}, context);
 				const agent = await runtime.agent(context);
 				const tool = agent.callable.find((each) => each.name === call.name);
 				if (tool === undefined || readToolContract(tool).nativeOnly)
@@ -125,6 +146,15 @@ export function createNestedToolTask(name: string) {
 				}
 				await runtime.commit(async (tx) => {
 					await tx.doc(InvocationDoc, runtime.taskId);
+					await forwardCall(tx, task.input.cellId, {
+						callId: call.id,
+						parentCallId: call.parent?.callId ?? `nested-${runtime.taskId}`,
+						name: call.name,
+						arguments: args,
+						status: "running",
+						result: null,
+						omittedFields: [],
+					});
 					return {
 						status: "running",
 						checkpoint: {

@@ -6,12 +6,13 @@ import {
 	type ToolExecutionResult,
 } from "@earendil-works/pi-durable";
 import type { CellObservation } from "./cell-contract.ts";
+import { boundForwardedToolCalls } from "./forwarding.ts";
 import {
 	InvocationDoc,
 	type InvocationState,
 	readStoredResult,
 	storeResult,
-} from "./invocation.ts";
+} from "./invocation-state.ts";
 /** Task documents retire on settlement. Completed cells retain driver snapshots here. */
 export const CellStateDoc = defineDocFamily<InvocationState, null>({
 	kind: "howaboua.execution.cells",
@@ -35,6 +36,7 @@ export async function observeCell(
 	id: TaskId<ToolExecutionResult>,
 	api: ToolExecutionApi,
 	context: Context,
+	budget?: number,
 ): Promise<CellObservation> {
 	const record = await api.getTask(id, context);
 	if (
@@ -64,6 +66,14 @@ export async function observeCell(
 		cellId: id,
 		status,
 		result,
+		...(doc?.forwardedToolCalls === undefined
+			? {}
+			: {
+					forwardedToolCalls:
+						budget === undefined
+							? doc.forwardedToolCalls
+							: boundForwardedToolCalls(doc.forwardedToolCalls, budget),
+				}),
 		...(doc?.checkpoint === undefined ? {} : { checkpoint: doc.checkpoint }),
 	};
 }

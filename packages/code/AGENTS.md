@@ -3,3 +3,4 @@
 - Keep host-envelope validation separate from runtime-outcome validation. Treat lost admission or host failure as uncertain, never as permission to replay source.
 - Retain one bounded output observation until its exact delivery revision is acknowledged. Exec and each wait apply independent budgets. Do not drain the host into an unbounded backlog or repeat a running snapshot.
 - Preserve the public exports in src/index.ts. Shared execution stays in the internal sibling source tree and is compiled into this product.
+- Bind the component to its owning Harness before executing native nested calls. Their display output is captured before Durable retires it; structuredOutput is not a substitute for display content.

@@ -5,6 +5,7 @@ import {
 	type Agent,
 	type HookApi,
 	type JsonObject,
+	type TaskId,
 	type TaskRuntime,
 	type ToolExecutionResult,
 	type ToolHookCall,
@@ -15,6 +16,7 @@ import {
 export type NestedInput = {
 	name: string;
 	arguments: JsonValue;
+	cellId?: TaskId;
 	parent?: NonNullable<ToolHookCall["parent"]>;
 };
 export type Checkpoint =

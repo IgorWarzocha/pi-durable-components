@@ -1,3 +1,4 @@
+import { copyJson } from "@earendil-works/chord";
 import type {
 	JsonObject,
 	ToolExecutionResult,
@@ -214,6 +215,13 @@ export function observeCodeCell(
 				? details
 				: {}),
 			cellId: observation.cellId,
+			...(observation.forwardedToolCalls === undefined
+				? {}
+				: {
+						forwardedToolCalls: copyJson(observation.forwardedToolCalls, {
+							omitUndefinedProperties: true,
+						}),
+					}),
 			status: observation.status,
 		},
 	};

@@ -88,9 +88,22 @@ export function createWorkerCode(options: WorkerCodeOptions) {
 		},
 		async execute(args, api, context) {
 			const parsed = parseExecSource(args.code);
-			const id = await coordinator.start({ code: parsed.code }, api, context);
+			const id = await coordinator.start(
+				{
+					code: parsed.code,
+					max_output_tokens: parsed.maxOutputTokens ?? 10000,
+				},
+				api,
+				context,
+			);
 			return observeWorkerCell(
-				await coordinator.wait(id, api, context, parsed.yieldTimeMs ?? 10000),
+				await coordinator.wait(
+					id,
+					api,
+					context,
+					parsed.yieldTimeMs ?? 10000,
+					parsed.maxOutputTokens ?? 10000,
+				),
 				parsed.maxOutputTokens ?? 10000,
 				delivered,
 			);
@@ -120,8 +133,14 @@ export function createWorkerCode(options: WorkerCodeOptions) {
 				throw new Error("cell_id must be a valid yielded cell ID");
 			const id = value as TaskId<ToolExecutionResult>;
 			const observed = args.terminate
-				? await coordinator.cancel(id, api, context)
-				: await coordinator.wait(id, api, context, args.yield_time_ms ?? 10000);
+				? await coordinator.cancel(id, api, context, args.max_tokens ?? 10000)
+				: await coordinator.wait(
+						id,
+						api,
+						context,
+						args.yield_time_ms ?? 10000,
+						args.max_tokens ?? 10000,
+					);
 			return observeWorkerCell(observed, args.max_tokens ?? 10000, delivered);
 		},
 	});
@@ -144,6 +163,7 @@ export function createWorkerCode(options: WorkerCodeOptions) {
 				),
 			],
 		},
+		/** Bind the owning Harness before execution to retain native nested display receipts. */
 		bind: coordinator.bind,
 		budget: interpreterBudget,
 		async evaluateModule(
