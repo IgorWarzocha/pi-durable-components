@@ -46,7 +46,7 @@ The independent `examples/git-ui` host used public built package entries and a r
 
 The monorepo delivery gate passed on 2026-10-08: all 28 retained tests, strict TypeScript 7, Biome, Knip, fourteen builds and dry-pack checks. Frozen installation with scripts disabled passed. An independent review inspected native ownership, security and parity, SDK cleanup, Pierre prop forwarding and the emitted browser dependency graph without establishing a material finding. Browser inspection included a narrow viewport, light and dark rendering, visible keyboard focus and layout selection. These checks are delivery evidence, not new permanent UI assertions.
 
-These packages are version 0.1.0 local-development artifacts. They have not been published. Consumer release packaging and non-Linux native behavior are not validated by this change.
+The original extraction used unpublished 0.1.0 artifacts. Release 0.8.0 includes both packages, with fresh-consumer imports and strict declaration checks recorded in the [delivery evidence](../parity.md#delivery-validation). Non-Linux native behaviour remains unverified.
 
 The universal SDK follow-up was independently reviewed and exercised on 2026-10-08. Disposable probes covered snapshot hydration and ordering, invalid state, per-operation cancellation, late results, suspended stream closure, subscription failures and reentrant disposal. Review found and corrected duplicate cleanup on reentrant abort, split UTF-8 request decoding and header-like diff content being mistaken for file metadata. No permanent tests were added.
 

@@ -2,6 +2,10 @@
 
 Guardian blocks explicitly selected tools or reviews one pending action before execution. Rules are empty by default. Unmatched calls pass through. A matching block rule wins over review and makes no inference.
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-guardian-0.8.0.tgz
+```
+
 ```ts
 const guardian = createGuardian({
   rules: { rules: [{ tool: "deploy", action: "review" }] },

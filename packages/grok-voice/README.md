@@ -2,6 +2,10 @@
 
 Realtime xAI conversation, manual dictation and HTTPS browser controls, with Durable-owned lifecycle and ordinary Durable tools. Requires Node 22.19+, Durable/Models 1.4.0 and an existing xAI credential. Voice is a transport into the selected conversation, not a replacement chat model.
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-grok-voice-0.8.0.tgz
+```
+
 ## Transcribe browser audio
 
 Apps that already capture audio can instead call `transcribeGrokDictation({ models, audio, sampleRate, language?, access?, signal })` on the server. It returns the final text without creating a voice call, Harness task, native microphone or LAN server. The host owns capture permissions, upload limits, concurrent-request admission and the editable destination.

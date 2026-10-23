@@ -4,6 +4,10 @@ Manage Sites, save committed source and deploy explicitly as private or shared. 
 
 Register ordinary Durable tools. Code and Notebook discover them automatically.
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-sites-0.8.0.tgz
+```
+
 ```ts
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import {

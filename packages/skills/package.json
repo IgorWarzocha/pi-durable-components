@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-skills",
-	"version": "0.7.1",
+	"version": "0.8.0",
 	"description": "Progressive skill discovery for Pi Durable",
 	"type": "module",
 	"license": "MIT",

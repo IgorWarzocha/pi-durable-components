@@ -2,6 +2,10 @@
 
 Interactive browser components backed by host-owned state, actions and streams. The root entry has no React, Git or Durable runtime import. Components run as trusted in-process code, not in a sandbox.
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-ui-0.8.0.tgz
+```
+
 ## Interactive components
 
 ### Headless capabilities and presentations
@@ -118,7 +122,7 @@ The host owns authentication, revision selection, module loading, authorization 
 
 ## Diff rendering
 
-Install `@howaboua/pi-durable-git` 0.1.0, React and React DOM 19.3.0, and `@pierre/diffs` 1.4.3 for `/react/diff`. These are optional peers, not dependencies of the generic component API.
+Install [Git](../git) 0.8.0, React and React DOM 19.3.0, and `@pierre/diffs` 1.6.1 for `/react/diff`. These are optional peers, not dependencies of the generic component API.
 
 `DiffCodeView` preserves Pierre's generic props, imperative ref, controlled or initial items, annotation and header slots, editing provider, selection and full-file loading callbacks. `createDiffOptions` supplies shared defaults without taking ownership of host state. `parseDiffPatch` returns Pierre files, leaving ordering and fallback presentation to the host. `DiffWorkerProvider` takes a bundler-owned `workerFactory`, uses two to six workers, and keeps resource management in Pierre's provider. Hosts can supply their existing editing provider around the viewer.
 
@@ -126,4 +130,4 @@ Install `@howaboua/pi-durable-git` 0.1.0, React and React DOM 19.3.0, and `@pier
 
 `themeCss` scopes tokens to `[data-durable-ui]`: `--durable-ui-background`, `foreground`, `muted`, `border` and `accent`. It follows the system theme or a `data-theme="light"` or `"dark"` override. Hosts can override these variables for their own palette. No global page styles or font are installed.
 
-See `examples/component-ui` for revision-anchored Git comments through a host binding. `examples/git-ui` demonstrates only the low-level read-only renderer. Neither host depends on Howcode. These packages currently use local development artifacts. Publishing and consumer release packaging are separate work.
+See `examples/component-ui` for revision-anchored Git comments through a host binding. `examples/git-ui` demonstrates only the low-level read-only renderer. Neither host depends on Howcode.

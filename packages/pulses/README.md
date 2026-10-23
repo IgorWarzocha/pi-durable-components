@@ -2,6 +2,10 @@
 
 Persistent, folder-owned scheduled work for Pi Durable. Each `pulses/<id>/PULSE.md` stays beside its local instructions, journals and artifacts. Removing a definition or this component never deletes that folder or native conversation history.
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-pulses-0.8.0.tgz
+```
+
 ```markdown
 ---
 title: Weekly review

@@ -13,6 +13,10 @@ The component includes local WebRTC audio, manual dictation, microphone mute, de
 
 Credentials stay in Models. The native helper and browser never receive provider credentials. Native devices, microphone permissions, provider entitlement and acoustic behavior need separate real-device acceptance.
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-gippity-voice-0.8.0.tgz
+```
+
 ## Transcribe browser audio
 
 For an app that already captures audio, use `transcribeGippityDictation({ models, audio, sampleRate, language?, signal })` on the server. It returns the final text and opens only a transcription connection. It requires no Harness, audio lease, native helper, microphone or LAN server. Nothing is submitted to a conversation.

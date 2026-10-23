@@ -1,6 +1,6 @@
 # Headless component presentations
 
-The local-development packages expose browser-safe capability contracts and summary/detail projections for native host interfaces. These exports are not included in release 0.5.0.
+The released packages expose browser-safe capability contracts and summary/detail projections for native host interfaces.
 
 Import from `@howaboua/pi-durable-<component>/presentation`. Git retains its existing `/contracts` export. The objects work with the UI SDK's `bindCapability` and `mountPresentation`, but do not import the SDK, React, DOM controls or the Durable runtime.
 

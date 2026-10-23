@@ -4,6 +4,10 @@ Local Whisper dictation for Node.js 22.19 or later, using the native
 `sherpa-onnx-node` runtime. The consuming app supplies model storage and selection.
 This package does not capture microphone audio or register agent tools.
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-dictation-0.8.0.tgz
+```
+
 ```ts
 import { createDictationService } from '@howaboua/pi-durable-dictation'
 

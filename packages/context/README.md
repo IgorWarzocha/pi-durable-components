@@ -5,7 +5,7 @@ Continue long conversations through saved notes and clean context windows. Notes
 Requires Node 22.19 or newer and Durable 1.4.0.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.7.1/howaboua-pi-durable-context-0.7.1.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-context-0.8.0.tgz
 ```
 
 ## Connect your host
