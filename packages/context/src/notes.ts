@@ -7,9 +7,11 @@ import {
 	type Storage,
 	type Tx,
 } from "@earendil-works/pi-durable";
+import { Type } from "typebox";
 import { canReadContextTarget } from "../../../internal/context-visibility.ts";
 import { normalizeFilePath, normalizePrefix } from "./note-path.ts";
 import {
+	beginNoteWrite,
 	mutateNote,
 	NotesState,
 	noteMetadata,
@@ -24,7 +26,9 @@ import {
 	boundedInteger,
 	contextHelpText,
 	contextOutputLimits,
+	contextTextSlice,
 	contextToolHelp,
+	contextToolResult,
 	type NotesArguments,
 	normalizeNotesArguments,
 	notesParameters,
@@ -42,10 +46,18 @@ export function createNotesTool(options: {
 		name: "notes",
 		description: "Persistent notes",
 		parameters: notesParameters,
+		structuredOutputSchema: Type.Object({}, { additionalProperties: true }),
 		prepareArguments: prepareNotesArguments,
 		replay: "safe",
 		outputLimits: contextOutputLimits,
 		async execute(args = {}, api, context) {
+			const writing =
+				args.action === "append_to_file" || args.action === "write_file";
+			if (writing)
+				await api.commit(
+					(tx) => beginNoteWrite(tx, api.conversationId, api.taskId),
+					context,
+				);
 			let help = contextToolHelp("notes", args);
 			if (help)
 				help = {
@@ -57,11 +69,10 @@ export function createNotesTool(options: {
 						context,
 					)),
 				};
-			if (help)
-				return {
-					output: [{ type: "text", text: contextHelpText(help) }],
-					details: help,
-				};
+			if (help) {
+				contextHelpText(help);
+				return contextToolResult(help);
+			}
 			args = normalizeNotesArguments(args);
 			validateNotesArguments(args);
 			context.abortSignal?.throwIfAborted();
@@ -71,8 +82,6 @@ export function createNotesTool(options: {
 				api.conversationId,
 				context,
 			);
-			const writing =
-				args.action === "append_to_file" || args.action === "write_file";
 			if (writing && target !== api.conversationId)
 				throw new Error("Notes writes may only target the caller conversation");
 			if (
@@ -92,7 +101,7 @@ export function createNotesTool(options: {
 				writing ||
 				(await api.snapshot(NotesState, target, context)) !== undefined;
 			const result = await api
-				.commit(async (tx): Promise<JsonObject> => {
+				.commit(async (tx) => {
 					if (!(await tx.conversation(target)))
 						throw new Error(`Conversation ${target} does not exist`);
 					if (writing) {
@@ -108,9 +117,12 @@ export function createNotesTool(options: {
 							append: args.action === "append_to_file",
 							now: options.now,
 						});
-						return { file: { path: file.path } };
+						// A saved note must have a deliverable acknowledgement in the same commit.
+						return contextToolResult({ file: { path: file.path } });
 					}
-					return readNotes(tx, target, args, hasCatalog);
+					return contextToolResult(
+						await readNotes(tx, target, args, hasCatalog),
+					);
 				}, context)
 				.catch((error: unknown) => {
 					if (writing && options.remote && context.abortSignal?.aborted)
@@ -120,10 +132,7 @@ export function createNotesTool(options: {
 						);
 					throw error;
 				});
-			return {
-				output: [{ type: "text", text: JSON.stringify(result) }],
-				details: result,
-			};
+			return result;
 		},
 	});
 	return { ...tool, executionHints: { discovery: "help" as const } };
@@ -143,11 +152,21 @@ async function readNotes(
 		const lines = (await readNoteText(tx, id, path)).split("\n");
 		const start = lineIndex(args.start_line, lines.length, 0);
 		const stop = lineIndex(args.stop_line, lines.length, lines.length - 1);
+		const selected =
+			start <= stop ? lines.slice(start, stop + 1).join("\n") : "";
+		const offset = boundedInteger(args.offset_chars, 0, selected.length, 0);
+		const limit = boundedInteger(args.limit_chars, 8_000, 8_000);
+		const content = contextTextSlice(selected, offset, limit);
+		const nextOffset = offset + content.length;
 		return {
 			source: "sqlite",
 			file: {
 				...noteMetadata(file),
-				content: start <= stop ? lines.slice(start, stop + 1).join("\n") : "",
+				content,
+				total_chars: selected.length,
+				...(nextOffset < selected.length
+					? { next_offset_chars: nextOffset }
+					: {}),
 				start_line: start + 1,
 				stop_line: Math.max(start, stop) + 1,
 				total_lines: lines.length,
@@ -191,7 +210,14 @@ async function readNotes(
 		const matches: JsonObject[] = [];
 		const lines = (await readNoteText(tx, id, file.path)).split("\n");
 		for (const [index, line] of lines.entries()) {
-			if (line.includes(query)) matches.push({ line_number: index + 1, line });
+			if (line.includes(query))
+				matches.push({
+					line_number: index + 1,
+					line: contextTextSlice(line, 0, 1_000),
+					...(line.length > 1_000
+						? { truncated: true, total_chars: line.length }
+						: {}),
+				});
 			if (matches.length >= matchLimit) break;
 		}
 		if (!matches.length) continue;

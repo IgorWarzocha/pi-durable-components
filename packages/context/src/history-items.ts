@@ -1,7 +1,7 @@
 // Adapted from pi-codex-conversion, Copyright (c) 2026 Igor Warzocha, MIT.
 import type { Message } from "@earendil-works/pi-ai";
 import type { EntryRecord, JsonObject } from "@earendil-works/pi-durable";
-import type { HistoryArguments } from "./tool-contract.ts";
+import { contextTextSlice, type HistoryArguments } from "./tool-contract.ts";
 
 export type HistoryItem = {
 	window_id: string;
@@ -121,7 +121,7 @@ export function previewHistoryItem(
 ): JsonObject {
 	return {
 		...itemIdentity(item),
-		truncated_content: item.content.slice(0, maxChars),
+		truncated_content: contextTextSlice(item.content, 0, maxChars),
 		content_chars: item.content.length,
 	};
 }

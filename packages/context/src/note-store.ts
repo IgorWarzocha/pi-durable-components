@@ -5,12 +5,14 @@ import type {
 	EntryId,
 	Storage,
 	TaskId,
+	ToolTaskInput,
 	Tx,
 } from "@earendil-works/pi-durable";
 import {
 	createSession,
 	defineDoc,
 	defineDocFamily,
+	ToolTask,
 } from "@earendil-works/pi-durable";
 import { latestUserEntry, WindowState } from "./window-state.ts";
 
@@ -31,6 +33,7 @@ type NotesCatalog = {
 	files: NoteMetadata[];
 	totalBytes: number;
 	lastWrite?: NoteFreshness;
+	lastAttempt?: TaskId;
 };
 
 /** The sole authority for metadata and freshness. Bodies live in per-path documents. */
@@ -55,6 +58,7 @@ const NoteFile = defineDocFamily<{ text: string }, null>({
 });
 const WriteReceipt = defineDoc<{
 	file?: NoteMetadata;
+	attempted?: boolean;
 }>({
 	kind: "howaboua.context.note-write-receipt",
 	version: 1,
@@ -135,12 +139,64 @@ export async function notesAreFresh(
 	const userEntry = await latestUserEntry(tx, id);
 	const window = await tx.doc(WindowState, id);
 	const state = await tx.doc(NotesState, id);
-	return (
+	const fresh =
 		window.window !== undefined &&
 		state.lastWrite !== undefined &&
+		(state.lastAttempt === undefined ||
+			state.lastAttempt === state.lastWrite.taskId) &&
 		state.lastWrite.windowId === window.window.id &&
-		state.lastWrite.userEntry === userEntry
-	);
+		state.lastWrite.userEntry === userEntry;
+	if (!fresh || !state.lastWrite) return false;
+	// Native prepare/block failures bypass tool hooks, including api.executeTool.
+	// A later admitted write needs its own successful receipt, not an older save.
+	let cursor;
+	do {
+		const page = await tx.scanTasks(
+			{
+				conversationId: id,
+				kind: ToolTask.definition.name,
+				order: "descending",
+			},
+			64,
+			cursor,
+		);
+		for (const task of page.items) {
+			if (task.id <= state.lastWrite.taskId) return true;
+			// The scan selects the public native task kind; legacy inputs are model calls.
+			const input = task.input as ToolTaskInput;
+			let call = input.kind === "nested" ? input.call : undefined;
+			if (input.kind !== "nested") {
+				const assistant = (await tx.entry(input.assistant))?.model?.[0];
+				call =
+					assistant?.role === "assistant"
+						? assistant.content
+								.filter((item) => item.type === "toolCall")
+								.find((item) => item.id === input.callId)
+						: undefined;
+			}
+			if (
+				call?.name === "notes" &&
+				(call.arguments["action"] === "write_file" ||
+					call.arguments["action"] === "append_to_file")
+			)
+				return false;
+		}
+		cursor = page.next;
+	} while (cursor !== undefined);
+	return true;
+}
+
+/** Commit before validation/mutation so a rejected replacement cannot reuse an older save. */
+export async function beginNoteWrite(
+	tx: Tx,
+	id: ConversationId,
+	taskId: TaskId,
+) {
+	const receipt = await tx.doc(WriteReceipt, taskId);
+	// Old successful receipts and recovered attempts must not refresh authority.
+	if (receipt.attempted || receipt.file) return;
+	receipt.attempted = true;
+	(await tx.doc(NotesState, id)).lastAttempt = taskId;
 }
 
 /** Receipt, body, catalog and freshness commit together under the original task identity. */

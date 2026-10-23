@@ -17,7 +17,11 @@ import {
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 import { renderArchiveHistoryHint } from "./history-archive.ts";
-import { notesAreFresh, renderNotesThreadHint } from "./note-store.ts";
+import {
+	beginNoteWrite,
+	notesAreFresh,
+	renderNotesThreadHint,
+} from "./note-store.ts";
 import { contextUsage } from "./usage.ts";
 import { WindowState } from "./window-state.ts";
 
@@ -64,14 +68,14 @@ export function createContextPolicy(options: {
 
 	// Render only committed state. Initialization belongs to hooks and admission.
 	const sections = [
-		section("context", async (input, context) => {
+		section("context", () => checkpointGuidance(options.newContextRequests)),
+		section("context-state", async (input, context) => {
 			const [state, hints] = await Promise.all([
 				input.read.snapshot(WindowState, input.conversationId, context),
 				renderNotesThreadHint(input.read, input.conversationId, context),
 			]);
 			const window = state?.window;
 			return [
-				checkpointGuidance(options.newContextRequests),
 				`Current conversation ID: ${input.conversationId}. notes and history accept target with another conversation ID in this storage only when its Context visibility group matches yours. Write only your own notes.`,
 				window && `Current context window UUID: ${window.id}`,
 				window?.previous && `Previous context window UUID: ${window.previous}`,
@@ -194,6 +198,18 @@ export function createContextPolicy(options: {
 		hook(ToolTask, {
 			async beforeTool(_call, api, context) {
 				await options.ensureWindow(api.conversationId, context);
+			},
+			async afterTool(call, result, api, context) {
+				if (
+					call.name === "notes" &&
+					result.isError &&
+					(call.arguments["action"] === "write_file" ||
+						call.arguments["action"] === "append_to_file")
+				)
+					await (await conversation(api.conversationId, context)).commit(
+						(tx) => beginNoteWrite(tx, api.conversationId, api.taskId),
+						context,
+					);
 			},
 		}),
 		hook(CompactionTask, {

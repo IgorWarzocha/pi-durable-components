@@ -11,6 +11,7 @@ import {
 	type JsonObject,
 	type Storage,
 } from "@earendil-works/pi-durable";
+import { Type } from "typebox";
 import { canReadContextTarget } from "../../../internal/context-visibility.ts";
 import { type HistoryEntry, historyEntries } from "./history-archive.ts";
 import {
@@ -29,7 +30,9 @@ import {
 	boundedInteger,
 	contextHelpText,
 	contextOutputLimits,
+	contextTextSlice,
 	contextToolHelp,
+	contextToolResult,
 	type HistoryArguments,
 	historyParameters,
 	prepareHistoryArguments,
@@ -47,6 +50,7 @@ export function createHistoryTool(options: {
 		name: "history",
 		description: "Search earlier conversation",
 		parameters: historyParameters,
+		structuredOutputSchema: Type.Object({}, { additionalProperties: true }),
 		prepareArguments: prepareHistoryArguments,
 		replay: "safe",
 		outputLimits: contextOutputLimits,
@@ -62,11 +66,10 @@ export function createHistoryTool(options: {
 						context,
 					)),
 				};
-			if (help)
-				return {
-					output: [{ type: "text", text: contextHelpText(help) }],
-					details: help,
-				};
+			if (help) {
+				contextHelpText(help);
+				return contextToolResult(help);
+			}
 			validateHistoryArguments(args);
 			context.abortSignal?.throwIfAborted();
 			const { target, familyTargets } = await resolveContextTarget(
@@ -135,10 +138,7 @@ export function createHistoryTool(options: {
 				args,
 				options.archiveHistory === true,
 			);
-			return {
-				output: [{ type: "text", text: JSON.stringify(result) }],
-				details: result,
-			};
+			return contextToolResult(result);
 		},
 	});
 	return { ...tool, executionHints: { discovery: "help" as const } };
@@ -243,7 +243,7 @@ async function readItem(
 	if (candidateSummary) item.role = "assistant";
 	const offset = boundedInteger(args.offset_chars, 0, item.content.length, 0);
 	const limit = boundedInteger(args.limit_chars, 8_000, 8_000, 0);
-	const content = item.content.slice(offset, offset + limit);
+	const content = contextTextSlice(item.content, offset, limit);
 	const nextOffset = offset + content.length;
 	return {
 		source: "sqlite",

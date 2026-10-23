@@ -67,6 +67,8 @@ The optional GPT mode broker, Pi terminal views, usage-ledger workers and Pi ses
 
 ## Shared integration
 
+The focused 2026-10-23 tool-quality correction against Pi Stuff `c332da87` is recorded in [Context evidence](parity/context.md#2026-10-23-tool-quality-correction). It covers failed-save rollover authority, bounded canonical Notes and History results, recoverable note paging and stable checkpoint guidance through the native Harness, V8 Code and Deno Notebook. It does not claim a new whole-tree alignment.
+
 Components register ordinary Durable tools. Code and Notebook must discover the same registrations automatically, including third-party tools. They must preserve validation, hooks, results, cancellation, and ownership without component-specific bridges.
 
 OpenAI Responses is the provider exception. It registers with the host's pi-ai Models collection and consumes the same ordinary tool declarations. It does not register a tool extension.

@@ -63,14 +63,15 @@ export function createNestedToolTask(name: string) {
 				const agent = await runtime.agent(context);
 				const tool = agent.callable.find((each) => each.name === call.name);
 				if (tool === undefined || readToolContract(tool).nativeOnly)
-					return settle(
+					return reject(
 						runtime,
 						call,
 						executionError(
 							"tool_unavailable",
 							`Tool ${call.name} is not available`,
 						),
-						"completed",
+						agent,
+						tool,
 						context,
 					);
 				let args: JsonObject;
@@ -100,11 +101,12 @@ export function createNestedToolTask(name: string) {
 					)
 						call.arguments = args;
 				} catch (error) {
-					return settle(
+					return reject(
 						runtime,
 						call,
 						executionError("invalid_arguments", errorText(error)),
-						"completed",
+						agent,
+						tool,
 						context,
 					);
 				}
@@ -126,21 +128,23 @@ export function createNestedToolTask(name: string) {
 					}
 				});
 				if (block !== undefined)
-					return settle(
+					return reject(
 						runtime,
 						call,
 						executionError("blocked", `Tool call blocked: ${block}`),
-						"completed",
+						agent,
+						tool,
 						context,
 					);
 				try {
 					args = checked(tool, call, args);
 				} catch (error) {
-					return settle(
+					return reject(
 						runtime,
 						call,
 						executionError("invalid_arguments", errorText(error)),
-						"completed",
+						agent,
+						tool,
 						context,
 					);
 				}
@@ -219,6 +223,27 @@ export function createNestedToolTask(name: string) {
 	});
 }
 
+/** Rejected nested calls have no model round for afterTools; notify tool hooks here. */
+async function reject(
+	runtime: Runtime,
+	call: ToolCall,
+	result: ToolExecutionResult,
+	agent: Agent,
+	tool: ToolRegistration | undefined,
+	context: Context,
+): Promise<void> {
+	await eachHook(agent, "afterTool", runtime, async (handler) => {
+		result = (await handler(call, result, runtime, context)) ?? result;
+	});
+	await settle(
+		runtime,
+		call,
+		finishResult(tool, call.name, result),
+		"completed",
+		context,
+	);
+}
+
 async function run(
 	runtime: Runtime,
 	call: ToolCall,
@@ -265,21 +290,41 @@ async function run(
 			],
 		};
 	}
-	if (invocation !== undefined) final = boundResult(final, invocation.limits);
+	final = finishResult(tool, call.name, final);
 	try {
-		if (tool.structuredOutputSchema === undefined) {
+		await settle(runtime, call, final, ending, context);
+		for (const waiter of finished?.pending ?? []) waiter.resolve();
+	} catch (error) {
+		for (const waiter of finished?.pending ?? []) waiter.reject(error);
+		throw error;
+	}
+}
+
+/** Executed and rejected hook results cross the same output and schema boundary. */
+function finishResult(
+	tool: ToolRegistration | undefined,
+	name: string,
+	result: ToolExecutionResult,
+): ToolExecutionResult {
+	let final = boundResult(result, {
+		maxBytes: tool?.outputLimits?.maxBytes ?? 50 * 1024,
+		maxLines: tool?.outputLimits?.maxLines ?? 2_000,
+		retain: tool?.outputLimits?.retain ?? "head",
+	});
+	try {
+		if (tool?.structuredOutputSchema === undefined) {
 			if (final.structuredOutput !== undefined)
 				throw new Error(
-					`Tool ${tool.name} returned structuredOutput but declares no structuredOutputSchema`,
+					`Tool ${name} returned structuredOutput but declares no structuredOutputSchema`,
 				);
 		} else if (final.structuredOutput === undefined) {
 			if (!final.isError)
-				throw new Error(`Tool ${tool.name} returned no structuredOutput`);
+				throw new Error(`Tool ${name} returned no structuredOutput`);
 		} else if (
 			!Compile(tool.structuredOutputSchema).Check(final.structuredOutput)
 		) {
 			throw new Error(
-				`Tool ${tool.name} returned structuredOutput that does not match its schema`,
+				`Tool ${name} returned structuredOutput that does not match its schema`,
 			);
 		}
 	} catch (error) {
@@ -297,11 +342,5 @@ async function run(
 			],
 		};
 	}
-	try {
-		await settle(runtime, call, final, ending, context);
-		for (const waiter of finished?.pending ?? []) waiter.resolve();
-	} catch (error) {
-		for (const waiter of finished?.pending ?? []) waiter.reject(error);
-		throw error;
-	}
+	return final;
 }

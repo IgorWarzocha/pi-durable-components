@@ -23,6 +23,35 @@ const NOTES_ACTIONS = [
 /** Own the native output budget so discovery can reject oversize JSON before truncation. */
 export const contextOutputLimits = { maxBytes: 50 * 1024, maxLines: 2_000 };
 
+/** Keep UTF-16 offsets without splitting a Unicode character across JSON/IPC pages. */
+export function contextTextSlice(
+	text: string,
+	offset: number,
+	limit: number,
+): string {
+	if (offset > 0 && (text.codePointAt(offset - 1) ?? 0) > 0xffff)
+		throw new Error(
+			"offset_chars splits a Unicode character; reduce it by one",
+		);
+	let end = offset + limit;
+	if (limit > 0 && (text.codePointAt(end - 1) ?? 0) > 0xffff) end++;
+	return text.slice(offset, end);
+}
+
+/** One bounded value for model text and programs; full read metadata stays host-side. */
+export function contextToolResult(result: JsonObject) {
+	const text = JSON.stringify(result);
+	if (Buffer.byteLength(text, "utf8") > contextOutputLimits.maxBytes)
+		throw new Error(
+			"Context result exceeds 50 KiB. Reduce list/search limits or narrow the path prefix; read notes with read_file and history with read_item using limit_chars/offset_chars. If a single metadata record is too large, ask the host to inspect it.",
+		);
+	return {
+		output: [{ type: "text" as const, text }],
+		structuredOutput: result,
+		details: result,
+	};
+}
+
 export function contextHelpText(help: JsonObject): string {
 	const text = JSON.stringify(help);
 	if (new TextEncoder().encode(text).byteLength > contextOutputLimits.maxBytes)
@@ -81,7 +110,6 @@ export const notesParameters = Type.Object(
 		action: Type.Optional(
 			Type.Union(NOTES_ACTIONS.map((action) => Type.Literal(action))),
 		),
-		content: Type.Optional(Type.String()),
 		target,
 		agent_name: Type.Optional(nullableString),
 		file_order: Type.Optional(
@@ -104,6 +132,8 @@ export const notesParameters = Type.Object(
 		recent_file_first: Type.Optional(Type.Boolean()),
 		start_line: Type.Optional(Type.Union([Type.Integer(), Type.Null()])),
 		stop_line: Type.Optional(Type.Union([Type.Integer(), Type.Null()])),
+		limit_chars: Type.Optional(positiveInteger),
+		offset_chars: Type.Optional(Type.Integer({ minimum: 0 })),
 		text: Type.Optional(Type.String()),
 	},
 	{ additionalProperties: false },
@@ -113,7 +143,18 @@ export type NotesArguments = Static<typeof notesParameters>;
 export type HistoryArguments = Static<typeof historyParameters>;
 
 export function prepareNotesArguments(input: unknown): NotesArguments {
-	const args = input === undefined ? {} : input;
+	let args = input === undefined ? {} : input;
+	if (
+		args !== null &&
+		typeof args === "object" &&
+		!Array.isArray(args) &&
+		"action" in args &&
+		(args.action === "write_file" || args.action === "append_to_file") &&
+		"content" in args
+	) {
+		const { content, ...rest } = args;
+		args = { ...rest, text: "text" in rest ? rest.text : content };
+	}
 	if (!Check(notesParameters, args))
 		throw new Error("Supply valid notes arguments; omit arguments for help");
 	return args;
@@ -134,7 +175,7 @@ const notesFields = {
 		"max_results",
 		"prefix",
 	],
-	read_file: ["path", "start_line", "stop_line"],
+	read_file: ["path", "start_line", "stop_line", "limit_chars", "offset_chars"],
 	search_contents: [
 		"max_files",
 		"max_matches_per_file",
@@ -171,11 +212,6 @@ const historyFields = {
 
 export function normalizeNotesArguments(args: NotesArguments): NotesArguments {
 	const normalized = { ...args };
-	if (args.action === "write_file" || args.action === "append_to_file") {
-		if (normalized.text === undefined && normalized.content !== undefined)
-			normalized.text = normalized.content;
-		delete normalized.content;
-	}
 	if (args.action === "list_files_by_prefix") {
 		if (
 			normalized.max_results === undefined &&
@@ -219,6 +255,8 @@ export function contextToolHelp(
 					usage: '{ "action": "read_file", "path": "checkpoint" }',
 					ranges:
 						"start_line/stop_line inclusive, 1-based; negative counts from end; 0/null/omitted uses first/last line; out-of-range clamps; reversed range returns empty content",
+					paging:
+						"read_file returns up to 8000 characters of the selected lines; continue with next_offset_chars and the same line range. Search line previews are capped at 1000 characters; read_file retrieves the full line",
 					defaults:
 						"list max_results 20; search max_files/max_matches_per_file 20; positive limits capped at 100; list name ascending; search name ascending, recent_file_first sorts created_at descending",
 				}
