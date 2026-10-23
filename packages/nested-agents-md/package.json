@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-nested-agents-md",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"description": "Scoped AGENTS.md guidance with lazy nested discovery",
 	"type": "module",
 	"license": "MIT",

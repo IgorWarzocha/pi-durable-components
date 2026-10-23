@@ -66,6 +66,8 @@ One independent review found a missed native nested-call failure, late invalidat
 
 Repository validation passed lint, all 23 builds, strict TypeScript, Knip, all 28 retained workflows and all 23 dry-packs. The initial umbrella run timed out in the existing Code output-delivery fixture, which uses neither Context nor nested tools. Its unchanged focused rerun and the subsequent complete test run passed. No timeout or assertion was weakened.
 
+The headless presentation follow-up preserves `total_chars` and `next_offset_chars` from those same note results, validates continuation bounds and still accepts older snapshots without the fields. A disposable real Harness and MemoryStorage probe reproduced the missing metadata on a 9,000-character note before the fix. After the fix, presentation-driven reads reconstructed both that note and a selected line with a Unicode character at the page boundary. Empty and end-of-range pages, older snapshots and invalid continuation metadata were also checked. No permanent tests were added.
+
 ## Evidence
 
 The follow-up disposable SQLite/Harness probe captured actual provider requests and tool help, performed native overflow compaction, and verified that the same window UUID, persistent-notes guidance and missing-checkpoint recovery guidance survived. The shortened host-checkpoint request still saved notes and completed a native rollover. Existing checkpoint and toolkit fixtures' model triggers were updated for the new wording, without adding tests. The first gate exposed the toolkit fixture's old continuation string; it was a scripted model trigger, not a runtime state-loss failure. The final `bun run check` passed all 28 workflows, twenty-one builds and dry-pack checks, lint, strict TypeScript and Knip.

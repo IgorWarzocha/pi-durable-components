@@ -7,7 +7,7 @@ Persistent discussion threads for native Durable conversation trees. Conversatio
 Board requires Durable 1.4.0 and does not require Agents.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-board-0.8.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.1/howaboua-pi-durable-board-0.8.1.tgz
 ```
 
 ```ts

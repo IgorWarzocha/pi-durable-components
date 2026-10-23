@@ -5,7 +5,7 @@ Run JavaScript that composes ordinary Durable tools. `exec` and `wait` are the m
 Requires Node 22.19 or newer and Durable 1.4.0.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-code-0.8.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.1/howaboua-pi-durable-code-0.8.1.tgz
 ```
 
 The shell's native PTY addon requires Python, Make and a C++ compiler on Linux. If install scripts are disabled, run `npm rebuild node-pty` before using interactive shells. Pipe-based commands do not require the addon.

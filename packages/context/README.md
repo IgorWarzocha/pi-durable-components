@@ -5,7 +5,7 @@ Continue long conversations through saved notes and clean context windows. Notes
 Requires Node 22.19 or newer and Durable 1.4.0.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.0/howaboua-pi-durable-context-0.8.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.1/howaboua-pi-durable-context-0.8.1.tgz
 ```
 
 ## Connect your host
@@ -111,6 +111,6 @@ A window change preserves the conversation ID and live Code or Notebook runtime.
 
 The browser-safe `@howaboua/pi-durable-context/presentation` entry provides validated host snapshots and pure summary and detail selectors, structurally compatible with `UiCapability` and `UiPresentation`. It does not import the UI runtime.
 
-`contextCapability`, `contextSummaryPresentation` and `contextDetailPresentation` describe virtual notes. Populate `files` from `notes` with `list_files_by_prefix`. Populate nullable `detail` from the `file` returned by `read_file`. Counts and bytes describe only the supplied inventory, which can be bounded. Detail retains the returned line range and total line count. This is not `management.status` or the component's persisted rollover state.
+`contextCapability`, `contextSummaryPresentation` and `contextDetailPresentation` describe virtual notes. Populate `files` from `notes` with `list_files_by_prefix`. Populate nullable `detail` from the `file` returned by `read_file`. Counts and bytes describe only the supplied inventory, which can be bounded. Detail retains the returned line range, total line count and character-pagination metadata. `total_chars` is the UTF-16 length of the selected lines. When `next_offset_chars` is present, pass it as `offset_chars` to `read_file` with the same path and line range to retrieve the next page. Both fields remain optional for older snapshots. This is not `management.status` or the component's persisted rollover state.
 
 Keep `detail: null` until the host acquires it. Detail must match an item in the supplied inventory. Refresh or clear detail when replacing that inventory. These snapshots are presentation data, not a replacement storage model or raw tool-result envelope. The host owns selection, freshness, binding, authorization and native controls. Summary requests identify a detail presentation but do not fetch data. Declared actions name the existing ordinary `notes` registration. Invoke it with its unchanged arguments and results through a host-authorized binding. No streams, transport adapters or additional lifecycle are introduced.

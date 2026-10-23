@@ -10,6 +10,10 @@ export interface ContextPresentationState {
 	detail:
 		| (ContextNoteItem & {
 				content: string;
+				/** UTF-16 length of the selected lines, before character paging. */
+				total_chars?: number;
+				/** Continue with offset_chars and the same line range. */
+				next_offset_chars?: number;
 				start_line: number;
 				stop_line: number;
 				total_lines: number;
@@ -75,6 +79,18 @@ export function parseContextPresentationState(
 			stop_line,
 			total_lines: integer(item["total_lines"], 1),
 		};
+		if (item["total_chars"] !== undefined)
+			detail.total_chars = integer(item["total_chars"], detail.content.length);
+		if (item["next_offset_chars"] !== undefined) {
+			const next = integer(item["next_offset_chars"], 1);
+			if (
+				detail.total_chars === undefined ||
+				next >= detail.total_chars ||
+				next < detail.content.length
+			)
+				throw new TypeError("Invalid note character continuation");
+			detail.next_offset_chars = next;
+		}
 		const metadata = files.find((file) => file.path === detail?.path);
 		if (
 			!metadata ||
