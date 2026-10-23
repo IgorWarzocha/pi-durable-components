@@ -186,6 +186,14 @@
         "@modelcontextprotocol/sdk": "1.25.2",
       },
     },
+    "packages/nested-agents-md": {
+      "name": "@howaboua/pi-durable-nested-agents-md",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "@earendil-works/chord": "1.4.0",
+        "@earendil-works/pi-durable": "1.4.0",
+      },
+    },
     "packages/notebook": {
       "name": "@howaboua/pi-durable-notebook",
       "version": "0.7.1",
@@ -215,14 +223,6 @@
       "peerDependencies": {
         "@earendil-works/pi-ai": "1.4.0",
         "@modelcontextprotocol/sdk": "1.25.2",
-      },
-    },
-    "packages/project-instructions": {
-      "name": "@howaboua/pi-durable-project-instructions",
-      "version": "0.1.0",
-      "peerDependencies": {
-        "@earendil-works/chord": "1.4.0",
-        "@earendil-works/pi-durable": "1.4.0",
       },
     },
     "packages/pulses": {
@@ -505,11 +505,11 @@
 
     "@howaboua/pi-durable-imagegen": ["@howaboua/pi-durable-imagegen@workspace:packages/imagegen"],
 
+    "@howaboua/pi-durable-nested-agents-md": ["@howaboua/pi-durable-nested-agents-md@workspace:packages/nested-agents-md"],
+
     "@howaboua/pi-durable-notebook": ["@howaboua/pi-durable-notebook@workspace:packages/notebook"],
 
     "@howaboua/pi-durable-openai-responses": ["@howaboua/pi-durable-openai-responses@workspace:packages/openai-responses"],
-
-    "@howaboua/pi-durable-project-instructions": ["@howaboua/pi-durable-project-instructions@workspace:packages/project-instructions"],
 
     "@howaboua/pi-durable-pulses": ["@howaboua/pi-durable-pulses@workspace:packages/pulses"],
 

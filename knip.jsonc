@@ -64,7 +64,7 @@
 			"entry": [],
 			"project": ["src/**/*.ts"]
 		},
-		"packages/project-instructions": {
+		"packages/nested-agents-md": {
 			"entry": [],
 			"project": ["src/**/*.ts"]
 		},

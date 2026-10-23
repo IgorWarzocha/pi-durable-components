@@ -1,13 +1,13 @@
-# Project instructions
+# Nested AGENTS.md
 
 Load project guidance from the conversation's filesystem environment. Cwd ancestors are available immediately. Nested guidance appears on the next model request after a structured file operation reaches that scope, without scanning the repository or delaying a write for instructions.
 
 Install the package alongside Chord and Pi Durable 1.4.0. Install and select its extension in the same way as ordinary Durable extensions:
 
 ```ts
-import { createProjectInstructions } from "@howaboua/pi-durable-project-instructions";
+import { createNestedAgentsMd } from "@howaboua/pi-durable-nested-agents-md";
 
-const instructions = createProjectInstructions();
+const instructions = createNestedAgentsMd();
 registry.install(instructions);
 ```
 

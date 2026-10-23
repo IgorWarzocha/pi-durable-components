@@ -1,7 +1,7 @@
 {
-	"name": "@howaboua/pi-durable-project-instructions",
+	"name": "@howaboua/pi-durable-nested-agents-md",
 	"version": "0.1.0",
-	"description": "Environment-scoped project instructions with lazy nested discovery",
+	"description": "Scoped AGENTS.md guidance with lazy nested discovery",
 	"type": "module",
 	"license": "MIT",
 	"author": "Igor Warzocha",

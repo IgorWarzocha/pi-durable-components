@@ -9,7 +9,7 @@ import {
 import { type ExecutionEnv, getOrThrow } from "@earendil-works/pi-durable/env";
 
 const Scopes = defineDoc<{ environments: Record<string, string[]> }>({
-	kind: "howaboua.project-instructions.scopes",
+	kind: "howaboua.nested-agents-md.scopes",
 	version: 1,
 	scope: "conversation",
 	history: "rewindable",
@@ -93,7 +93,7 @@ async function remember(
 }
 
 /** Read scoped project guidance in the conversation's execution environment. */
-export function createProjectInstructions(
+export function createNestedAgentsMd(
 	options: { fileNames?: readonly string[] } = {},
 ) {
 	const names = [...new Set(options.fileNames ?? ["AGENTS.md"])];
@@ -118,8 +118,8 @@ export function createProjectInstructions(
 						// A completed file operation must never become a retryable failure.
 						api.diagnostic({
 							severity: "warn",
-							code: "project-instructions",
-							message: `Project instruction discovery failed: ${String(error)}`,
+							code: "nested-agents-md",
+							message: `Nested AGENTS.md discovery failed: ${String(error)}`,
 						});
 					}
 					return result;
@@ -128,10 +128,10 @@ export function createProjectInstructions(
 		}),
 	);
 	return defineExtension({
-		name: "howaboua.project-instructions",
+		name: "howaboua.nested-agents-md",
 		wraps,
 		sections: [
-			section("project-instructions", async (input, context) => {
+			section("nested-agents-md", async (input, context) => {
 				const env = input.env;
 				if (!env) return undefined;
 				const state = await input.read.snapshot(
