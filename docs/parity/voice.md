@@ -51,3 +51,35 @@ Independent review found that arrival failure before channel-link construction l
 Live xAI and Codex entitlement, microphone permissions, acoustic behavior, device compatibility, LAN access and non-Linux execution remain unverified. Artifact integrity and offline lifecycle checks do not establish those external boundaries. Final package integration validation is recorded in the root parity report.
 
 Both emitted voice archives passed an isolated npm consumer's strict TypeScript check without `skipLibCheck`, including a single lease typed for both products, and imported without starting audio or network activity. That consumer pinned AWS and Smithy transitive versions to the repository's existing lock. Unconstrained npm resolution was blocked by an upstream dependency requesting the unpublished `@aws-sdk/credential-provider-http@^3.972.75`. No repository override or upstream patch was introduced to mask that registry failure.
+
+## PR #552 refresh
+
+Traced read-only Pi Stuff `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`. GipPity call setup now requests `gpt-live-1.1-codex`. The source's summary projection moves from Conversion-owned tree projection to the Notes public projection. Native summaries already consume `conversation.context()`, including native replacement summaries, and key their bounded cache by effective text, head, model and reasoning. They re-read that projection before caching and reject changed history rather than caching stale output.
+
+`GippityVoiceControls.refreshContext(signal?)` is the explicit host boundary for refreshing an active call before retiring its outgoing context window. It serialises with voice controls, follows the active `refreshRealtimeAfterCompaction` setting, forces a fresh summary and honours cancellation. The host must await it before cutting the head. Existing native `compaction_end` handling still waits for the completed compaction submission before refreshing. Summary failure retains the established call and reports the error. Replacement failure stops the owned session rather than silently falling back. Context owns rollover admission and saved-note projection, not a voice-specific bridge. This does not claim parity with Pi's in-flight speech drain or held-delegation refresh machinery.
+
+Grok now carries the source `stay_quiet` function, reserved-name rejection and quiet-turn timer. A quiet receipt does not demand speech. A configured silence interval can reconsider it, while muting, agent work, new context, speech and teardown cancel stale timers. Landed-update receipts no longer include a redundant timestamp. The session retains its existing actual-socket teardown and native task ownership. Dictation has no behavioural delta in this source range. GipPity's prompt changes are whitespace only, so no user or bundled voice prompt was rewritten.
+
+A disposable probe exercised the production Grok session against an actual loopback WebSocket server. It verified quiet-tool advertisement and receipt, no immediate continuation, delayed reconsideration, mute cancellation, timestamp-free landed context and joined teardown. It also checked the actual GipPity call-request builder selects live 1.1. Focused Biome and diff-whitespace checks passed. No permanent tests, provider calls or audio devices were added. Active GipPity rollover replacement remains source-reviewed rather than newly runtime-validated. The root coordinator owns Context composition and the final repository gate.
+
+Both voice options accept `projectContext({ conversationId, view }, context): Promise<ContextView>`. This explicit, host-owned projection can restore authorised retained checkpoint messages or add saved notes before summarisation. It runs only with context export enabled and a context model selected. GipPity repeats the projection before caching, so a changed saved note invalidates the in-flight summary. Callback failure remains visible and never falls back to incomplete native history. Neither voice package imports Context or reads a private checkpoint store.
+
+For a host composing Context notes, the callback can use its authorised storage view:
+
+```ts
+async projectContext({ conversationId, view }, context) {
+  const notes = await readSavedNotes(storage, conversationId, context);
+  if (!notes.length) return view;
+  return {
+    ...view,
+    messages: [{
+      role: "user",
+      content: `Saved continuity notes, background history only:\n${notes
+        .map(note => `${note.path}\n${note.text}`).join("\n\n")}`,
+      timestamp: 0,
+    }, ...view.messages],
+  };
+}
+```
+
+The host imports `readSavedNotes` from Context, selects the authorised conversation and enforces its own export size policy. This notes composition is not a reconstruction of the source's archived tree ancestry. Hosts that retain checkpoint messages can provide those through the same projection instead. Focused strict TypeScript passed for both voice public entries and Board. This does not add live-provider or active-call acceptance.

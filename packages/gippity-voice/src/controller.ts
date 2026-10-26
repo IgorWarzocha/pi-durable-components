@@ -1,10 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type { Context } from "@earendil-works/chord";
-import { awaitWithContext } from "@earendil-works/chord/context";
+import {
+	awaitWithContext,
+	withAbortSignal,
+} from "@earendil-works/chord/context";
 import {
 	type AgentEvent,
 	type AgentEventStream,
 	type CompactionResult,
+	type ContextView,
 	type Conversation,
 	type ConversationId,
 	defineExtension,
@@ -95,6 +99,11 @@ interface GippityVoiceBaseOptions {
 	/** Explicit instruction content, supplied by the app; no ambient prompt files. */
 	instructions: string;
 	allowContextSummary?: boolean;
+	/** Project authorised retained checkpoints or saved notes into the voice history. */
+	projectContext?(
+		request: { conversationId: ConversationId; view: ContextView },
+		context: Context,
+	): Promise<ContextView>;
 	/** Explicit provider proxy environment. Never passed to the audio helper or browser. */
 	providerEnv?: Record<string, string>;
 	lan?: GippityLanPermission;
@@ -539,26 +548,40 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			context,
 		);
 	}
-	async function prepareSummary(signal: AbortSignal, settings = config) {
+	async function prepareSummary(
+		signal: AbortSignal,
+		settings = config,
+		force = false,
+	) {
 		const { runtime, conversation, context } = requireRuntime();
 		if (settings.voice.contextModel && !options.allowContextSummary)
 			throw new Error(
 				"Context summary export requires explicit host permission",
 			);
-		const view = await conversation.context(context);
+		const project = async () => {
+			const view = await conversation.context(context);
+			return options.projectContext && settings.voice.contextModel
+				? options.projectContext(
+						{ conversationId: runtime.conversationId, view },
+						withAbortSignal(signal, context),
+					)
+				: view;
+		};
+		const view = await project();
 		const input = voiceContextSummaryInput(
 			runtime.conversationId,
 			view,
 			settings,
 		);
 		if (input) signal.throwIfAborted();
-		const cached = input ? contextSummaryCache.get(input.key) : undefined;
+		const cached =
+			input && !force ? contextSummaryCache.get(input.key) : undefined;
 		const result =
 			cached ??
 			(input
 				? await summarizeVoiceContext(runtime.models, settings, input, signal)
 				: undefined);
-		const latest = await conversation.context(context);
+		const latest = await project();
 		const boundary = (entries: typeof view.entries) =>
 			entries.findLast(
 				(entry) =>
@@ -744,7 +767,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			}
 		});
 	}
-	async function refreshContext() {
+	async function refreshContext(signal?: AbortSignal) {
 		if (!session || !peerFactory || !activeConfig || !startAbort || !runtime)
 			return;
 		const previous = session;
@@ -758,16 +781,21 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			);
 			return;
 		}
-		const signal = AbortSignal.any([runtime.signal, startAbort.signal]);
+		const refreshSignal = AbortSignal.any([
+			runtime.signal,
+			startAbort.signal,
+			...(signal ? [signal] : []),
+		]);
 		// Summarization failure leaves the established call intact.
-		const prepared = await prepareSummary(signal, settings);
-		if (!prepared || session !== previous || signal.aborted) return;
+		const prepared = await prepareSummary(refreshSignal, settings, true);
+		if (!prepared || session !== previous) return;
+		refreshSignal.throwIfAborted();
 		await previous.close();
 		session = undefined;
 		try {
 			await openVoice(
 				factory,
-				signal,
+				refreshSignal,
 				settings,
 				prepared,
 				initialVoiceItems(prepared),
@@ -877,6 +905,11 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			conversationId = target;
 		},
 		startVoice,
+		/** Await before retiring a context window so voice can retain its outgoing history. */
+		async refreshContext(signal?: AbortSignal) {
+			if (!activeConfig?.voice.refreshRealtimeAfterCompaction) return;
+			await enqueue(() => refreshContext(signal));
+		},
 		async stopVoice() {
 			startEpoch += 1;
 			startAbort?.abort();

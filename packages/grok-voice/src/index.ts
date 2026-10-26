@@ -131,7 +131,10 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 		} else if (options.settings)
 			config = normalizeConfig(await options.settings.load(), config);
 	}
-	const prepareContext = createContextPreparer(options.allowContext === true);
+	const prepareContext = createContextPreparer(
+		options.allowContext === true,
+		options.projectContext,
+	);
 	const requests = new Map<string, Request>();
 	const lanRequests = new Map<string, Request>();
 	const cleanupFailures = new Map<string, Error>();

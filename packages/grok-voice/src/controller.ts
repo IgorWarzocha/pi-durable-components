@@ -86,7 +86,11 @@ export class VoiceCall {
 				!agent.callable.some((candidate) => candidate.name === tool.name)
 			)
 				continue;
-			if (["send_task", "end_the_call", "work_landed"].includes(tool.name))
+			if (
+				["send_task", "end_the_call", "stay_quiet", "work_landed"].includes(
+					tool.name,
+				)
+			)
 				throw new Error(`Reserved voice tool: ${tool.name}`);
 			if (config.webSearch && tool.name === "web_search")
 				throw new Error(

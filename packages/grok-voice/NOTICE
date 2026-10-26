@@ -1,3 +1,7 @@
+Applicable PR #552 changes adapted from howaboua-pi-stuff revision
+1338b66a1067c254fec46746ef96b6bd9456148b. TypeScript execution mode
+and QuickJS Notebook are excluded. See docs/parity for native adaptations.
+
 Grok voice protocol, browser audio and native audio helper adapted from
 @howaboua/pi-grok-realtime, copyright Igor Warzocha, MIT.
 Source: https://github.com/IgorWarzocha/howaboua-pi-stuff

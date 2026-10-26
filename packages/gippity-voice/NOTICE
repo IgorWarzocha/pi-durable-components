@@ -1,3 +1,7 @@
+Applicable PR #552 changes adapted from howaboua-pi-stuff revision
+1338b66a1067c254fec46746ef96b6bd9456148b. TypeScript execution mode
+and QuickJS Notebook are excluded. See docs/parity for native adaptations.
+
 GipPity voice is derived from packages/pi-gippity-control in
 https://github.com/IgorWarzocha/howaboua-pi-stuff
 at 69f50cf70e8a7b05c2349be6227f521b6504f80e (MIT, Igor Warzocha).

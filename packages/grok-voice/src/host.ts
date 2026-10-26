@@ -1,4 +1,5 @@
-import type { ConversationId } from "@earendil-works/pi-durable";
+import type { Context } from "@earendil-works/chord";
+import type { ContextView, ConversationId } from "@earendil-works/pi-durable";
 import type { ExecutionEnv } from "@earendil-works/pi-durable/env";
 import type { ClientOptions, WebSocket } from "ws";
 import type { SettingsStorage } from "../../../internal/settings/index.ts";
@@ -48,6 +49,11 @@ interface GrokVoiceBaseOptions {
 	config?: Partial<GrokRealtimeConfig>;
 	/** Explicit permission to export conversation context to the selected Models summarizer and xAI. */
 	allowContext?: boolean;
+	/** Project authorised retained checkpoints or saved notes into the voice history. */
+	projectContext?(
+		request: { conversationId: ConversationId; view: ContextView },
+		context: Context,
+	): Promise<ContextView>;
 	/** Additional global instructions; append to the built-in prompt, never replace it. */
 	prompt?(
 		environment: ExecutionEnv | undefined,

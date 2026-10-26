@@ -2,6 +2,7 @@ import type { Context } from "@earendil-works/chord";
 import { normalizeContext } from "@earendil-works/pi-ai";
 import type { TaskRuntime } from "@earendil-works/pi-durable";
 import type { GrokRealtimeConfig } from "./config.ts";
+import type { GrokVoiceOptions } from "./host.ts";
 
 export type VoiceRuntime = TaskRuntime<
 	{ requestId: string; mode: "voice" | "dictation" },
@@ -11,7 +12,10 @@ export type VoiceRuntime = TaskRuntime<
 >;
 
 /** Instance-owned cache, never shared between Harnesses or conversations. */
-export function createContextPreparer(allowContext: boolean) {
+export function createContextPreparer(
+	allowContext: boolean,
+	projectContext?: GrokVoiceOptions["projectContext"],
+) {
 	let cached: { key: string; summary: string } | undefined;
 	return async (
 		runtime: VoiceRuntime,
@@ -20,7 +24,13 @@ export function createContextPreparer(allowContext: boolean) {
 	): Promise<string> => {
 		if (!allowContext || config.contextModel === "off") return "";
 		runtime.signal.throwIfAborted();
-		const view = await runtime.context(runtime.conversationId, context);
+		const nativeView = await runtime.context(runtime.conversationId, context);
+		const view = projectContext
+			? await projectContext(
+					{ conversationId: runtime.conversationId, view: nativeView },
+					context,
+				)
+			: nativeView;
 		// Never turn an opaque native checkpoint into an apparently complete history.
 		for (const entry of view.entries) {
 			const data = entry.data;
