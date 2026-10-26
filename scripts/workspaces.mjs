@@ -186,6 +186,19 @@ if (command === "test") {
 			);
 		}
 		await buildVoiceAssets(directory, manifest.name);
+		if (manifest.name === "@howaboua/pi-durable-context") {
+			await run(
+				[
+					"build",
+					join(directory, "src/history-search-worker.ts"),
+					"--target=node",
+					"--format=esm",
+					"--packages=external",
+					`--outfile=${join(directory, "dist/history-search-worker.js")}`,
+				],
+				"bun",
+			);
+		}
 	}
 } else {
 	const artifacts = [];
@@ -238,6 +251,9 @@ if (command === "test") {
 			...(manifest.name === "@howaboua/pi-durable-worker-code"
 				? ["dist/quickjs.wasm", "dist/QUICKJS-LICENSE"]
 				: []),
+			...(manifest.name === "@howaboua/pi-durable-context"
+				? ["dist/history-search-worker.js"]
+				: []),
 		]) {
 			if (!paths.has(required.replace(/^\.\//, "")))
 				throw new Error(`${manifest.name} tarball is missing ${required}`);
@@ -282,6 +298,8 @@ if (command === "test") {
 					"Browser worker is missing its deployment ownership marker",
 				);
 		}
+		if (manifest.name === "@howaboua/pi-durable-context")
+			expectedJavaScript.add("dist/history-search-worker.js");
 		const actualJavaScript = [...paths].filter((path) => path.endsWith(".js"));
 		if (
 			actualJavaScript.length !== expectedJavaScript.size ||

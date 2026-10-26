@@ -1,6 +1,11 @@
 // Adapted from pi-codex-conversion, Copyright (c) 2026 Igor Warzocha, MIT.
 import type { Message } from "@earendil-works/pi-ai";
-import type { EntryRecord, JsonObject } from "@earendil-works/pi-durable";
+import {
+	AssistantEntry,
+	type EntryRecord,
+	type JsonObject,
+	UserEntry,
+} from "@earendil-works/pi-durable";
 import { contextTextSlice, type HistoryArguments } from "./tool-contract.ts";
 
 export type HistoryItem = {
@@ -136,4 +141,18 @@ export function boundedPreviews(items: readonly JsonObject[]): JsonObject[] {
 		size += previewSize;
 	}
 	return result;
+}
+
+/** Ranking excludes reasoning, tool calls/results and system content entirely. */
+export function rankedHistoryText(entry: EntryRecord): string {
+	if (!UserEntry.is(entry) && !AssistantEntry.is(entry)) return "";
+	return (entry.model ?? [])
+		.flatMap((message) => {
+			if (message.role !== "user" && message.role !== "assistant") return [];
+			if (typeof message.content === "string") return [message.content];
+			return message.content.flatMap((block) =>
+				block.type === "text" ? [block.text] : [],
+			);
+		})
+		.join("\n");
 }

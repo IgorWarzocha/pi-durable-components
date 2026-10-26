@@ -39,7 +39,10 @@ export function contextTextSlice(
 }
 
 /** One bounded value for model text and programs; full read metadata stays host-side. */
-export function contextToolResult(result: JsonObject) {
+export function contextToolResult(
+	result: JsonObject,
+	details: JsonObject = result,
+) {
 	const text = JSON.stringify(result);
 	if (Buffer.byteLength(text, "utf8") > contextOutputLimits.maxBytes)
 		throw new Error(
@@ -48,7 +51,7 @@ export function contextToolResult(result: JsonObject) {
 	return {
 		output: [{ type: "text" as const, text }],
 		structuredOutput: result,
-		details: result,
+		details,
 	};
 }
 
@@ -226,6 +229,7 @@ export function normalizeNotesArguments(args: NotesArguments): NotesArguments {
 export function contextToolHelp(
 	namespace: "notes" | "history",
 	args: NotesArguments | HistoryArguments,
+	rankedHistory = false,
 ) {
 	if (Object.keys(args).length && args.action !== "help") return undefined;
 	if (Object.keys(args).some((key) => key !== "action"))
@@ -263,6 +267,9 @@ export function contextToolHelp(
 			: {
 					usage:
 						"Search earlier conversation, don't browse it. Pass returned IDs unchanged",
+					search: rankedHistory
+						? "Own earlier conversation: user/assistant visible text, all keywords, case/accent-insensitive, relevance order. Explicit live/tool/metadata scopes or agent_name: case-sensitive literal substring. list/read retain the full transcript. recent_first=true uses newest first"
+						: "Case-sensitive literal substring. recent_first=true uses newest first",
 				}),
 	};
 }

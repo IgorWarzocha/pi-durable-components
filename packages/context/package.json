@@ -11,6 +11,10 @@
 	"main": "./dist/index.js",
 	"types": "./dist/packages/context/src/index.d.ts",
 	"exports": {
+		"./node": {
+			"types": "./dist/packages/context/src/node.d.ts",
+			"import": "./dist/node.js"
+		},
 		"./presentation": {
 			"types": "./dist/packages/context/src/presentation.d.ts",
 			"import": "./dist/presentation.js"

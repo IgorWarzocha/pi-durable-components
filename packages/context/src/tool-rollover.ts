@@ -8,10 +8,16 @@ import {
 	InboxDoc,
 	LiveDoc,
 	type TaskId,
+	type Tx,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 import { type ContextHost, conversation, foreignTasks } from "./lifecycle.ts";
 import { notesAreFresh } from "./note-store.ts";
+import {
+	type BeforeRollover,
+	latestContextEntry,
+	prepareRollover,
+} from "./rollover-preparation.ts";
 import {
 	WindowEntry,
 	type WindowIdentity,
@@ -36,6 +42,7 @@ export function createToolRollover(
 	now: () => number,
 	policy: {
 		newContextRequests: "off" | "pi-limits" | "unrestricted";
+		beforeRollover?: BeforeRollover | undefined;
 		hasEligibleContextHistory?: (
 			conversationId: ConversationId,
 			context: Context,
@@ -125,16 +132,16 @@ export function createToolRollover(
 				const pending = await api.snapshot(ToolWindow, api.taskId, context);
 				if (!pending?.request || pending.finished) return;
 				const conv = await conversation(host(), api.conversationId, context);
-				await conv.commit(async (tx) => {
+				const ready = async (tx: Tx) => {
 					const receipt = await tx.doc(ToolWindow, api.taskId);
-					if (!receipt.request || receipt.finished) return;
+					if (!receipt.request || receipt.finished) return false;
 					const live = await tx.doc(LiveDoc, api.conversationId);
 					const inbox = await tx.doc(InboxDoc, api.conversationId);
 					const state = await tx.doc(WindowState, api.conversationId);
 					const slot = live.tools?.[0];
 					const generation = await tx.task(api.taskId);
 					// Only this paused generation may be live. The completed round is cut as a whole.
-					const safe =
+					return (
 						live.run?.taskId === api.taskId &&
 						!generation?.abortRequested &&
 						live.tools?.length === 1 &&
@@ -147,7 +154,32 @@ export function createToolRollover(
 						(await notesAreFresh(tx, api.conversationId)) &&
 						(await foreignTasks(tx, api.conversationId)).every(
 							(id) => id === api.taskId,
-						);
+						)
+					);
+				};
+				const preparation = await prepareRollover(
+					conv,
+					api.taskId,
+					policy.beforeRollover,
+					{
+						conversationId: api.conversationId,
+						windowId: pending.request.window.previous ?? "",
+						nextWindowId: pending.request.window.id,
+						reason: "tool",
+					},
+					ready,
+					context,
+				);
+				await conv.commit(async (tx) => {
+					const receipt = await tx.doc(ToolWindow, api.taskId);
+					if (!receipt.request || receipt.finished) return;
+					const state = await tx.doc(WindowState, api.conversationId);
+					const safe =
+						!preparation.error &&
+						(await ready(tx)) &&
+						(preparation.head === undefined ||
+							preparation.head ===
+								(await latestContextEntry(tx, api.conversationId)));
 					receipt.finished = true;
 					if (safe) {
 						const window = { ...receipt.request.window, startedAt: now() };
@@ -171,7 +203,8 @@ export function createToolRollover(
 								role: "system",
 								content: safe
 									? "Read your saved notes and resume the task."
-									: "Context rollover was skipped because the conversation changed or foreground work is still running. The window is unchanged. Save fresh notes and retry new_context after that work settles.",
+									: (preparation.error ??
+										"Context rollover was skipped because the conversation changed or foreground work is still running. The window is unchanged. Save fresh notes and retry new_context after that work settles."),
 								timestamp: now(),
 							},
 						],

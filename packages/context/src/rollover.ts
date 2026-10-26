@@ -24,6 +24,11 @@ import {
 } from "./lifecycle.ts";
 import { notesAreFresh } from "./note-store.ts";
 import {
+	type BeforeRollover,
+	latestContextEntry,
+	prepareRollover,
+} from "./rollover-preparation.ts";
+import {
 	latestUserEntry,
 	type TransitionResult,
 	WindowEntry,
@@ -90,7 +95,10 @@ async function completedFreshNotes(
 	return done;
 }
 
-export function createRollover(host: () => ContextHost) {
+export function createRollover(
+	host: () => ContextHost,
+	beforeRollover?: BeforeRollover,
+) {
 	return defineTask<RolloverInput, RolloverState, TransitionResult>({
 		name: ROLLOVER_TASK,
 		version: 1,
@@ -236,10 +244,7 @@ export function createRollover(host: () => ContextHost) {
 						tasks.map((id) => runtime.waitForTask(id, context)),
 					);
 				}
-				await runtime.commit(async (tx) => {
-					const idle = await nativeIdle(tx, task.conversationId);
-					const tasks = await foreignTasks(tx, task.conversationId);
-					const fresh = await notesAreFresh(tx, task.conversationId);
+				const ready = async (tx: Tx) => {
 					const state = await tx.doc(WindowState, task.conversationId);
 					const completed =
 						task.input.reason !== "idle" ||
@@ -248,18 +253,55 @@ export function createRollover(host: () => ContextHost) {
 								(await latestUserEntry(tx, task.conversationId)));
 					if (!state.window || state.transition !== task.id)
 						throw new Error("Context rollover lost its window claim");
-					if (!idle || tasks.length || !fresh || !completed) {
+					return (
+						completed &&
+						(await nativeIdle(tx, task.conversationId)) &&
+						(await foreignTasks(tx, task.conversationId)).length === 0 &&
+						(await notesAreFresh(tx, task.conversationId))
+					);
+				};
+				const current = await runtime.snapshot(
+					WindowState,
+					task.conversationId,
+					context,
+				);
+				const preparation = await prepareRollover(
+					conv,
+					task.id,
+					beforeRollover,
+					{
+						conversationId: task.conversationId,
+						windowId: current?.window?.id ?? "",
+						nextWindowId: task.input.windowId,
+						reason: task.input.reason,
+					},
+					ready,
+					context,
+				);
+				await runtime.commit(async (tx) => {
+					const safe =
+						!preparation.error &&
+						(await ready(tx)) &&
+						(preparation.head === undefined ||
+							preparation.head ===
+								(await latestContextEntry(tx, task.conversationId)));
+					const state = await tx.doc(WindowState, task.conversationId);
+					if (!safe || !state.window) {
 						delete state.transition;
 						return {
 							status: "terminal",
 							outcome: {
 								status: "completed",
 								result: {
-									status: task.input.reason === "idle" ? "skipped" : "failed",
+									status:
+										!preparation.error && task.input.reason === "idle"
+											? "skipped"
+											: "failed",
 									reason:
-										task.input.reason === "idle"
+										preparation.error ??
+										(task.input.reason === "idle"
 											? "Conversation changed before automatic context rollover"
-											: "Conversation changed before context rollover; retry after it settles",
+											: "Conversation changed before context rollover; retry after it settles"),
 								},
 							},
 						};

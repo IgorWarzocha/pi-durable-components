@@ -16,7 +16,9 @@ import {
 	ToolTask,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
+import { refreshRankedHistory } from "./history.ts";
 import { renderArchiveHistoryHint } from "./history-archive.ts";
+import type { RankedHistory } from "./history-ranker.ts";
 import {
 	beginNoteWrite,
 	notesAreFresh,
@@ -56,6 +58,7 @@ export function createContextPolicy(options: {
 	taskBoundaryReminderTokens: number;
 	newContextRequests: "off" | "pi-limits" | "unrestricted";
 	archiveHistory?: boolean;
+	rankedHistory?: RankedHistory | undefined;
 	host: () => { harness: Harness; storage: Storage };
 	now: () => number;
 	ensureWindow: (id: ConversationId, context: Context) => Promise<void>;
@@ -186,11 +189,23 @@ export function createContextPolicy(options: {
 		hook(GenerationTask, {
 			async beforeRequest(_request, api, context) {
 				await options.ensureWindow(api.conversationId, context);
+				if (options.rankedHistory)
+					await refreshRankedHistory(
+						await conversation(api.conversationId, context),
+						options.rankedHistory,
+						context,
+					);
 			},
 			async afterTools(_assistant, _results, api, context) {
 				await remind(api, context);
 			},
 			async onYield(answer, api, context) {
+				if (options.rankedHistory)
+					await refreshRankedHistory(
+						await conversation(api.conversationId, context),
+						options.rankedHistory,
+						context,
+					);
 				const text = await remind(api, context, answer);
 				return text ? { continue: text } : undefined;
 			},

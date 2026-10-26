@@ -10,6 +10,7 @@ import type {
 import { defineExtension } from "@earendil-works/pi-durable";
 import { createInput } from "./admission.ts";
 import { createHistoryTool } from "./history.ts";
+import type { RankedHistory } from "./history-ranker.ts";
 import {
 	Admission,
 	type ContextHost,
@@ -22,12 +23,15 @@ import { createNotesTool } from "./notes.ts";
 import { createContextPolicy } from "./policy.ts";
 import type { ContextRemoteCatalog } from "./remote.ts";
 import { createRollover, scheduleRollover } from "./rollover.ts";
+import type { BeforeRollover } from "./rollover-preparation.ts";
 import { createToolRollover } from "./tool-rollover.ts";
 import { WindowState } from "./window-state.ts";
 
+export type { HistoryRanker, RankedHistory } from "./history-ranker.ts";
 export type { InputResult } from "./lifecycle.ts";
 export { readSavedNotes, type SavedNote } from "./note-store.ts";
 export type { ContextRemoteCatalog } from "./remote.ts";
+export type { BeforeRollover } from "./rollover-preparation.ts";
 export type { TransitionResult, WindowIdentity } from "./window-state.ts";
 
 /** Policy for model-requested context windows. */
@@ -38,6 +42,10 @@ export function createContextManagement(options: {
 	models: Models;
 	/** Include retained fork branches and prioritise native summary search matches. Off by default. */
 	archiveHistory?: boolean;
+	/** Opt in to retired visible-text ranking with an explicit host-granted index. */
+	rankedHistory?: RankedHistory;
+	/** Await connected-service refresh before a window cut. Interrupted effects are not replayed. */
+	beforeRollover?: BeforeRollover;
 	/** Opt in to a host-owned stable family and agent namespace. No local fallback. */
 	remote?: ContextRemoteCatalog;
 	now?: () => number;
@@ -119,7 +127,7 @@ export function createContextManagement(options: {
 		const conv = await conversation(host(), id, context);
 		await conv.commit((tx) => initializeWindow(tx, id, now()), context);
 	};
-	const rollover = createRollover(host);
+	const rollover = createRollover(host, options.beforeRollover);
 	const input = createInput(host, rollover, idleMinutes * 60 * 1000);
 	const policy = createContextPolicy({
 		models: options.models,
@@ -129,6 +137,7 @@ export function createContextManagement(options: {
 		taskBoundaryReminderTokens,
 		newContextRequests,
 		archiveHistory: options.archiveHistory === true,
+		rankedHistory: options.rankedHistory,
 	});
 	const notes = createNotesTool({
 		now,
@@ -140,9 +149,11 @@ export function createContextManagement(options: {
 		storage: () => host().storage,
 		remote: options.remote,
 		archiveHistory: options.archiveHistory === true,
+		rankedHistory: options.rankedHistory,
 	});
 	const newContext = createToolRollover(host, now, {
 		newContextRequests,
+		beforeRollover: options.beforeRollover,
 		...(options.hasEligibleContextHistory === undefined
 			? {}
 			: { hasEligibleContextHistory: options.hasEligibleContextHistory }),

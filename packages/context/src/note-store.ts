@@ -12,6 +12,7 @@ import {
 	createSession,
 	defineDoc,
 	defineDocFamily,
+	GenerationTask,
 	ToolTask,
 } from "@earendil-works/pi-durable";
 import { latestUserEntry, WindowState } from "./window-state.ts";
@@ -147,6 +148,37 @@ export async function notesAreFresh(
 		state.lastWrite.windowId === window.window.id &&
 		state.lastWrite.userEntry === userEntry;
 	if (!fresh || !state.lastWrite) return false;
+	// A persisted nested write is not a completed checkpoint until its owning
+	// work settles successfully. The generation itself may still be continuing.
+	let owner: TaskId | undefined = state.lastWrite.taskId;
+	while (owner !== undefined) {
+		const task = await tx.task(owner);
+		if (!task) return false;
+		if (task.kind === GenerationTask.definition.name) break;
+		if (
+			task.abortRequested ||
+			task.state.status !== "terminal" ||
+			task.state.outcome.status !== "completed"
+		)
+			return false;
+		const result = task.state.outcome.result;
+		if (result && typeof result === "object" && !Array.isArray(result)) {
+			if (result["isError"] === true) return false;
+			if (task.kind === ToolTask.definition.name && "entryId" in result) {
+				const entryId = result["entryId"];
+				if (typeof entryId === "number") {
+					const entry = await tx.entry(entryId as EntryId);
+					if (
+						entry?.model?.some(
+							(message) => message.role === "toolResult" && message.isError,
+						)
+					)
+						return false;
+				}
+			}
+		}
+		owner = task.owner;
+	}
 	// Native prepare/block failures bypass tool hooks, including api.executeTool.
 	// A later admitted write needs its own successful receipt, not an older save.
 	let cursor;

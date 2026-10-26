@@ -1,6 +1,8 @@
 # Functionality parity
 
-The current audit covers all 23 existing packages against `howaboua-pi-stuff` at `12c4357b`. The original extraction used source `b2006db9` and Durable reference `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. This repository now pins Durable, pi-ai and Chord 1.4.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
+The latest refresh carries applicable changes from Pi Stuff [PR #552](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/552), pinned at `1338b66a1067c254fec46746ef96b6bd9456148b` against base `a06eae4d141fae421a8d0108a4a560013d6508a8`. TypeScript execution mode and QuickJS Notebook are explicitly deferred. The last whole-package audit covered all 23 existing packages at `12c4357b`.
+
+The original extraction used source `b2006db9` and Durable reference `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. This repository still pins Durable, pi-ai and Chord 1.4.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
 
 Tool arguments, outputs, errors, cancellation, state, and recovery are part of parity. Pi-specific TUI rendering and slash commands are not being shipped as a compatibility layer. Missing functionality must stay visible here until implemented and validated.
 
@@ -17,6 +19,16 @@ The source advanced during validation to `9cc01aa0d9c99d8121a1dfe77a3bf933952559
 The 2026-10-21 refresh compares that carried pin with source release commit `753e79b91bdeff23596f7bfb926cb1cffaafa344`. The inspected checkout at `3d0faf5a` adds only a generated Observatory changelog entry. The later merge `a06eae4d141fae421a8d0108a4a560013d6508a8` has the same tree. Component evidence records the applicable provider, execution, coordination, notes and skill changes. Observatory and Suggestions are new Pi-specific products outside the accepted component set. Browser changes only adjust its optional GPT wording, which remains excluded. The remaining accepted file, shell, web, image, voice, Sites and Guardian implementations have no applicable source changes in this range.
 
 The runtime upgrade uses published Durable, pi-ai and Chord 1.4.0, with upstream release reference `earendil-works/pi` at `4a080252f06caf63a525d7873c5d94d3c23887e0`. SQLite opening automatically migrates to schema version 2, which older Durable versions cannot reopen. Older runtimes also cannot resume sleeping tasks in JSONL. Hosts must upgrade their runtime and installed components together and plan recovery before opening existing storage. Components use native document checkpoint policies and durable sleep phases rather than patching upstream. New telemetry and client identity capabilities remain host-controlled.
+
+## PR #552 refresh
+
+Context adds opt-in BM25 search of retired visible conversation text through an explicit native index capability. Plaintext Notes and History results stay structured and lose storage bookkeeping, while host presentation metadata remains available. Freshness now rejects saves inside failed or unfinished owning work. A host callback can refresh connected services before rollover, with persisted interruption receipts and a fresh native safety check before the cut. [Context evidence](parity/context.md#pr-552-refresh) records these contracts and validation.
+
+Browser and Web expose their useful payloads as ordinary structured tool results, Sites unwraps its redundant envelope, Skills clarifies discovery and batch calls, and Board omits private catalogue identity. Existing Deno Notebook receives recovery messages and planned-reuse guidance, not the deferred TS runtime. GipPity uses `gpt-live-1.1-codex`, exposes awaited context refresh and accepts authorised host projection. Grok preserves quiet follow-ups without forcing speech. Component evidence records the exact changes and remaining host requirements.
+
+The Notes/PCC ownership split already matches native ownership here: Context owns notes, history and rollover, while OpenAI Responses owns transport and caching. Provider preparation, native replay and isolated keepalive have existing portable equivalents. Native retained entries and fork snapshots replace Pi JSONL, Tree manifests, extension ordering and config migration. Board sections already rebuild from the current native context. These are traced equivalents, not compatibility implementations.
+
+Ask, Sandbox, Observatory and Suggestions are separate Pi products outside the existing component set. Their UI, index and guidance changes are not new portable products in this refresh. Pi settings, Electron, aggregate packaging, formatter churn and unrelated dependency upgrades are not copied into this repository. Neither new execution mode is registered, and the dirty QuickJS source checkout was left untouched. No Howcode integration, host selection or live capability was changed.
 
 ## Whole-package audit
 
@@ -91,6 +103,10 @@ Nested AGENTS.md is a new native component rather than a Pi compatibility port. 
 Linux runtime validation and live service checks do not establish Windows or macOS parity. The component documents distinguish exercised behavior, carried source behavior and unresolved external-platform boundaries.
 
 ## Delivery validation
+
+The PR #552 port passed one independent review after correcting the passive voice-receipt rollover boundary. All delivery-gate stages passed: lint, all 23 builds, strict TypeScript, Knip, all 28 retained workflows and all 23 dry-packs. The initial test stage found that Web's credential-redaction fixture inspected an intentionally removed outer bookkeeping field. Its nested secret now sits inside a retained search-result record, preserving the same redaction assertion. The full test stage and remaining packaging stage passed after that fixture correction. No permanent test was added. Component evidence records disposable real-runtime probes and distinguishes them from live account or audio acceptance.
+
+All 23 development archives were rebuilt through the supported pack command. `dist/pr-552/artifacts.json` records their content hashes without changing the published 0.8.1 release. A fresh external consumer installed the archives with lifecycle scripts disabled, imported every package root and strictly checked all 46 public declaration exports without `skipLibCheck`. Its installed Node history worker passed actual SQLite ranking and removal, proving that it runs from emitted JavaScript beneath `node_modules`. The Worker WASM export resolved successfully. No public release or host activation is implied by these local archives.
 
 Release 0.8.0 publishes all 23 packages, including the renamed Nested AGENTS.md component, with package versions aligned at 0.8.0. The complete gate passed after the rename: lint, all builds, strict TypeScript, Knip, 28 retained workflows and dry-packs. Final version and installation-link changes passed lint, TypeScript and Knip. A fresh scripts-disabled consumer installed all 23 final archives, imported every package root, typechecked all 45 declaration exports without `skipLibCheck`, and resolved the Worker WASM asset. The release's `artifacts.json` and `SHA256SUMS` identify the shipped bytes. This expands publication, not host activation or live-provider acceptance.
 

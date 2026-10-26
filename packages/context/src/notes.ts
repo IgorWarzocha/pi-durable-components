@@ -120,9 +120,7 @@ export function createNotesTool(options: {
 						// A saved note must have a deliverable acknowledgement in the same commit.
 						return contextToolResult({ file: { path: file.path } });
 					}
-					return contextToolResult(
-						await readNotes(tx, target, args, hasCatalog),
-					);
+					return readNotes(tx, target, args, hasCatalog);
 				}, context)
 				.catch((error: unknown) => {
 					if (writing && options.remote && context.abortSignal?.aborted)
@@ -143,12 +141,12 @@ async function readNotes(
 	id: ConversationId,
 	args: NotesArguments,
 	hasCatalog: boolean,
-): Promise<JsonObject> {
+): Promise<ReturnType<typeof contextToolResult>> {
 	const state = hasCatalog ? await tx.doc(NotesState, id) : { files: [] };
 	if (args.action === "read_file") {
 		const path = normalizeFilePath(args.path);
 		const file = state.files.find((file) => file.path === path);
-		if (!file) return { source: "sqlite", file: null };
+		if (!file) return contextToolResult({ file: null });
 		const lines = (await readNoteText(tx, id, path)).split("\n");
 		const start = lineIndex(args.start_line, lines.length, 0);
 		const stop = lineIndex(args.stop_line, lines.length, lines.length - 1);
@@ -158,20 +156,21 @@ async function readNotes(
 		const limit = boundedInteger(args.limit_chars, 8_000, 8_000);
 		const content = contextTextSlice(selected, offset, limit);
 		const nextOffset = offset + content.length;
-		return {
-			source: "sqlite",
-			file: {
-				...noteMetadata(file),
-				content,
-				total_chars: selected.length,
-				...(nextOffset < selected.length
-					? { next_offset_chars: nextOffset }
-					: {}),
-				start_line: start + 1,
-				stop_line: Math.max(start, stop) + 1,
-				total_lines: lines.length,
-			},
+		const detail = {
+			path: file.path,
+			content,
+			total_chars: selected.length,
+			...(nextOffset < selected.length
+				? { next_offset_chars: nextOffset }
+				: {}),
+			start_line: start + 1,
+			stop_line: Math.max(start, stop) + 1,
+			total_lines: lines.length,
 		};
+		return contextToolResult(
+			{ file: detail },
+			{ file: { ...noteMetadata(file), ...detail } },
+		);
 	}
 	if (args.action === "list_files_by_prefix") {
 		const prefix = normalizePrefix(args.prefix);
@@ -186,10 +185,23 @@ async function readNotes(
 							? left.updatedAt - right.updatedAt
 							: left.path.localeCompare(right.path);
 				return compared * direction;
-			})
-			.slice(0, boundedInteger(args.max_results, 20, 100))
-			.map(noteMetadata);
-		return { source: "sqlite", files };
+			});
+		const limit = boundedInteger(args.max_results, 20, 100);
+		const selected = files.slice(0, limit);
+		const truncated = files.length > limit ? { truncated: true } : {};
+		return contextToolResult(
+			{
+				files: selected.map((file) => ({
+					path: file.path,
+					updated_at: new Date(file.updatedAt).toISOString(),
+					...(args.file_order_by === "created_at"
+						? { created_at: new Date(file.createdAt).toISOString() }
+						: {}),
+				})),
+				...truncated,
+			},
+			{ files: selected.map(noteMetadata), ...truncated },
+		);
 	}
 	const query = requiredString(
 		args.query,
@@ -218,13 +230,18 @@ async function readNotes(
 						? { truncated: true, total_chars: line.length }
 						: {}),
 				});
-			if (matches.length >= matchLimit) break;
+			if (matches.length > matchLimit) break;
 		}
 		if (!matches.length) continue;
-		files.push({ path: file.path, matches });
-		if (files.length >= fileLimit) break;
+		if (files.length === fileLimit)
+			return contextToolResult({ files, truncated: true });
+		files.push({
+			path: file.path,
+			matches: matches.slice(0, matchLimit),
+			...(matches.length > matchLimit ? { truncated: true } : {}),
+		});
 	}
-	return { source: "sqlite", files };
+	return contextToolResult({ files });
 }
 
 function lineIndex(value: unknown, count: number, fallback: number): number {

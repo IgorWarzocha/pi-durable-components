@@ -1,3 +1,7 @@
+Applicable PR #552 changes adapted from howaboua-pi-stuff revision
+1338b66a1067c254fec46746ef96b6bd9456148b. TypeScript execution mode
+and QuickJS Notebook are excluded. See docs/parity for native adaptations.
+
 Minimal write receipts, targeted history errors and skill-reload guidance aligned
 to pi-notes-compaction and pi-codex-conversion at revision
 3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281.

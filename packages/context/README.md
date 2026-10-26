@@ -43,7 +43,7 @@ With Code or Notebook, also call `code.bind(harness)` or `notebook.bind(harness)
 ## What happens during a conversation
 
 - `notes` reads and writes virtual paths under `/notes`. Relative paths resolve there. Notes are not workspace files. Each file is limited to 1 MB, with 10 MB of note content per conversation. Supply `target` with another conversation's numeric ID as a string to read its notes when both conversations share a Context visibility group. Writes can only target the calling conversation.
-- `history` searches retained entries by window and item ID, with bounded retrieval. Its optional `target` selects another conversation in the same storage and Context visibility group. Searches are case-sensitive literal matches. Old history is never automatically reinserted into the prompt. Conversations without Context windows use `conversation:<id>` as their window ID.
+- `history` searches retained entries by window and item ID, with bounded retrieval. Its optional `target` selects another conversation in the same storage and Context visibility group. Searches default to case-sensitive literal matches. Old history is never automatically reinserted into the prompt. Conversations without Context windows use `conversation:<id>` as their window ID.
 - `new_context` requires fresh notes and a standalone native tool round. Without fresh notes it returns `checkpoint_required`, asking the model to save its checkpoint and call again. Once the round completes, it cuts the context and continues within the same native input. If queued input or other foreground work prevents a safe cut, the model receives an explicit skipped-rollover message and the window stays intact. The prompt lists recent note paths, not their contents.
 - `newContextRequests` controls agent-requested windows: `unrestricted` (the source default) permits a new window at any history size, `off` removes the tool and its rollover reminders, and `pi-limits` requires eligible history. Supply the read-only `hasEligibleContextHistory(conversationId, context)` host signal for `pi-limits`; false leaves the window unchanged, and callback errors fail closed. The source mode invokes Pi compaction to determine eligibility; Durable uses this explicit host signal and does not emulate Pi compaction. The host's `management.newContext` API remains available in every mode.
 - At 85% and 90% context usage, advisory reminders ask for a checkpoint. An optional token budget suggests finishing the current task and starting a fresh window before the next task. `get_context_remaining` reports provider usage plus an estimated tail, or explicitly reports an unknown budget.
@@ -69,6 +69,27 @@ Unassigned conversations in the same storage remain readable, including legacy c
 
 Normal threshold and manual compaction are declined. Overflow compaction remains an emergency fallback using the configured model, within the same logical window. For a host-initiated rollover, call `management.newContext(conversation.id, ctx)` and await its task. It requests a checkpoint through native instructions when needed, without inventing a user message or sending an extra continuation after the cut. Rollover instructions remain chronological system messages in Durable, projected to developer messages by providers that support that role. User and peer messages retain their original roles.
 
+## Ranked history
+
+Opt into keyword ranking for your own retired conversation text. Ranking requires all query words, ignores case and accents, and uses SQLite BM25 relevance order. `recent_first: true` selects newest matches instead. Active context, reasoning and tool activity are not indexed. Explicit current-window, tool, metadata and cross-conversation searches retain literal matching. Item IDs and full reads remain unchanged.
+
+```ts
+import { createNodeHistoryRanker } from "@howaboua/pi-durable-context/node";
+
+const ranker = createNodeHistoryRanker({ path: hostHistoryIndexPath });
+const management = createContextManagement({
+  models,
+  rankedHistory: {
+    ranker,
+    enabled: conversationId => hostSettings(conversationId).rankedHistory,
+  },
+});
+```
+
+The path must be an explicitly authorised absolute native path, separate from the Durable database. Use one index path per Durable storage. The host owns this grant, the live setting and `await ranker.close()` after draining the Harness. Omit `rankedHistory` to disable ranking entirely. A false `enabled` setting performs no indexing.
+
+The Node worker keeps derived contentless terms and IDs, not another transcript. It updates retired text at generation boundaries and before a ranked query. Cancellation stops its work and rolls back an unfinished transaction. Background indexing failures do not interrupt ordinary replies. The next ranked search reports the failure and offers retry or disabling ranking; list and read actions remain available. The portable entry imports no native index code.
+
 ## Retained archives and agent namespaces
 
 Set `archiveHistory: true` to include retained native fork branches in the ordinary `history` actions. It defaults off. Matching native compaction summaries come first in searches, followed by exact retained entries. Summary and recent user request IDs appear in context guidance, without their contents. Notes-only window changes do not invent summaries. Existing window and item IDs stay unchanged. Additional branch windows have opaque `archive:` IDs that can be passed straight to `read_item`.
@@ -93,6 +114,21 @@ The host owns stable family identities, catalogue membership and cancellation of
 
 Missing agents, invalid catalogues and lookup failures are errors. They never fall back to the local namespace. Without `remote`, numeric targets work as before and agent names report that configuration is required. An interrupted dispatched write reports an uncertain outcome. Read the note before issuing another write. The component does not replay the side effect as a recovery strategy.
 
+## Refresh connected services before rollover
+
+Supply `beforeRollover(request, context)` when a connected service must capture the outgoing context before it is retired. For GipPity Voice, bind the matching conversation's controls:
+
+```ts
+const management = createContextManagement({
+  models,
+  beforeRollover: async ({ conversationId }, context) => {
+    await hostVoice(conversationId)?.controls.refreshContext(context.abortSignal);
+  },
+});
+```
+
+The callback runs after checkpoint eligibility is established and before the window cut. Context rechecks native activity, queued input and the transcript afterwards. A failed refresh leaves the window intact. A recovered interrupted callback is not replayed: Context reports its uncertain outcome so the host can inspect the service before requesting another rollover. Saved notes inside failed or unfinished owning work do not authorise a cut.
+
 ## Resume and recover
 
 Reopen the same database with the same extensions, bind the new component, then call `harness.resume()`. Persisted managed task IDs remain usable with `harness.getTask` and `harness.waitForTask`. Do not reinstall a different context policy over unfinished work.
@@ -111,6 +147,6 @@ A window change preserves the conversation ID and live Code or Notebook runtime.
 
 The browser-safe `@howaboua/pi-durable-context/presentation` entry provides validated host snapshots and pure summary and detail selectors, structurally compatible with `UiCapability` and `UiPresentation`. It does not import the UI runtime.
 
-`contextCapability`, `contextSummaryPresentation` and `contextDetailPresentation` describe virtual notes. Populate `files` from `notes` with `list_files_by_prefix`. Populate nullable `detail` from the `file` returned by `read_file`. Counts and bytes describe only the supplied inventory, which can be bounded. Detail retains the returned line range, total line count and character-pagination metadata. `total_chars` is the UTF-16 length of the selected lines. When `next_offset_chars` is present, pass it as `offset_chars` to `read_file` with the same path and line range to retrieve the next page. Both fields remain optional for older snapshots. This is not `management.status` or the component's persisted rollover state.
+`contextCapability`, `contextSummaryPresentation` and `contextDetailPresentation` describe virtual notes. Populate `files` from the host-only `details.files` of `notes` with `list_files_by_prefix`. Populate nullable `detail` from `details.file` returned by `read_file`. The model-facing value omits byte counts and redundant timestamps; host details retain the complete presentation metadata. Counts and bytes describe only the supplied inventory, which can be bounded. Detail retains the returned line range, total line count and character-pagination metadata. `total_chars` is the UTF-16 length of the selected lines. When `next_offset_chars` is present, pass it as `offset_chars` to `read_file` with the same path and line range to retrieve the next page. Both fields remain optional for older snapshots. This is not `management.status` or the component's persisted rollover state.
 
 Keep `detail: null` until the host acquires it. Detail must match an item in the supplied inventory. Refresh or clear detail when replacing that inventory. These snapshots are presentation data, not a replacement storage model or raw tool-result envelope. The host owns selection, freshness, binding, authorization and native controls. Summary requests identify a detail presentation but do not fetch data. Declared actions name the existing ordinary `notes` registration. Invoke it with its unchanged arguments and results through a host-authorized binding. No streams, transport adapters or additional lifecycle are introduced.
