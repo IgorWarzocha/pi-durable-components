@@ -67,3 +67,9 @@ The ordinary Durable result carries that metadata without a Code or Notebook bri
 The release-coverage audit caught a nested-result regression in the first 1.4 build: adding host read metadata made the generic execution projection return an object instead of the source's plain skill text. Skills now declares its ordinary structured program result as a string, retaining read receipts only in host details. Real Harness calls through both V8 Code and Deno Notebook verified string operations on the returned text and intact host read evidence. No component-specific execution path was added.
 
 A disposable real SQLite/Harness probe captured empty-call evidence, a body read, a reference-only read, a truncated body page and an inventory-only continuation. It verified instruction attribution without claiming whole-file exposure. Strict TypeScript passed with installed Durable, Pi AI and Chord 1.4.0. No permanent tests or live-provider acceptance were added. The coordinator owns the final repository gate.
+
+## 2026-10-26 PR #552 discovery alignment
+
+Compared read-only source `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`. Skills advertises `await tools.skills()` as discovery through ordinary registration usage metadata. Empty input already worked through argument preparation. Help now distinguishes multiple selectors in one read from semicolon-separated complete commands, matching the source batch syntax. The existing structured string result keeps read evidence out of the nested program value without losing Durable details.
+
+A disposable Node 26 probe exercised empty Skills input through the production registration in Durable Harness and verified the batch help in its generic program value. The retained real-Harness bounded-output continuation check passed. No permanent tests were added.

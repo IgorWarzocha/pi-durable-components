@@ -1,5 +1,13 @@
 # OpenAI Responses provider parity
 
+## PR #552 refresh
+
+Compared read-only Pi Stuff `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`, including `providers/openai-codex-custom-provider.ts`, `openai-codex/transport-recovery.ts`, `websocket-stream.ts` and the Responses history changes. The portable implementation already honours plain WebSocket selection by default, preconnects eligible non-SSE requests independently of cached continuation, skips ordinary non-generating warmup on plain WebSockets and isolates explicitly generated keepalive from the main continuation lane. The public host overrides `forceCachedWebSockets` and `retainSocket` remain deliberate opt-ins, not Pi settings or silent defaults. Removing them would discard existing portable functionality.
+
+A disposable local WebSocket probe exercised actual provider preparation and transport. Plain WebSocket prewarm sent no request, cached prewarm sent `generate:false`, explicit generated keepalive used a different socket and the subsequent plain main request had no continuation ID. Provider close joined socket cleanup. No live account was contacted or permanent test added.
+
+The source's Notes namespace routing removal, saved Pi namespace-call decoding, host delivery event relocation and old Notes receipt fields concern Pi session compatibility. This repository has no Pi session importer or Notes namespace router. Ordinary Durable tools remain the dispatch boundary. No Pi event bus, encrypted Notes service or new protected-output product is introduced. Existing encrypted Web output and persisted opaque-output support are preserved. Native checkpoint summary provenance and replacement of summary placeholders belong to the Context owner. The provider already retains exact final request order, including chronological developer items, and validates canonical snapshots against reconstructed history rather than rebuilding a Pi session tree.
+
 The reference is `packages/pi-codex-conversion/src/providers` in `IgorWarzocha/howaboua-pi-stuff` at `5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb`. The checkout was read-only. Its uncommitted context-management changes did not affect the extracted provider files. The package preserves the source MIT notices and credits the Pi-derived protocol code.
 
 This is a pi-ai 1.4.0 Provider consumed by Durable's Models collection. It is not a Pi ExtensionAPI compatibility layer. Codex remains the default. Explicit direct mode replaces the ordinary `openai` registration only in the host's Models collection.

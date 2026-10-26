@@ -1,5 +1,13 @@
 # Notebook parity
 
+## PR #552 refresh
+
+Compared read-only source `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`, including `prompt/build-system-prompt.ts`, `tools/code-mode/notebook-tool.ts` and `tools/notebook-mode/jupyter-kernel.ts`. Existing Deno Notebook guidance now says to retain only planned reuse and clean up at task completion. Example-global tutorials stay in on-demand help rather than standing instructions. Existing lifecycle arguments, checkpoint formats, hooks and result delivery remain unchanged. Source help shortening does not remove the portable help's recovery and persistence contracts.
+
+Kernel unavailability, startup timeout, unexpected replies, execution settlement timeout and shell disconnection now report Notebook recovery actions rather than transport implementation details. Stderr and transport failures remain diagnostic causes. A disposable real Deno probe also exposed a socket-disconnect notification arriving before process exit. Both socket pumps now preserve that cause and give the same actionable recovery guidance. The probe passed ordinary execution, process-loss reporting and refusal to reuse the failed kernel. Focused strict TypeScript checking passed. No permanent tests were added.
+
+The new Node TypeScript runtime, isolated execution, checkpoint recipes and TS-specific Notebook actions are explicitly excluded. The source's shared runtime selection and public-tool execution-mode changes serve that new runtime, not the existing Deno product. No QuickJS Notebook implementation is carried.
+
 Source revision `b2006db9def12c373ae48e70044d30f7d6b7e34f` of `IgorWarzocha/howaboua-pi-stuff`, under `packages/pi-codex-conversion/src/tools/notebook-mode`, `code-mode/notebook-tool.ts`, `code-mode/custom-tools.ts`, `code-mode/custom-tool-runner.ts`, and the shared public execution contracts in `code-mode/public-tools.ts`. The source checkout was read-only. `packages/notebook/NOTICE` retains the source MIT notice.
 
 The empty-call discovery refresh follows source revision `69f50cf70e8a7b05c2349be6227f521b6504f80e`. Native `notebook({})` and the existing inside-exec direct action proxy's `tools.notebook({})` return help. Explicit `{input:"help"}` remains supported at the native entry point. Disposable real-Harness and Deno probes exercised these calls and an allowed list action. The retained Deno lifecycle workflow passed without adding tests.

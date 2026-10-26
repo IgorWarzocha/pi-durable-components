@@ -1,3 +1,7 @@
+Applicable PR #552 changes adapted from howaboua-pi-stuff revision
+1338b66a1067c254fec46746ef96b6bd9456148b. TypeScript execution mode
+and QuickJS Notebook are excluded. See docs/parity for native adaptations.
+
 Source alignment inspected at Pi Stuff revision 7f3295e67a8e6146b2a6922b56a06fa4db5c3a32.
 See docs/parity for carried changes and explicit native-environment exclusions.
 

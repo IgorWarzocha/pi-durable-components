@@ -123,7 +123,7 @@ export async function executeCodexWebSearch(
 	try {
 		parsed = JSON.parse(responseText);
 	} catch {
-		throw new Error("failed to decode web_run search response");
+		throw new Error("Web search returned an unreadable response. Try again.");
 	}
 	const details = normalizeSearchResponse(redactStrings(parsed, redact));
 	const text =

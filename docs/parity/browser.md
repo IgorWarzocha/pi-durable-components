@@ -68,3 +68,9 @@ Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`
 The only new browser execution delta is source experimental GPT-mode help wording and its Pi prompt-mode registration. The ordinary help already preserves host affinity, returned references, independent batches and consequential-action safety. Those behaviours remain the native contract; alternate Pi prose switching is excluded. The ordinary browser registration now explicitly declares help-backed discovery. No component-specific Code or Notebook bridge was added.
 
 A disposable real Harness exercised empty Browser, Sites and Sites documentation calls without CDP discovery, OAuth, project access or network traffic. Safety and resource guidance survived the native output boundary. The generic execution contract reader rendered all three as help-backed capability entries. No permanent tests were added.
+
+## 2026-10-26 PR #552 result alignment
+
+Compared read-only source `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`. Browser now declares its JSON program result through Durable's ordinary `structuredOutputSchema` and `structuredOutput`. The generic nested dispatcher therefore returns the browser object without adding display `content`. Native text and details remain available. Help now describes `{action,...fields}` rather than requiring stringification or parsing at nested call sites. No Browser-specific Code or Notebook bridge was added.
+
+A disposable Node 26 probe exercised the production registration through Durable Harness and the generic value projection. Empty input returned the help object directly, with no extra `content`. The retained real-Harness batch continuation check passed. No CDP connection or browser mutation was needed for these result-boundary changes.

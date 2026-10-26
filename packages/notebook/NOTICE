@@ -1,3 +1,7 @@
+Applicable PR #552 changes adapted from howaboua-pi-stuff revision
+1338b66a1067c254fec46746ef96b6bd9456148b. TypeScript execution mode
+and QuickJS Notebook are excluded. See docs/parity for native adaptations.
+
 Notebook runtime source adapted from @howaboua/pi-codex-conversion
 Repository: https://github.com/IgorWarzocha/howaboua-pi-stuff
 Revision: b2006db9def12c373ae48e70044d30f7d6b7e34f

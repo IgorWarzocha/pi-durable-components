@@ -122,7 +122,9 @@ export class JupyterExecution {
 							REQUEST_TIMEOUT_MS,
 							() =>
 								new Error(
-									`Deno Jupyter did not answer execute_request after the cell became idle within ${REQUEST_TIMEOUT_MS}ms`,
+									withNotebookRecoveryGuidance(
+										`Notebook execution did not finish within ${REQUEST_TIMEOUT_MS}ms`,
+									),
 								),
 						)
 					).reply;
@@ -133,7 +135,9 @@ export class JupyterExecution {
 						REQUEST_TIMEOUT_MS,
 						() =>
 							new Error(
-								`Deno Jupyter did not become idle after execute_reply within ${REQUEST_TIMEOUT_MS}ms`,
+								withNotebookRecoveryGuidance(
+									`Notebook execution did not finish within ${REQUEST_TIMEOUT_MS}ms`,
+								),
 							),
 					);
 				}
@@ -145,7 +149,9 @@ export class JupyterExecution {
 			}
 			if (reply.header.msg_type !== "execute_reply") {
 				throw new Error(
-					`Deno Jupyter returned ${reply.header.msg_type} for execute_request`,
+					withNotebookRecoveryGuidance(
+						"Notebook execution returned an unexpected response",
+					),
 				);
 			}
 			await this.drainOutput(execution);

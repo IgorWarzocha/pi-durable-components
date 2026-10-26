@@ -111,3 +111,11 @@ A disposable real SQLite/Harness probe captured the instruction after the trigge
 ## Attribution
 
 The MIT source notices and pinned revisions are retained in `packages/board/NOTICE`. The extraction keeps the original board implementation's copyright and licence.
+
+## PR #552 refresh
+
+Traced read-only Pi Stuff `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`. `list_boards` now projects only public catalogue fields and `current`, omitting `root_conversation_id`, the native counterpart of the removed source `root_session_id`. Stored catalogue records and ownership checks retain that identity unchanged.
+
+Source context briefings recognise owner-authored Notes window identities alongside legacy Codex windows. Native Board has no Pi branch parser or optional Conversion dependency. Its stable guidance is an ordinary Durable section, and unread references are positional developer instructions admitted through the existing receipt-bound generation hook. Native head replacement does not require teaching Board a second window protocol. This is not a claim that already-consumed unread notices are replayed after rollover.
+
+A disposable real Durable Harness probe seeded a catalogue, called the production query and verified the public page omits the native root identity while its stored record retains it. Focused strict TypeScript and Biome checks passed. No permanent tests or provider calls were added.

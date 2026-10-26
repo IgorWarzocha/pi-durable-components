@@ -7,6 +7,7 @@ import {
 	encodeJupyterMessage,
 	type JupyterMessage,
 } from "./jupyter-wire.ts";
+import { withNotebookRecoveryGuidance } from "./runtime-health.ts";
 
 const REQUEST_TIMEOUT_MS = 8_000;
 interface ShellReplyWaiter {
@@ -42,7 +43,11 @@ export class JupyterShellChannel {
 		this.shell = undefined;
 		for (const waiter of this.shellReplies.values()) {
 			if (waiter.timer) clearTimeout(waiter.timer);
-			waiter.reject(new Error("Deno Jupyter shell disconnected"));
+			waiter.reject(
+				new Error(
+					withNotebookRecoveryGuidance("Notebook runtime disconnected"),
+				),
+			);
 		}
 		this.shellReplies.clear();
 		shell?.close();
@@ -57,7 +62,9 @@ export class JupyterShellChannel {
 		const shell = this.shell;
 		const connection = this.connection;
 		if (!shell || !connection)
-			throw new Error("Deno Jupyter shell is not connected");
+			throw new Error(
+				withNotebookRecoveryGuidance("Notebook runtime is disconnected"),
+			);
 		const request = createJupyterMessage(type, content, this.session);
 		return this.send(request, timeoutMs, type, signal);
 	}
@@ -71,10 +78,14 @@ export class JupyterShellChannel {
 		const shell = this.shell;
 		const connection = this.connection;
 		if (!shell || !connection)
-			throw new Error("Deno Jupyter shell is not connected");
+			throw new Error(
+				withNotebookRecoveryGuidance("Notebook runtime is disconnected"),
+			);
 		const requestId = request.header.msg_id;
 		if (this.shellReplies.has(requestId))
-			throw new Error(`Duplicate Deno Jupyter shell request: ${requestId}`);
+			throw new Error(
+				withNotebookRecoveryGuidance("Notebook operation could not be started"),
+			);
 		let waiter!: ShellReplyWaiter;
 		const reply = new Promise<JupyterMessage>((resolve, reject) => {
 			waiter = { resolve, reject };
@@ -85,7 +96,10 @@ export class JupyterShellChannel {
 				this.shellReplies.delete(requestId);
 				waiter.reject(
 					new Error(
-						`Deno Jupyter did not answer ${requestType} within ${timeoutMs}ms${this.stderr() ? `\n${this.stderr()}` : ""}`,
+						withNotebookRecoveryGuidance(
+							`Notebook runtime did not respond within ${timeoutMs}ms`,
+						),
+						{ cause: new Error(`${requestType}\n${this.stderr()}`) },
 					),
 				);
 			}, timeoutMs);
@@ -142,7 +156,12 @@ export class JupyterShellChannel {
 		} catch (error) {
 			if (this.shell === socket)
 				this.onFailure(
-					error instanceof Error ? error : new Error(String(error)),
+					new Error(
+						withNotebookRecoveryGuidance("Notebook runtime disconnected"),
+						{
+							cause: error,
+						},
+					),
 				);
 		}
 	}

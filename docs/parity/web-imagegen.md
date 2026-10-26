@@ -67,3 +67,11 @@ The earlier workerd workflow also verified separate service cookies across later
 Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32` against `036dc876da5afc4ec27b64878ebb1cfb30c8211d`.
 
 The source adds experimental GPT-mode web/imagegen descriptions and shorter Code usage wording. The native tools retain one concise contract: returned references are for calls, final citations use result URLs, image requests preserve generation/edit selectors and explicit transparency/aspect/quality guidance. The source prompt-mode event bus and alternate prose switch are excluded as Pi prompt policy, not claimed as functional equivalence. The deleted vendored upstream snapshots are source-maintenance changes, not removal of accepted tool functionality. No transport, argument, result or cancellation change was required in these packages.
+
+## 2026-10-26 PR #552 payload alignment
+
+Compared read-only source `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`. Web normalisation now retains only the recognised `output_text` and `search_results` fields on the modern response route. Web declares that payload as its ordinary Durable structured result, preserving native text and diagnostic details while giving generic nested callers the unwrapped payload. Unreadable successful HTTP responses use the source's actionable retry message.
+
+A disposable Node 26 probe exercised the production Web registration through Durable Harness with controlled HTTP egress. The generic nested value contained the exact answer and search references, without provider debug fields or display wrappers. This is transport-fixture evidence, not live subscription acceptance.
+
+The source Image Generation and Web configuration-error changes belong to their ambient native configuration-file readers. Portable tools have no such reader: hosts supply validated routes explicitly through `normalizeCodexToolRouteConfig`. No ambient file access, path-dependent diagnostic, or shared-provider change was introduced. TypeScript and QuickJS Notebook modes remain excluded.

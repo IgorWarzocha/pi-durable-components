@@ -59,9 +59,12 @@ test("ordinary Web tool owns native workerd HTTP, affinity, limits and cancellat
 			JSON.stringify({
 				output_text:
 					"owned fixture output: Bearer owned-fixture-not-a-credential",
-				nested: { echo: "owned-fixture-not-a-credential" },
 				search_results: [
-					{ url: "https://example.test/owned", ref_id: "owned-turn-ref" },
+					{
+						url: "https://example.test/owned",
+						ref_id: "owned-turn-ref",
+						nested: { echo: "owned-fixture-not-a-credential" },
+					},
 				],
 			}),
 		);
@@ -105,7 +108,7 @@ test("ordinary Web tool owns native workerd HTTP, affinity, limits and cancellat
 			),
 		);
 		assert.equal(
-			affinity.observations[0].details.webRun.nested.echo,
+			affinity.observations[0].details.webRun.search_results[0].nested.echo,
 			"[redacted]",
 		);
 		assert.match(

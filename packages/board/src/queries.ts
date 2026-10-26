@@ -55,7 +55,12 @@ export async function queryBoard(
 		);
 		return page(
 			slicePage(rows, params).map((row) => ({
-				...row,
+				board_id: row.board_id,
+				owner_folder: row.owner_folder,
+				created_at: row.created_at,
+				last_activity_at: row.last_activity_at,
+				channel_count: row.channel_count,
+				message_count: row.message_count,
 				current: row.board_id === ownBoard,
 			})),
 			params,

@@ -80,6 +80,7 @@ export function createBrowserTool(
 			{ additionalProperties: false },
 		),
 		prepareArguments: prepareBrowserInput,
+		structuredOutputSchema: Type.Unknown(),
 		replay: "unsafe",
 		// Operations already bound output and expose continuation handles.
 		// Framework truncation would corrupt batch JSON and hide later cursors.
@@ -125,7 +126,11 @@ export function createBrowserTool(
 			const details: unknown = JSON.parse(text);
 			if (!isJson(details))
 				throw new Error("Browser returned a non-JSON result");
-			return { output: [{ type: "text", text }], details };
+			return {
+				output: [{ type: "text", text }],
+				structuredOutput: details,
+				details,
+			};
 		},
 	});
 	return { ...tool, executionHints: { discovery: "help" as const } };

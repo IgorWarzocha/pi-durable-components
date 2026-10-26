@@ -3,6 +3,7 @@ import {
 	defineTool,
 	section,
 } from "@earendil-works/pi-durable";
+import { Type } from "typebox";
 import { jsonValue } from "../../../internal/codex/json.ts";
 import {
 	WEB_SEARCH_MAX_RESPONSE_BYTES,
@@ -31,6 +32,7 @@ export function createWebSearchTool(
 		name,
 		description: "Search/open web",
 		parameters: WEB_SEARCH_PARAMETERS,
+		structuredOutputSchema: Type.Object({}, { additionalProperties: true }),
 		replay: "unsafe",
 		outputLimits: {
 			maxBytes: WEB_SEARCH_MAX_RESPONSE_BYTES,
@@ -40,6 +42,7 @@ export function createWebSearchTool(
 			const output = await executeCodexWebSearch(params, api, context, options);
 			return {
 				output: [{ type: "text", text: output.text }],
+				structuredOutput: jsonValue(output.details),
 				details: { webRun: jsonValue(output.details) },
 			};
 		},

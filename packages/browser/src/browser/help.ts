@@ -3,8 +3,7 @@ export function browserHelp(
 ): Record<string, unknown> {
 	const routed = hosts.length > 0;
 	return {
-		input:
-			"Request={action,...fields}; {command:JSON.stringify(request)}; help or JSON request",
+		input: "{action,...fields}",
 		...(routed
 			? {
 					host: `${hosts.join("|")} optional; keep a user-named host on every call and its refs/handles`,

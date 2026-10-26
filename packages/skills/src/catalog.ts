@@ -209,7 +209,7 @@ export async function runSkillsResult(
 		} else {
 			result.output +=
 				command.action === "help"
-					? `Commands: list [category...] | read <skill> [skill-or-reference...] | help. Join commands with ;\nJS: tools.skills("read <skill>")\n${READ_HELP}\n\n${formatSkillList(skills)}`
+					? `list [category...] | read <skill> [skill-or-reference...] | help\nJS: tools.skills("read <skill>")\nBatch: read skill-a skill-b; semicolons separate full commands: read skill-a; read skill-b\n${READ_HELP}\n\n${formatSkillList(skills)}`
 					: `${READ_HELP}\n\n${formatSkillList(skills, command.categories)}`;
 		}
 	}

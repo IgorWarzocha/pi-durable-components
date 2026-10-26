@@ -17,6 +17,7 @@ import {
 	encodeJupyterMessage,
 } from "./jupyter-wire.ts";
 import type { RuntimeContentItem } from "./runtime-contract.ts";
+import { withNotebookRecoveryGuidance } from "./runtime-health.ts";
 
 const STARTUP_TIMEOUT_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -75,7 +76,7 @@ export class DenoJupyterKernel {
 	async start(signal?: AbortSignal): Promise<void> {
 		if (this.terminalFailure) {
 			throw new Error(
-				`Deno Jupyter kernel is unavailable: ${this.terminalFailure.message}`,
+				withNotebookRecoveryGuidance("Notebook runtime is unavailable"),
 				{ cause: this.terminalFailure },
 			);
 		}
@@ -214,7 +215,10 @@ export class DenoJupyterKernel {
 			if (this.process !== child) return;
 			this.failKernel(
 				new Error(
-					`Deno Jupyter exited unexpectedly (code=${code}, signal=${childSignal})${this.stderr ? `\n${this.stderr}` : ""}`,
+					withNotebookRecoveryGuidance(
+						`Notebook runtime exited unexpectedly (${childSignal ? `signal ${childSignal}` : `exit code ${code ?? "unknown"}`})`,
+					),
+					{ cause: new Error(this.stderr) },
 				),
 			);
 		});
@@ -248,7 +252,10 @@ export class DenoJupyterKernel {
 			const remaining = deadline - Date.now();
 			if (remaining <= 0) {
 				throw new Error(
-					`Deno Jupyter IOPub did not become ready within ${STARTUP_TIMEOUT_MS}ms${this.stderr ? `\n${this.stderr}` : ""}`,
+					withNotebookRecoveryGuidance(
+						`Notebook runtime did not become ready within ${STARTUP_TIMEOUT_MS}ms`,
+					),
+					{ cause: new Error(this.stderr) },
 				);
 			}
 			await this.shellChannel.request(
@@ -284,7 +291,12 @@ export class DenoJupyterKernel {
 		} catch (error) {
 			if (this.iopub === socket)
 				this.failKernel(
-					error instanceof Error ? error : new Error(String(error)),
+					new Error(
+						withNotebookRecoveryGuidance("Notebook runtime disconnected"),
+						{
+							cause: error,
+						},
+					),
 				);
 		}
 	}

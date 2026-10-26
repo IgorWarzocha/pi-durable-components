@@ -7,7 +7,7 @@ import { SitesClient } from "./client.ts";
 import { documentation } from "./documentation.ts";
 import { call } from "./facade.ts";
 import type { SitesProjectCapability } from "./local-project.ts";
-import { boundedJson } from "./redact.ts";
+import { boundedJson, redact } from "./redact.ts";
 
 export type {
 	ProjectContext,
@@ -43,7 +43,7 @@ export const SITES_DOCUMENTATION_PARAMETERS = Type.Object(
 	{ additionalProperties: false },
 );
 
-// Preserve the source's structured error and bounded result contract.
+// Preserve bounded results and actionable, redacted provider failures.
 async function result(run: () => Promise<unknown>) {
 	try {
 		const value = await run();
@@ -70,17 +70,22 @@ async function result(run: () => Promise<unknown>) {
 	} catch (error) {
 		const info = error instanceof Error ? error : new Error(String(error));
 		throw new Error(
-			boundedJson({
-				ok: false,
-				error: {
-					code: "code" in info ? (info.code ?? "sites_error") : "sites_error",
-					message: info.message,
-					topic: "topic" in info ? info.topic : undefined,
-					terms_url: "termsUrl" in info ? info.termsUrl : undefined,
-					status: "status" in info ? info.status : undefined,
-					details: "details" in info ? info.details : undefined,
-				},
-			}),
+			[
+				redact(info.message),
+				"topic" in info &&
+				info.topic &&
+				!info.message.includes("sites_documentation(")
+					? `See sites_documentation({topic:${JSON.stringify(info.topic)}})`
+					: undefined,
+				"termsUrl" in info && info.termsUrl
+					? `Terms: ${redact(info.termsUrl)}`
+					: undefined,
+				"details" in info && info.details
+					? boundedJson(info.details)
+					: undefined,
+			]
+				.filter(Boolean)
+				.join("\n"),
 		);
 	}
 }

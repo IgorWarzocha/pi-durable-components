@@ -81,3 +81,9 @@ A disposable actual-Harness probe admitted two blocking same-label spawns in one
 ## Attribution
 
 Background ownership and report submission patterns adapt Durable example 23 under its MIT license. The upstream copyright and permission notice are retained in `packages/agents/src/tasks.ts` and the published `packages/agents/NOTICE`. Shepherdr's delegation contracts are used under its MIT license, copyright 2026 Igor Warzocha, matching this repository's license. The package notice records the pinned revisions and inherited copyright holders.
+
+## PR #552 refresh
+
+Traced read-only Pi Stuff `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`. Shepherdr moves shared notes and history ownership from Codex Conversion to Notes, independently retaining Codex relationship metadata. Native Agents already delegates Context visibility through `assignContextVisibility` in the admission transaction and keeps provider identity separate. It does not relay Pi attachment receipts or reconstruct public content from private receipts. Context owns native history and saved notes, so the Pi relay import and alias-remapping changes introduce no Agents adapter.
+
+The discovery change instructs process controllers to send `/quit` directly to finished panes. Native workers are Durable conversations, not Pi processes. Sending that string would create a new input rather than close a pane, so that host-specific instruction is excluded. Native help continues to distinguish send, delegation and watches. The source's rollover briefing identity now recognises Notes windows rather than requiring Conversion. No Pi window parser is carried here. Native task receipts, Fleet documents and Context visibility survive head replacement independently of Pi messages. This delta does not add a native supervised-worker rollover briefing or claim that a persisted Fleet is itself a model-visible briefing.

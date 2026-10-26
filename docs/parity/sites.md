@@ -2,7 +2,7 @@
 
 Source: `packages/pi-chatgpt-sites` at `69f50cf70e8a7b05c2349be6227f521b6504f80e` in `howaboua-pi-stuff`. The source checkout remains read-only. License and modification notices ship with `packages/sites`.
 
-The ordinary `sites` and `sites_documentation` registrations preserve the structured facade, operation table, fourteen guides, on-demand schemas, bounded results and structured failures. Empty help needs no credentials or filesystem. Code and Notebook discover these registrations without a Sites bridge.
+The ordinary `sites` and `sites_documentation` registrations preserve the operation table, fourteen guides, on-demand schemas, bounded results and actionable failures. Empty help needs no credentials or filesystem. Code and Notebook discover these registrations without a Sites bridge.
 
 Saving requires clean committed exact HEAD, including the tracked project binding. Caller-supplied commits cannot override it. Deployment visibility remains explicitly private or shared. Creation retains exclusive binding locks and atomic persistence. Failed binding persistence returns the created project ID. Failed publication after saving retains the saved version ID. Side effects have no automatic retries and are unsafe to replay after interruption.
 
@@ -23,3 +23,9 @@ Inspected read-only Pi Stuff snapshot `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`
 Sites and Sites documentation now declare help-backed deferred discovery on their ordinary registrations. Sites uses the concise source description. Empty-call help and live resource/action documentation remain tool-owned, with no Code/Notebook bridge. The source experimental GPT description switch is excluded as Pi prompt policy; it does not alter the native Sites API, namespace-owned project capability or lifecycle.
 
 A disposable real Harness exercised empty Browser, Sites and Sites documentation calls without CDP discovery, OAuth, project access or network traffic. Safety and resource guidance survived the native output boundary. The generic execution contract reader rendered all three as help-backed capability entries. No permanent tests were added.
+
+## 2026-10-26 PR #552 result alignment
+
+Compared read-only source `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`. The Sites facade now returns its selected, redacted provider result directly rather than wrapping it in `ok`, `operation` and `result`. Owned preparation and cleanup remain unchanged. Failures now expose the redacted message, an applicable documentation hint, terms URL and bounded details instead of a second structured error envelope. Oversize-output rejection remains intact.
+
+A disposable Node 26 probe invoked the production facade with a controlled schema and provider response. It confirmed the selected payload is unwrapped while a nested credential is still redacted. No live Site was created or changed. Source guide deltas in this range are formatting-only and do not change the portable guides' behaviour.

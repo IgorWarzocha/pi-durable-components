@@ -21,3 +21,7 @@ Disposable real Harness checks exercised default-empty rules, block precedence, 
 Offline SSE and WebSocket fixtures verified exact sent-body observations. Throwing observers caused exactly one send on each transport despite a nonzero retry budget. Package compilation and bundled import passed. No permanent tests were added.
 
 Live Codex compatibility and billing eligibility remain unverified. Parent bindings and reviews are ephemeral and are not restored after restart. Hosts must invalidate authorization on trust, model, branch and environment changes and place Guardian after argument-transforming hooks.
+
+## PR #552 refresh
+
+Traced read-only Pi Stuff `a06eae4d..1338b66a1067c254fec46746ef96b6bd9456148b`. Guardian changes only Markdown table layout, README wording, changelog and package metadata. No matching, parent-credit, request-capture, review or transport behaviour changes. The native fail-closed hook and provider observation boundary are retained without new compatibility plumbing or tests.

@@ -88,7 +88,12 @@ export function createSkillsTool(options: SkillsOptions = {}) {
 			};
 		},
 	});
-	return { ...tool, executionHints: { discovery: "help" as const } };
+	return {
+		...tool,
+		executionHints: {
+			usage: "await tools.skills() // discover skills and calling syntax",
+		},
+	};
 }
 
 export function skills(options: SkillsOptions = {}) {
