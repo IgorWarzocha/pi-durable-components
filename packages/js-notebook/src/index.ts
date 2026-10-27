@@ -7,12 +7,14 @@ import {
 	type TaskId,
 } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
+import { Check } from "typebox/value";
 import {
 	adaptiveWaitMs,
 	CODE_MODE_EXEC_CONSTRAINED_SAMPLING as NOTEBOOK_EXEC_CONSTRAINED_SAMPLING,
 	parseExecSource,
 } from "../../execution/src/exec-source.ts";
 import { createCellCoordinator } from "../../execution/src/index.ts";
+import { InvocationDoc } from "../../execution/src/invocation-state.ts";
 import {
 	createShellRuntime,
 	type ShellRuntimeOptions,
@@ -94,6 +96,8 @@ export function createJsNotebookMode(options: JsNotebookModeOptions) {
 		surfaceTools: ["exec", "wait", "notebook"],
 		cancelTask: options.cancelTask,
 		isolatedConcurrency: 4,
+		callableSurfaceTools: ["notebook"],
+		normalQueueLimit: 4,
 	});
 	const waitAttempts = new Map<TaskId, number>();
 	const exec = defineTool({
@@ -186,6 +190,7 @@ export function createJsNotebookMode(options: JsNotebookModeOptions) {
 								waitAttempts.get(id) ?? 0,
 							),
 							args.max_tokens ?? 10000,
+							args.yield_time_ms ?? 10000,
 						);
 				if (observation.status === "running")
 					waitAttempts.set(id, (waitAttempts.get(id) ?? 0) + 1);
@@ -206,12 +211,30 @@ export function createJsNotebookMode(options: JsNotebookModeOptions) {
 		name: "notebook",
 		description: "Manage persistent notebook state",
 		parameters: NOTEBOOK_PARAMETERS,
+		structuredOutputSchema: Type.Object({
+			message: Type.String(),
+			details: Type.Record(Type.String(), Type.Unknown()),
+		}),
 		replay: "unsafe",
+		prepareArguments(value) {
+			if (value && typeof value === "object" && "action" in value)
+				return { input: JSON.stringify(parseNotebookRequest(value)) };
+			if (value === undefined || value === null) return {};
+			if (!Check(NOTEBOOK_PARAMETERS, value))
+				throw new Error(
+					"notebook requires input: help or a JSON action object",
+				);
+			return value;
+		},
 		async execute(args, api, context) {
 			if (args.input === undefined || args.input === "help")
 				return {
 					output: [{ type: "text" as const, text: NOTEBOOK_HELP }],
 					details: { action: "help" },
+					structuredOutput: {
+						message: NOTEBOOK_HELP,
+						details: { action: "help" },
+					},
 				};
 			let value: unknown;
 			try {
@@ -222,16 +245,39 @@ export function createJsNotebookMode(options: JsNotebookModeOptions) {
 				});
 			}
 			const request = parseNotebookRequest(value);
+			const owner = await api.snapshot(InvocationDoc, api.taskId, context);
+			if (
+				owner?.forwardingCellId !== undefined &&
+				request.action !== "list" &&
+				request.action !== "diagnostics" &&
+				!(request.action === "status" && request.query === undefined)
+			) {
+				const result = {
+					message: `Notebook ${request.action} was not run because it needs the active exec cell to finish. After exec returns, call notebook with ${JSON.stringify({ input: JSON.stringify(request) })}.`,
+					details: { notRun: true, action: request.action, retry: request },
+				};
+				return {
+					output: [{ type: "text" as const, text: result.message }],
+					details: copyJson(result.details),
+					structuredOutput: copyJson(result),
+				};
+			}
 			const result = await engine.control(request, api, context);
 			return {
 				output: [{ type: "text" as const, text: result.message }],
 				details: copyJson(result.details, { omitUndefinedProperties: true }),
+				structuredOutput: copyJson(result, { omitUndefinedProperties: true }),
 			};
 		},
 	});
 	const extension = defineExtension({
 		...coordinator.extension,
-		tools: [exec, wait, notebook, ...shell.tools],
+		tools: [
+			exec,
+			wait,
+			{ ...notebook, executionHints: { discovery: "help" as const } },
+			...shell.tools,
+		],
 		sections: [
 			section("notebook", (input) => {
 				const base =

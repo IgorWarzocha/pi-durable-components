@@ -25,33 +25,22 @@ export type HistoryReader = (
 ) => Promise<Conversation>;
 
 /** References only. The transcript remains solely in Durable's retained fork history. */
-async function retainedBranches(
+async function* retainedBranches(
 	storage: Storage,
 	caller: ConversationId,
 	target: ConversationId,
 	context: Context,
 	familyTargets: readonly ConversationId[] | undefined,
 ) {
-	const records = new Map<ConversationId, ConversationRecord>();
-	let cursor: Cursor | undefined;
-	do {
-		context.abortSignal?.throwIfAborted();
-		const page = await storage.scanConversations({}, 64, cursor, context);
-		for (const record of page.items) records.set(record.id, record);
-		if (records.size > 10_000)
-			throw new Error(
-				"Archive catalogue exceeds 10000 conversations; select a narrower storage",
-			);
-		cursor = page.next;
-	} while (cursor !== undefined);
-	const ancestry = (id: ConversationId) => {
+	const ancestry = async (id: ConversationId) => {
 		const chain: ConversationRecord[] = [];
 		const seen = new Set<ConversationId>();
 		for (;;) {
+			context.abortSignal?.throwIfAborted();
 			if (seen.has(id))
 				throw new Error("Retained conversation ancestry contains a cycle");
 			seen.add(id);
-			const record = records.get(id);
+			const record = await storage.conversation(id, context);
 			if (!record)
 				throw new Error("Retained conversation ancestry is unavailable");
 			chain.push(record);
@@ -59,7 +48,7 @@ async function retainedBranches(
 			id = record.parent.conversationId;
 		}
 	};
-	const current = ancestry(target);
+	const current = await ancestry(target);
 	const root = current.at(-1)?.id;
 	// Current history already includes these prefixes. Additional readers contribute only their own later entries.
 	const inherited = new Map<ConversationId, EntryId>();
@@ -72,27 +61,36 @@ async function retainedBranches(
 					? record.parent.at
 					: cutoff;
 	}
-	const branches: { id: ConversationId; after?: EntryId }[] = [];
-	for (const record of records.values()) {
+	let cursor: Cursor | undefined;
+	do {
 		context.abortSignal?.throwIfAborted();
-		if (
-			record.id === target ||
-			(familyTargets && !familyTargets.includes(record.id)) ||
-			ancestry(record.id).at(-1)?.id !== root
-		)
-			continue;
-		if (
-			!(await canReadContextTarget(storage, caller, record.id, context)) ||
-			!(await canReadContextTarget(storage, target, record.id, context))
-		)
-			continue;
-		const after = inherited.get(record.id);
-		branches.push({ id: record.id, ...(after === undefined ? {} : { after }) });
-	}
-	return branches.sort((left, right) => right.id - left.id);
+		const page = await storage.scanConversations(
+			{ order: "descending" },
+			64,
+			cursor,
+			context,
+		);
+		for (const record of page.items) {
+			context.abortSignal?.throwIfAborted();
+			if (
+				record.id === target ||
+				(familyTargets && !familyTargets.includes(record.id)) ||
+				(await ancestry(record.id)).at(-1)?.id !== root
+			)
+				continue;
+			if (
+				!(await canReadContextTarget(storage, caller, record.id, context)) ||
+				!(await canReadContextTarget(storage, target, record.id, context))
+			)
+				continue;
+			const after = inherited.get(record.id);
+			yield { id: record.id, ...(after === undefined ? {} : { after }) };
+		}
+		cursor = page.next;
+	} while (cursor !== undefined);
 }
 
-/** Bounded pages and metadata, cancellable between every page and entry. No persistent shadow index. */
+/** Paged catalogue and transcript reads. Only the current ancestry stays in memory. */
 export async function* historyEntries(options: {
 	conversation: Conversation;
 	activeWindow: string;
@@ -103,12 +101,11 @@ export async function* historyEntries(options: {
 	archive: boolean;
 	familyTargets?: readonly ConversationId[] | undefined;
 	windowId?: string | null | undefined;
-	charge: (count: number) => void;
 	context: Context;
 }): AsyncGenerator<HistoryEntry> {
 	const { context, conversation, archive } = options;
 	const branches = archive
-		? await retainedBranches(
+		? retainedBranches(
 				options.storage,
 				options.caller,
 				conversation.id,
@@ -116,7 +113,14 @@ export async function* historyEntries(options: {
 				options.familyTargets,
 			)
 		: [];
-	for (const branch of [{ id: conversation.id }, ...branches]) {
+	async function* readers(): AsyncGenerator<{
+		id: ConversationId;
+		after?: EntryId;
+	}> {
+		yield { id: conversation.id };
+		yield* branches;
+	}
+	for await (const branch of readers()) {
 		const extra = branch.id !== conversation.id;
 		if (
 			options.windowId &&
@@ -137,7 +141,6 @@ export async function* historyEntries(options: {
 		do {
 			context.abortSignal?.throwIfAborted();
 			const page = await reader.entries({}, 64, cursor, context);
-			options.charge(page.items.length);
 			for (const entry of page.items) {
 				context.abortSignal?.throwIfAborted();
 				const boundary = WindowEntry.is(entry);
@@ -163,7 +166,6 @@ export async function* historyEntries(options: {
 				) {
 					const summary = archive && CompactionEntry.is(entry);
 					if (summary) {
-						options.charge(1);
 						if (
 							entry.head === undefined ||
 							entry.head >= entry.id ||
@@ -206,7 +208,6 @@ export async function renderArchiveHistoryHint(
 	let summary: { window_id: string; item_id: string } | undefined;
 	let windowId = activeWindow;
 	let cursor: Cursor | undefined;
-	let scanned = 0;
 	do {
 		context.abortSignal?.throwIfAborted();
 		const page = await conversation.entries({}, 64, cursor, context);
@@ -238,13 +239,8 @@ export async function renderArchiveHistoryHint(
 			if (users.length < 3 && UserEntry.is(entry)) users.push(reference);
 			if (summary && users.length === 3) break;
 		}
-		scanned += page.items.length;
 		cursor = page.next;
-	} while (
-		cursor !== undefined &&
-		scanned < 50_000 &&
-		!(summary && users.length === 3)
-	);
+	} while (cursor !== undefined && !(summary && users.length === 3));
 	if (!summary && users.length === 0) return "";
-	return `History recovery IDs: ${JSON.stringify({ ...(summary ? { summary } : {}), recent_user_requests: users, ...(cursor !== undefined && scanned >= 50_000 ? { hints_truncated: true } : {}) })}. Read known items directly or search for missing details; do not enumerate the archive.`;
+	return `History recovery IDs: ${JSON.stringify({ ...(summary ? { summary } : {}), recent_user_requests: users })}. Read known items directly or search for missing details; do not enumerate the archive.`;
 }

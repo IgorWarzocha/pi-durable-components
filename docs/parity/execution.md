@@ -42,7 +42,7 @@ Mandatory child cancellation uses a cleanup context without the cancelled caller
 
 ## Cells
 
-A cell is a foreground, conversation-owned task, not a child of the outer `exec` or `wait` tool invocation. An outer observer can settle while its cell continues running. Ordinary idle waits and conversation aborts still include that cell and its descendants. Starting another cell in the same mode and conversation checks and creates atomically, rejecting overlap.
+A cell is a foreground, conversation-owned task, not a child of the outer `exec` or `wait` tool invocation. An outer observer can settle while its cell continues running. Ordinary idle waits and conversation aborts still include that cell and its descendants. Admission checks and task creation are atomic. Modes select either single-cell admission or a bounded normal queue with independent isolated capacity or a combined worker limit. The language engine owns serial execution of admitted normal cells.
 
 `CellEngine.run` owns the driver's language runtime and globals. The shared task supplies tools, environment and lifecycle APIs. `publish` commits text, images and error snapshots. `checkpoint` commits driver-specific JSON. `requestYield` commits a yield counter and wakes observers without ending the engine invocation. Completed snapshots and checkpoints remain in `CellStateDoc` because Durable retires task-scoped documents at settlement.
 
@@ -59,6 +59,8 @@ Code and Notebook can be installed together. Select exactly one with `conversati
 Both drivers share the exec source parser and grammar. Empty source, malformed pragmas, unsupported budget fields, non-integer budgets and limits outside the accepted ranges fail before source execution.
 
 Top-level waits share the source's adaptive budget policy. Incomplete observations double the wait window, starting at a five-second minimum and growing to thirty minutes. An explicitly requested longer wait remains the floor. Drivers reset the incomplete-observation count after completion, termination or an observation error.
+
+The `84bd5bce` mistaken-shell-handle recovery is retained. A missing numeric cell handle can continue a shell session through the selected ordinary `write_stdin` registration and its normal nested hooks. Recovery uses the requested shell wait budget, not the adaptive cell budget. It reports recovery, output, running-session guidance and the exit code. Unknown process IDs preserve the unknown-cell failure. Termination never takes this route. Recovered polls are direct receipts, not cumulative cell snapshots, so Notebook's observation cursor does not discard later chunks. A disposable real Durable and shell probe exercised repeated polls, exit, unknown IDs and the termination boundary.
 
 Ordinary registrations can carry optional `executionHints` with usage, output description, loading preference, direct-call yield budget and runtime input schema. `readToolContract` validates these fields and supplies defaults for registrations without hints. This metadata controls runtime help and observation, not the implementation schema, argument repair or selected tool set. The shared source scanner applies the largest configured yield budget among direct executable tool references. Comments, quoted strings, regular expressions and non-executable template text do not trigger an override. Names remain unchanged and bracket calls support names that are not JavaScript identifiers.
 

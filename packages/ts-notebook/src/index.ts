@@ -94,6 +94,8 @@ export function createTsNotebookMode(options: NotebookModeOptions) {
 		surfaceTools: ["exec", "wait", "notebook"],
 		cancelTask: options.cancelTask,
 		isolatedConcurrency: 4,
+		normalQueueLimit: 4,
+		activeCellLimit: 4,
 	});
 	const waitAttempts = new Map<TaskId, number>();
 	const exec = defineTool({
@@ -186,6 +188,7 @@ export function createTsNotebookMode(options: NotebookModeOptions) {
 								waitAttempts.get(id) ?? 0,
 							),
 							args.max_tokens ?? 10000,
+							args.yield_time_ms ?? 10000,
 						);
 				if (observation.status === "running")
 					waitAttempts.set(id, (waitAttempts.get(id) ?? 0) + 1);
@@ -235,7 +238,7 @@ export function createTsNotebookMode(options: NotebookModeOptions) {
 		sections: [
 			section("notebook", (input) => {
 				const base =
-					'exec: Strict TypeScript with top-level await and retained live bindings, closures and classes. Bare values are discarded; use text(value). ALL_TOOLS lists selected tool contracts. Run normal cells sequentially. A leading // @exec: {"isolated":true} forks the last durable checkpoint and saves a candidate without changing live state. Only portable bindings survive restart; tool and file effects are never rolled back. Ask before adding npm imports, then use exact-version npm: specifiers. Use notebook help for state, pins, hooks, checkpoint recipes and recovery.';
+					'exec: Strict TypeScript with top-level await and retained live bindings, closures and classes. Bare values are discarded; use text(value). ALL_TOOLS lists selected tool contracts. Run normal cells sequentially. A leading // @exec: {"isolated":true} forks the last durable checkpoint and saves a candidate without changing live state. Only portable bindings survive restart; tool and file effects are never rolled back. Use notebook help for state, pins, hooks, checkpoint recipes and recovery.';
 				const promoted = input.agent.callable
 					.filter((tool) => !["exec", "wait", "notebook"].includes(tool.name))
 					.map(readToolContract)
@@ -247,6 +250,7 @@ export function createTsNotebookMode(options: NotebookModeOptions) {
 					...promoted,
 				].join("\n");
 			}),
+			section("ts_state", (input, context) => engine.inventory(input, context)),
 		],
 	});
 	let closing: Promise<void> | undefined;

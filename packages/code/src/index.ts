@@ -159,6 +159,7 @@ export function createCodeMode(options: CodeModeOptions) {
 								waitAttempts.get(id) ?? 0,
 							),
 							args.max_tokens ?? 10000,
+							args.yield_time_ms ?? 10_000,
 						);
 				if (observation.status === "running")
 					waitAttempts.set(id, (waitAttempts.get(id) ?? 0) + 1);

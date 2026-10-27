@@ -96,7 +96,7 @@ export const NOTEBOOK_HELP = `Call notebook with {} or {"input":"help"}, or put 
 {"action":"restart"}  Stop active cells and restore the last checkpoint
 {"action":"reset"}  Discard the project VM. Pins and profiles survive
 
-Run management after exec returns. Profile names: 1-64 letters, numbers, dots, underscores or hyphens, starting with a letter or number. Queries accept case-insensitive * and ? globs.
+Run management after exec returns. Inside exec, tools.notebook({action,...}) supports status without query, list and diagnostics only. Other valid controls return notRun with a retry request. Profile names: 1-64 letters, numbers, dots, underscores or hyphens, starting with a letter or number. Queries accept case-insensitive * and ? globs.
 Normal cells share one serial project VM. isolated:true forks the last committed checkpoint and saves a candidate without changing live state. Loading a stale candidate is rejected and saves a recovery profile for deliberate replacement. Whole-VM snapshots preserve closures, classes and cycles. Selected data and reset-survival pins do not preserve functions or class instances.
 Hooks are retained functions awaited in name order. startup receives {type:"startup"} once after restore and cannot call tools. tool_result receives {type:"tool_result",toolName,input,status,result?,error?}. Calls inside hooks do not retrigger hooks. Failed startup blocks normal execution. Cancellation stops the owned VM and restores only the last checkpoint on restart. Tool and file effects are never rolled back or replayed.`;
 

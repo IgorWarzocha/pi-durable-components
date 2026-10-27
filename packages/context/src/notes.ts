@@ -24,7 +24,6 @@ import {
 } from "./remote.ts";
 import {
 	boundedInteger,
-	contextHelpText,
 	contextOutputLimits,
 	contextTextSlice,
 	contextToolHelp,
@@ -71,7 +70,6 @@ export function createNotesTool(options: {
 					)),
 				};
 			if (help) {
-				contextHelpText(help);
 				return contextToolResult(help);
 			}
 			args = normalizeNotesArguments(args);
@@ -154,7 +152,12 @@ async function readNotes(
 		const selected =
 			start <= stop ? lines.slice(start, stop + 1).join("\n") : "";
 		const offset = boundedInteger(args.offset_chars, 0, selected.length, 0);
-		const limit = boundedInteger(args.limit_chars, 8_000, 8_000);
+		const limit = boundedInteger(
+			args.limit_chars,
+			selected.length,
+			selected.length,
+			0,
+		);
 		const content = contextTextSlice(selected, offset, limit);
 		const nextOffset = offset + content.length;
 		const detail = {
@@ -226,10 +229,7 @@ async function readNotes(
 			if (line.includes(query))
 				matches.push({
 					line_number: index + 1,
-					line: contextTextSlice(line, 0, 1_000),
-					...(line.length > 1_000
-						? { truncated: true, total_chars: line.length }
-						: {}),
+					line,
 				});
 			if (matches.length > matchLimit) break;
 		}

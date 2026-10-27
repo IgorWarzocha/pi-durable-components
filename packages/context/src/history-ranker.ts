@@ -2,7 +2,9 @@ import type { ConversationId } from "@earendil-works/pi-durable";
 
 export type HistoryIndexRequest = {
 	scope: string;
-	items: readonly { id: string; content: string }[];
+	items:
+		| Iterable<{ id: string; content: string }>
+		| AsyncIterable<{ id: string; content: string }>;
 	signal?: AbortSignal | undefined;
 };
 

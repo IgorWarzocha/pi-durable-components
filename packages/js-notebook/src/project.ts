@@ -11,7 +11,11 @@ import type {
 	JsSnapshot,
 	JsTool,
 } from "./protocol.ts";
-import { type JsRuntime, loadJsRuntime } from "./runtime.ts";
+import {
+	type JsRuntime,
+	loadJsRuntime,
+	RuntimeInstallError,
+} from "./runtime.ts";
 import type {
 	NotebookControlRequest,
 	NotebookControlResult,
@@ -249,7 +253,12 @@ export class JsNotebookProject {
 		try {
 			await this.restoreInitial(signal);
 		} catch (error) {
-			if (signal?.aborted || this.runtimeAbort.signal.aborted) retryStartup();
+			if (
+				signal?.aborted ||
+				this.runtimeAbort.signal.aborted ||
+				error instanceof RuntimeInstallError
+			)
+				retryStartup();
 			else this.recordStartupError(error);
 			throw error;
 		}

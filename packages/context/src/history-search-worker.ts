@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { DatabaseSync } from "node:sqlite";
 import { parentPort, workerData } from "node:worker_threads";
 
 export type HistoryWorkerOptions = {
@@ -35,24 +35,9 @@ try {
 	db.exec(
 		"CREATE TABLE IF NOT EXISTS ranked_history_documents (id INTEGER PRIMARY KEY, scope TEXT NOT NULL, item TEXT NOT NULL, fingerprint TEXT NOT NULL, UNIQUE(scope,item)); CREATE VIRTUAL TABLE IF NOT EXISTS ranked_history_terms USING fts5(content, content='', contentless_delete=1, tokenize='unicode61 remove_diacritics 2')",
 	);
-	const existing = new Map<
-		string,
-		{ id: SQLInputValue; fingerprint: string }
-	>();
-	for (const row of prepare(
-		"SELECT id, item, fingerprint FROM ranked_history_documents WHERE scope=?",
-	).all(options.scope)) {
-		if (
-			typeof row["id"] !== "bigint" ||
-			typeof row["item"] !== "string" ||
-			typeof row["fingerprint"] !== "string"
-		)
-			throw new Error("Invalid history index metadata");
-		existing.set(row["item"], {
-			id: row["id"],
-			fingerprint: row["fingerprint"],
-		});
-	}
+	const existing = prepare(
+		"SELECT id, fingerprint FROM ranked_history_documents WHERE scope=? AND item=?",
+	);
 	const insert = prepare(
 		"INSERT INTO ranked_history_documents(scope,item,fingerprint) VALUES (?,?,?)",
 	);
@@ -63,45 +48,59 @@ try {
 	const update = prepare(
 		"UPDATE ranked_history_documents SET fingerprint=? WHERE id=?",
 	);
-	const removeDocument = prepare(
-		"DELETE FROM ranked_history_documents WHERE id=?",
-	);
 	db.exec(
 		"CREATE TEMP TABLE search_scope (id INTEGER PRIMARY KEY, position INTEGER NOT NULL)",
 	);
-	const addScope = prepare("INSERT INTO search_scope VALUES (?,?)");
-	let position = 0;
+	const addScope = prepare(
+		"INSERT INTO search_scope VALUES (?,CAST(? AS INTEGER))",
+	);
 	port.on("message", (message: HistoryWorkerMessage) => {
 		try {
 			if ("items" in message) {
 				for (const item of message.items) {
-					const previous = existing.get(item.id);
-					existing.delete(item.id);
+					if (!/^[1-9][0-9]*$/.test(item.id))
+						throw new Error(
+							"History index requires canonical Durable entry IDs",
+						);
+					const previous = existing.get(options.scope, item.id);
+					if (
+						previous &&
+						(typeof previous["id"] !== "bigint" ||
+							typeof previous["fingerprint"] !== "string")
+					)
+						throw new Error("Invalid history index metadata");
 					const fingerprint = createHash("sha256")
 						.update(item.content)
 						.digest("hex");
 					const id =
-						previous?.id ??
+						previous?.["id"] ??
 						insert.run(options.scope, item.id, fingerprint).lastInsertRowid;
-					if (!previous || previous.fingerprint !== fingerprint) {
+					if (!previous || previous["fingerprint"] !== fingerprint) {
 						if (previous) {
 							removeTerms.run(id);
 							update.run(fingerprint, id);
 						}
 						addTerms.run(id, item.content);
 					}
-					addScope.run(id, position++);
+					addScope.run(id, item.id);
 				}
 				port.postMessage({ ready: true });
 				return;
 			}
 			// Only complete refreshes remove stale documents. A search can have
 			// narrower role/window filters without destroying the wider index.
-			if (options.match === undefined)
-				for (const previous of existing.values()) {
-					removeTerms.run(previous.id);
-					removeDocument.run(previous.id);
+			if (options.match === undefined) {
+				for (const previous of prepare(
+					"SELECT id FROM ranked_history_documents WHERE scope=? AND id NOT IN (SELECT id FROM search_scope)",
+				).iterate(options.scope)) {
+					if (typeof previous["id"] !== "bigint")
+						throw new Error("Invalid history index ID");
+					removeTerms.run(previous["id"]);
 				}
+				prepare(
+					"DELETE FROM ranked_history_documents WHERE scope=? AND id NOT IN (SELECT id FROM search_scope)",
+				).run(options.scope);
+			}
 			const ids: string[] = [];
 			if (options.match !== undefined) {
 				for (const row of prepare(

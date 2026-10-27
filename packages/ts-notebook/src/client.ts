@@ -174,10 +174,25 @@ export class TsNotebookClient implements NotebookExecutionClient {
 			if (!isolated) execution.start = this.state;
 			await this.run(execution, tools);
 		};
-		execution.done = (isolated ? run() : this.liveQueue.then(run)).finally(() =>
-			signal?.removeEventListener("abort", abort),
-		);
-		if (!isolated) this.liveQueue = execution.done.catch(() => {});
+		let cancelQueued: (() => void) | undefined;
+		const cancelled = new Promise<void>((resolve) => {
+			cancelQueued = () => resolve();
+			cell.controller.signal.addEventListener("abort", cancelQueued, {
+				once: true,
+			});
+		});
+		execution.done = (
+			isolated ? run() : Promise.race([this.liveQueue, cancelled]).then(run)
+		).finally(() => {
+			signal?.removeEventListener("abort", abort);
+			if (cancelQueued)
+				cell.controller.signal.removeEventListener("abort", cancelQueued);
+		});
+		if (!isolated)
+			this.liveQueue = Promise.all([this.liveQueue, execution.done]).then(
+				() => {},
+				() => {},
+			);
 		return this.observe(
 			execution,
 			parsed.yieldTimeMs ?? DEFAULT_CODE_MODE_EXEC_YIELD_MS,
@@ -345,6 +360,7 @@ export class TsNotebookClient implements NotebookExecutionClient {
 		const { cell, start } = execution;
 		const generation = this.generation;
 		try {
+			cell.controller.signal.throwIfAborted();
 			const input = await this.compilation.compile(
 				cell.source,
 				start,

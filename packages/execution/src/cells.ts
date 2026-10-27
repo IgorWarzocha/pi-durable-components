@@ -21,6 +21,7 @@ import { InvocationDoc } from "./invocation-state.ts";
 import { createNestedToolTask } from "./nested.ts";
 import { providerProjection } from "./projection.ts";
 import { ToolOriginDoc } from "./tool-origin.ts";
+import { recoverWaitSession } from "./wait-session.ts";
 
 export type { CellCoordinatorOptions } from "./cell-contract.ts";
 
@@ -71,6 +72,8 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 				const isolatedLimit = options.isolatedConcurrency ?? 0;
 				const isolated = isolatedLimit > 0 && input["isolated"] === true;
 				let isolatedCount = 0;
+				let normalCount = 0;
+				let activeCount = 0;
 				for (const status of [
 					"pending",
 					"running",
@@ -84,17 +87,31 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 							kind: task.definition.name,
 							status,
 						},
-						isolatedLimit + 1,
+						Math.max(
+							isolatedLimit + (options.normalQueueLimit ?? 1),
+							options.activeCellLimit ?? 1,
+						),
 					);
 					for (const cell of live.items) {
+						activeCount++;
 						if ((await tx.doc(InvocationDoc, cell.id)).isolated)
 							isolatedCount++;
-						else if (!isolated)
+						else if (
+							!isolated &&
+							++normalCount >= (options.normalQueueLimit ?? 1)
+						)
 							throw new Error(
 								`Cell ${cell.id} is still running. Wait or terminate it before starting another cell`,
 							);
 					}
 				}
+				if (
+					options.activeCellLimit !== undefined &&
+					activeCount >= options.activeCellLimit
+				)
+					throw new Error(
+						`Execution allows ${options.activeCellLimit} active cells at a time; wait for or terminate an earlier cell`,
+					);
 				if (isolated && isolatedCount >= isolatedLimit)
 					throw new Error(
 						`Notebook allows ${options.isolatedConcurrency} isolated cells at a time; wait for or terminate an isolated cell first`,
@@ -130,9 +147,27 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 			context: Context,
 			yieldTimeMs = 10000,
 			maxTokens = 10000,
+			sessionYieldTimeMs = yieldTimeMs,
 		): Promise<CellObservation> {
 			if (!Number.isFinite(yieldTimeMs) || yieldTimeMs < 0)
 				throw new Error("yieldTimeMs must be non-negative and finite");
+			const record = await api.getTask(id, context);
+			if (
+				record === undefined ||
+				record.kind !== task.definition.name ||
+				record.conversationId !== api.conversationId
+			) {
+				const recovered = await recoverWaitSession(
+					id,
+					sessionYieldTimeMs,
+					maxTokens,
+					api,
+					context,
+					nestedTask,
+					options.cancelTask,
+				);
+				if (recovered) return recovered;
+			}
 			const initial = await observeCell(
 				task.definition.name,
 				id,

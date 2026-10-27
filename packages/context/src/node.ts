@@ -19,24 +19,13 @@ export function createNodeHistoryRanker(options: {
 	if (!isAbsolute(options.path))
 		throw new Error("History index requires an absolute host-granted path");
 	const workers = new Set<Worker>();
-	const refreshed = new Map<string, HistoryIndexRequest["items"]>();
+	let pending = Promise.resolve();
 	let closed = false;
 	return {
 		async refresh(request) {
 			if (closed) throw new Error("History ranker is closed");
 			request.signal?.throwIfAborted();
-			const previous = refreshed.get(request.scope);
-			if (
-				previous?.length === request.items.length &&
-				previous.every(
-					(item, index) =>
-						item.id === request.items[index]?.id &&
-						item.content === request.items[index]?.content,
-				)
-			)
-				return;
-			await run(request);
-			refreshed.set(request.scope, request.items);
+			await schedule(request);
 		},
 		async search(request) {
 			request.signal?.throwIfAborted();
@@ -48,14 +37,35 @@ export function createNodeHistoryRanker(options: {
 			];
 			if (!words.length)
 				throw new Error("Supply at least one word or number to search history");
-			return run(request, words.map((word) => `"${word}"`).join(" AND "));
+			return schedule(request, words.map((word) => `"${word}"`).join(" AND "));
 		},
 		async close() {
 			closed = true;
-			refreshed.clear();
 			await Promise.all([...workers].map((worker) => worker.terminate()));
 		},
 	};
+	function schedule(
+		request: HistoryIndexRequest & { limit?: number; recentFirst?: boolean },
+		match?: string,
+	): Promise<string[]> {
+		// Keep complete index transactions ordered, without retaining their corpora.
+		const operation = pending.then(() => run(request, match));
+		pending = operation.then(
+			() => {},
+			() => {},
+		);
+		if (!request.signal) return operation;
+		const signal = request.signal;
+		return new Promise((resolve, reject) => {
+			const abort = () =>
+				reject(signal.reason ?? new Error("History search cancelled"));
+			signal.addEventListener("abort", abort, { once: true });
+			operation
+				.then(resolve, reject)
+				.finally(() => signal.removeEventListener("abort", abort));
+			if (signal.aborted) abort();
+		});
+	}
 	function run(
 		request: HistoryIndexRequest & {
 			limit?: number;
@@ -66,6 +76,9 @@ export function createNodeHistoryRanker(options: {
 		request.signal?.throwIfAborted();
 		if (closed) return Promise.reject(new Error("History ranker is closed"));
 		return new Promise<string[]>((resolve, reject) => {
+			const iterator = (async function* () {
+				yield* request.items;
+			})();
 			const worker = new Worker(
 				new URL(
 					import.meta.url.endsWith(".ts")
@@ -90,9 +103,12 @@ export function createNodeHistoryRanker(options: {
 				if (settled) return;
 				settled = true;
 				request.signal?.removeEventListener("abort", abort);
-				void worker.terminate().finally(() => workers.delete(worker));
-				if (error) reject(error);
-				else resolve(ids ?? []);
+				void iterator.return(undefined).catch(() => {});
+				void worker.terminate().then(() => {
+					workers.delete(worker);
+					if (error) reject(error);
+					else resolve(ids ?? []);
+				}, reject);
 			};
 			const abort = () =>
 				finish(
@@ -101,27 +117,32 @@ export function createNodeHistoryRanker(options: {
 					}),
 				);
 			request.signal?.addEventListener("abort", abort, { once: true });
-			let offset = 0;
-			worker.on("message", (value: unknown) => {
+			worker.on("message", async (value: unknown) => {
+				if (settled) return;
 				if (value && typeof value === "object" && "ready" in value) {
-					const batch: { id: string; content: string }[] = [];
-					let chars = 0;
-					while (
-						offset < request.items.length &&
-						batch.length < 128 &&
-						chars < 1_000_000
-					) {
-						const item = request.items[offset++];
-						if (item) {
-							batch.push(item);
-							chars += item.content.length;
+					try {
+						const batch: { id: string; content: string }[] = [];
+						let chars = 0;
+						while (batch.length < 128 && chars < 1_000_000) {
+							request.signal?.throwIfAborted();
+							const next = await iterator.next();
+							if (settled) return;
+							if (next.done) break;
+							batch.push(next.value);
+							chars += next.value.content.length;
 						}
+						worker.postMessage(
+							(batch.length
+								? { items: batch }
+								: { finish: true }) satisfies HistoryWorkerMessage,
+						);
+					} catch (error) {
+						finish(
+							error instanceof Error
+								? error
+								: new Error("History index input failed", { cause: error }),
+						);
 					}
-					worker.postMessage(
-						(batch.length
-							? { items: batch }
-							: { finish: true }) satisfies HistoryWorkerMessage,
-					);
 					return;
 				}
 				if (

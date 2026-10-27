@@ -49,7 +49,11 @@ export function createCellTask(
 		return state;
 	};
 
-	const excluded = new Set(options.surfaceTools);
+	const excluded = new Set(
+		options.surfaceTools.filter(
+			(name) => !options.callableSurfaceTools?.includes(name),
+		),
+	);
 	const task = defineTask<
 		JsonObject,
 		{ phase: "start" } | { phase: "execute" },
@@ -161,18 +165,21 @@ export function createCellTask(
 						running.done.resolve();
 					}
 				}
-				const finished = await invocation?.finish(result);
-				const finalResult = finished?.result ?? result;
-				const control = combineControls(
-					[...controls, finalResult.control],
-					ending === "completed" && !finalResult.isError,
-				);
-				const { control: _driverControl, ...withoutControl } = finalResult;
-				const final =
-					control === undefined
-						? withoutControl
-						: { ...withoutControl, control };
+				let finished:
+					| Awaited<ReturnType<NonNullable<typeof invocation>["finish"]>>
+					| undefined;
 				try {
+					finished = await invocation?.finish(result);
+					const finalResult = finished?.result ?? result;
+					const control = combineControls(
+						[...controls, finalResult.control],
+						ending === "completed" && !finalResult.isError,
+					);
+					const { control: _driverControl, ...withoutControl } = finalResult;
+					const final =
+						control === undefined
+							? withoutControl
+							: { ...withoutControl, control };
 					await runtime.commit(async (tx) => {
 						(await tx.doc(InvocationDoc, runtime.taskId)).result =
 							storeResult(final);

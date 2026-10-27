@@ -1,4 +1,5 @@
 import { type Context, copyJson } from "@earendil-works/chord";
+import { withoutAbortSignal } from "@earendil-works/chord/context";
 import {
 	type JsonObject,
 	LiveDoc,
@@ -153,7 +154,7 @@ export function nativeToolCalls<I, S, R, H extends object>(
 		execute,
 		async finish() {
 			await Promise.allSettled(admissions);
-			await cleanupNativeCalls(runtime, context);
+			await cleanupNativeCalls(runtime, withoutAbortSignal(context));
 		},
 	};
 }

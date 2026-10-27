@@ -256,8 +256,6 @@ export async function mutateNote(
 	if (bytes > 1_000_000)
 		throw new Error("Note file exceeds the 1,000,000-byte limit");
 	const totalBytes = catalog.totalBytes - (previous?.bytes ?? 0) + bytes;
-	if (totalBytes > 10_000_000)
-		throw new Error("Context notes exceed the 10,000,000-byte limit");
 	const updatedAt = input.now();
 	const metadata = {
 		path: input.path,
@@ -269,9 +267,6 @@ export async function mutateNote(
 	const nextCatalog = [...catalog.files];
 	if (index < 0) nextCatalog.push(metadata);
 	else nextCatalog[index] = metadata;
-	// Empty files and long paths must not turn the catalog into an unbounded document.
-	if (Buffer.byteLength(JSON.stringify(nextCatalog), "utf8") > 1_000_000)
-		throw new Error("Note path catalog exceeds the 1,000,000-byte limit");
 	const freshness: NoteFreshness = {
 		windowId,
 		userEntry,

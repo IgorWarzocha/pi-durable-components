@@ -5,6 +5,7 @@ import { NotebookCell } from "../../notebook/src/cell.ts";
 import type { JsKernel } from "./kernel.ts";
 import { JsNotebookProject } from "./project.ts";
 import type { JsSnapshot, JsTool } from "./protocol.ts";
+import { RuntimeInstallError } from "./runtime.ts";
 import type {
 	NotebookControlRequest,
 	NotebookControlResult,
@@ -21,6 +22,7 @@ interface Execution {
 	isolated: boolean;
 	kernel?: JsKernel;
 	done: Promise<void>;
+	cancelQueued?: () => void;
 	stopping?: Promise<void>;
 }
 const MAX_CELLS = 4;
@@ -70,7 +72,7 @@ export class JsNotebookClient implements NotebookExecutionClient {
 		const parsed = parseExecSource(source, { allowIsolated: true });
 		const laneFull = parsed.isolated
 			? this.isolatedRunning >= MAX_CELLS
-			: this.running - this.isolatedRunning >= 1;
+			: this.running - this.isolatedRunning >= MAX_CELLS;
 		if (laneFull || this.cells.size >= 32)
 			throw new Error(
 				"JS Notebook has too many active or uncollected cells; wait for or terminate earlier cells",
@@ -112,11 +114,26 @@ export class JsNotebookClient implements NotebookExecutionClient {
 			void this.stop(execution);
 		};
 		signal?.addEventListener("abort", abort, { once: true });
-		const run = () => this.run(execution, definitions);
-		execution.done = (
-			execution.isolated ? run() : this.liveQueue.then(run)
-		).finally(() => signal?.removeEventListener("abort", abort));
-		if (!execution.isolated) this.liveQueue = execution.done;
+		const run = () => {
+			delete execution.cancelQueued;
+			if (!cell.isCompleted()) return this.run(execution, definitions);
+		};
+		if (execution.isolated) execution.done = Promise.resolve(run());
+		else {
+			const cancelled = new Promise<void>((resolve) => {
+				execution.cancelQueued = () => {
+					this.complete(execution);
+					resolve();
+				};
+			});
+			const scheduled = this.liveQueue.then(run);
+			// Cancelling a queued cell must not release its successor ahead of the live cell.
+			this.liveQueue = scheduled;
+			execution.done = Promise.race([scheduled, cancelled]);
+		}
+		execution.done = execution.done.finally(() =>
+			signal?.removeEventListener("abort", abort),
+		);
 		return this.observe(execution, parsed.yieldTimeMs ?? 30000, signal);
 	}
 	async wait(
@@ -288,6 +305,7 @@ export class JsNotebookClient implements NotebookExecutionClient {
 				if (
 					signal?.aborted ||
 					this.project.startupAborted ||
+					error instanceof RuntimeInstallError ||
 					(error instanceof Error &&
 						error.message.startsWith("Another conversation is using"))
 				) {
@@ -452,6 +470,7 @@ export class JsNotebookClient implements NotebookExecutionClient {
 		execution.stopping ??= (async () => {
 			execution.cell.terminated = true;
 			execution.cell.controller.abort();
+			execution.cancelQueued?.();
 			this.delegate.cancelCell(execution.cell.id);
 			if (!execution.isolated && execution.kernel) this.project.invalidate();
 			await execution.kernel?.stop();

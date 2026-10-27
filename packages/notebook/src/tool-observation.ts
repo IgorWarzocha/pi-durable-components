@@ -34,6 +34,7 @@ export async function observeNotebookCell(
 	api: ToolExecutionApi,
 	context: Context,
 ) {
+	if (observation.recoveredSession) return observation.result;
 	const result = observation.result;
 	const allContent = result.output ?? [];
 	const previous = await api.commit(async (tx) => {

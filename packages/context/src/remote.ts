@@ -69,12 +69,9 @@ async function readRemoteCatalog(
 		!catalog.familyId ||
 		typeof catalog.currentAgentName !== "string" ||
 		!catalog.currentAgentName ||
-		!Array.isArray(catalog.agents) ||
-		catalog.agents.length > 10_000
+		!Array.isArray(catalog.agents)
 	)
-		throw new Error(
-			"Remote Context catalogue is invalid or exceeds 10000 agents",
-		);
+		throw new Error("Remote Context catalogue is invalid");
 	const names = new Map<string, ConversationId>();
 	for (const agent of catalog.agents) {
 		if (

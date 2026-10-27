@@ -20,8 +20,8 @@ const NOTES_ACTIONS = [
 	"write_file",
 ] as const;
 
-/** Own the native output budget so discovery can reject oversize JSON before truncation. */
-export const contextOutputLimits = { maxBytes: 50 * 1024, maxLines: 2_000 };
+/** Source results are complete. Override Durable's configurable truncation defaults. */
+export const contextOutputLimits = { maxBytes: Infinity, maxLines: Infinity };
 
 /** Keep UTF-16 offsets without splitting a Unicode character across JSON/IPC pages. */
 export function contextTextSlice(
@@ -44,24 +44,11 @@ export function contextToolResult(
 	details: JsonObject = result,
 ) {
 	const text = JSON.stringify(result);
-	if (Buffer.byteLength(text, "utf8") > contextOutputLimits.maxBytes)
-		throw new Error(
-			"Context result exceeds 50 KiB. Reduce list/search limits or narrow the path prefix; read notes with read_file and history with read_item using limit_chars/offset_chars. If a single metadata record is too large, ask the host to inspect it.",
-		);
 	return {
 		output: [{ type: "text" as const, text }],
 		structuredOutput: result,
 		details,
 	};
-}
-
-export function contextHelpText(help: JsonObject): string {
-	const text = JSON.stringify(help);
-	if (new TextEncoder().encode(text).byteLength > contextOutputLimits.maxBytes)
-		throw new Error(
-			"Remote Context discovery exceeds the tool output budget. Ask the host for a narrower catalogue. Known agent_name and numeric target operations remain available.",
-		);
-	return text;
 }
 
 const nullableString = Type.Union([Type.String(), Type.Null()]);
@@ -268,7 +255,7 @@ export function contextToolHelp(
 					ranges:
 						"start_line/stop_line inclusive, 1-based; negative counts from end; 0/null/omitted uses first/last line; out-of-range clamps; reversed range returns empty content",
 					paging:
-						"read_file returns up to 8000 characters of the selected lines; continue with next_offset_chars and the same line range. Search line previews are capped at 1000 characters; read_file retrieves the full line",
+						"read_file returns the full selected lines by default. Optional limit_chars and offset_chars select a page; continue with next_offset_chars and the same line range",
 					defaults:
 						"list max_results 20; search max_files/max_matches_per_file 20; positive limits capped at 100; list name ascending; search name ascending, recent_file_first sorts created_at descending",
 				}

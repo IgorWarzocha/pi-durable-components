@@ -45,6 +45,8 @@ export interface CellEngineApi {
 }
 
 export type CellObservation = {
+	/** A mistaken shell handle was polled directly, not an incremental cell snapshot. */
+	readonly recoveredSession?: true;
 	readonly cellId: TaskId<ToolExecutionResult>;
 	readonly status:
 		| "running"
@@ -61,6 +63,12 @@ export type CellCoordinatorOptions = {
 	readonly name: string;
 	readonly engine: CellEngine;
 	readonly surfaceTools: readonly string[];
+	/** Surface registrations that may also be called through ordinary nested dispatch. */
+	readonly callableSurfaceTools?: readonly string[];
+	/** Admit queued normal cells; the engine owns serial execution and cancellation. */
+	readonly normalQueueLimit?: number;
+	/** Combined live and isolated admission bound where the runtime shares worker slots. */
+	readonly activeCellLimit?: number;
 	/** Notebook admits independent checkpoint-copy cells alongside its single live cell. */
 	readonly isolatedConcurrency?: number;
 	/** Individual task cancellation is a host operation, not part of the tool invocation API. */

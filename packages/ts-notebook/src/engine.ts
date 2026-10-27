@@ -3,6 +3,7 @@ import { type Context, copyJson } from "@earendil-works/chord";
 import {
 	defineDoc,
 	type JsonObject,
+	type PromptInput,
 	type ToolExecutionApi,
 	type ToolExecutionResult,
 } from "@earendil-works/pi-durable";
@@ -58,6 +59,7 @@ export function createTsNotebookEngine(
 		api: ToolExecutionApi,
 		context: Context,
 	): Promise<NotebookControlResult>;
+	inventory(input: PromptInput, context: Context): Promise<string | undefined>;
 } {
 	if (!options.stateDirectory || !options.native?.environmentId)
 		throw new Error(
@@ -96,6 +98,35 @@ export function createTsNotebookEngine(
 		return { client, context };
 	}
 	return {
+		async inventory(input, context) {
+			if (closed) throw new Error("Notebook host is closed");
+			const env = input.env;
+			if (!env || env.id !== options.native.environmentId) return undefined;
+			const namespace = await input.read.snapshot(NotebookNamespace, context);
+			const sessionId = `${namespace?.id ?? "uninitialised"}:${input.conversationId}`;
+			const live = clients.get(sessionId);
+			// A prompt read never commits a namespace or starts a compiler/worker.
+			const client =
+				live ??
+				new TsNotebookClient({
+					agentDir: options.stateDirectory,
+					maxHeapMiB,
+					profile: options.profile,
+				});
+			try {
+				const result = await client.controlNotebook(
+					{ action: "status" },
+					{ cwd: env.cwd, sessionContext: { cwd: env.cwd, sessionId } },
+					context.abortSignal,
+				);
+				const status = result.details?.["startupStatus"];
+				if (typeof status !== "string")
+					throw new Error("TS startup inventory is unavailable");
+				return status;
+			} finally {
+				if (!live) await client.shutdown();
+			}
+		},
 		async control(request, api, context) {
 			const current = await session(api, context);
 			return current.client.controlNotebook(

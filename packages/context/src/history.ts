@@ -31,7 +31,6 @@ import {
 } from "./remote.ts";
 import {
 	boundedInteger,
-	contextHelpText,
 	contextOutputLimits,
 	contextTextSlice,
 	contextToolHelp,
@@ -76,7 +75,6 @@ export function createHistoryTool(options: {
 					)),
 				};
 			if (help) {
-				contextHelpText(help);
 				return contextToolResult(help);
 			}
 			validateHistoryArguments(args);
@@ -100,13 +98,6 @@ export function createHistoryTool(options: {
 			const conversation = await options.conversation(target, context);
 			if (conversation.id !== target)
 				throw new Error("History reader is bound to a different conversation");
-			let scanned = 0;
-			const charge = (count: number) => {
-				if (options.archiveHistory && (scanned += count) > 50_000)
-					throw new Error(
-						"Archive scan exceeds 50000 entries; use an exact window or narrower target",
-					);
-			};
 			const activeWindowFor = async (id: ConversationId) => {
 				const state = await api.snapshot(WindowState, id, context);
 				if (state?.window) return state.window.id;
@@ -119,7 +110,6 @@ export function createHistoryTool(options: {
 					do {
 						context.abortSignal?.throwIfAborted();
 						const page = await reader.entries({}, 64, cursor, context);
-						charge(page.items.length);
 						const boundary = page.items.find((entry) => WindowEntry.is(entry));
 						if (boundary && WindowEntry.is(boundary)) return boundary.data.id;
 						cursor = page.next;
@@ -146,7 +136,6 @@ export function createHistoryTool(options: {
 						activeWindowFor,
 						familyTargets,
 						windowId: args.window_id,
-						charge,
 						archive: options.archiveHistory === true,
 						context,
 					}),
@@ -318,43 +307,57 @@ async function readRankedHistory(
 		);
 	}
 
-	const canonical = new Map<
-		string,
-		NonNullable<ReturnType<typeof historyItem>>
-	>();
-	const index: { id: string; content: string }[] = [];
-	let scanned = 0;
-	for await (const { entry, windowId, boundary, summary } of entries()) {
-		if (++scanned > 50_000)
-			throw new Error(
-				"Ranked history scan exceeds 50000 entries; use an exact window",
-			);
-		if (
-			boundary ||
-			summary ||
-			(args.window_id && windowId !== args.window_id) ||
-			activeIds.has(entry.id) ||
-			windowId.startsWith("archive:")
-		)
-			continue;
-		const item = historyItem(entry, windowId);
-		if (!item || (args.role && item.role !== args.role)) continue;
-		const content = rankedHistoryText(entry);
-		if (!content) continue;
-		canonical.set(item.item_id, item);
-		index.push({ id: item.item_id, content });
+	async function* index() {
+		for await (const { entry, windowId, boundary, summary } of entries()) {
+			if (
+				boundary ||
+				summary ||
+				(args.window_id && windowId !== args.window_id) ||
+				activeIds.has(entry.id) ||
+				windowId.startsWith("archive:")
+			)
+				continue;
+			if (args.role && entry.model?.[0]?.role !== args.role) continue;
+			const content = rankedHistoryText(entry);
+			if (content) yield { id: String(entry.id), content };
+		}
 	}
-	// Durable pages are newest-first; the ranker's chronology is oldest-first.
-	index.sort((a, b) => Number(a.id) - Number(b.id));
 	const limit = boundedInteger(args.limit, 10, 25, 0);
 	const ids = await ranked.ranker.search({
 		scope,
-		items: index,
+		items: index(),
 		query: args.query ?? "",
 		limit: limit + 1,
 		recentFirst: args.recent_first === true,
 		signal,
 	});
+	// Retain only the selected originals, never a second in-memory transcript.
+	const wanted = new Set(ids.slice(0, limit));
+	const canonical = new Map<
+		string,
+		NonNullable<ReturnType<typeof historyItem>>
+	>();
+	if (wanted.size)
+		for await (const { entry, windowId, boundary, summary } of entries()) {
+			if (
+				!wanted.has(String(entry.id)) ||
+				boundary ||
+				summary ||
+				activeIds.has(entry.id) ||
+				windowId.startsWith("archive:") ||
+				(args.window_id && windowId !== args.window_id)
+			)
+				continue;
+			const item = historyItem(entry, windowId);
+			if (
+				!item ||
+				(args.role && item.role !== args.role) ||
+				!rankedHistoryText(entry)
+			)
+				continue;
+			canonical.set(item.item_id, item);
+			if (canonical.size === wanted.size) break;
+		}
 	const maxChars = boundedInteger(args.max_chars_per_item, 1_000, 1_000, 0);
 	const previews = boundedPreviews(
 		ids.slice(0, limit).map((id) => {
@@ -383,25 +386,23 @@ export async function refreshRankedHistory(
 		const active = new Set(
 			(await conversation.context(context)).entries.map((entry) => entry.id),
 		);
-		const items: { id: string; content: string }[] = [];
-		let cursor: Cursor | undefined;
-		let scanned = 0;
-		do {
-			context.abortSignal?.throwIfAborted();
-			const page = await conversation.entries({}, 64, cursor, context);
-			if ((scanned += page.items.length) > 50_000)
-				throw new Error("Ranked history refresh exceeds 50000 entries");
-			for (const entry of page.items) {
-				if (active.has(entry.id) || CompactionEntry.is(entry)) continue;
-				const content = rankedHistoryText(entry);
-				if (content) items.push({ id: String(entry.id), content });
-			}
-			cursor = page.next;
-		} while (cursor !== undefined);
-		items.sort((a, b) => Number(a.id) - Number(b.id));
+		async function* items() {
+			let cursor: Cursor | undefined;
+			do {
+				context.abortSignal?.throwIfAborted();
+				const page = await conversation.entries({}, 64, cursor, context);
+				for (const entry of page.items) {
+					context.abortSignal?.throwIfAborted();
+					if (active.has(entry.id) || CompactionEntry.is(entry)) continue;
+					const content = rankedHistoryText(entry);
+					if (content) yield { id: String(entry.id), content };
+				}
+				cursor = page.next;
+			} while (cursor !== undefined);
+		}
 		await ranked.ranker.refresh({
 			scope: String(conversation.id),
-			items,
+			items: items(),
 			signal: context.abortSignal,
 		});
 	} catch (error) {

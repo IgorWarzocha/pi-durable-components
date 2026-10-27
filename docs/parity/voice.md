@@ -32,7 +32,7 @@ Howcode's live Grok acceptance subsequently reported duplicated phrases. Inspect
 
 ## Artifact evidence
 
-All six Grok binaries and their six dependency notices match the carried SHA256 manifest. Every manifest value matches the immutable source pin, with local formatting applied. All six GipPity helpers were compared byte-for-byte with `git show` at the extraction pin. Native Rust source, lockfiles, build scripts and relevant notices remain available for deliberate rebuilding.
+All six Grok binaries and their six dependency notices match the carried SHA256 manifest. Every manifest value matches the immutable source pin, with local formatting applied. GipPity's original helpers matched the extraction pin. The native migration below supersedes those six assets. Native Rust source, lockfiles, build scripts and relevant notices remain available for deliberate rebuilding.
 
 Grok's historical native-input fingerprint was independently reconstructed from immutable source objects and matched `1198e206a19b0bb08ba3ce961b333f68926a1ff760a3aefd07cfd0b8b56d0751`. Adapted package-local build and verification scripts retain that upstream stamp as provenance. They do not claim that a local rebuild reproduced the shipped binaries.
 
@@ -51,6 +51,18 @@ Independent review found that arrival failure before channel-link construction l
 Live xAI and Codex entitlement, microphone permissions, acoustic behavior, device compatibility, LAN access and non-Linux execution remain unverified. Artifact integrity and offline lifecycle checks do not establish those external boundaries. Final package integration validation is recorded in the root parity report.
 
 Both emitted voice archives passed an isolated npm consumer's strict TypeScript check without `skipLibCheck`, including a single lease typed for both products, and imported without starting audio or network activity. That consumer pinned AWS and Smithy transitive versions to the repository's existing lock. Unconstrained npm resolution was blocked by an upstream dependency requesting the unpublished `@aws-sdk/credential-provider-http@^3.972.75`. No repository override or upstream patch was introduced to mask that registry failure.
+
+## Native WebRTC migration at merged PR #552
+
+The entire GipPity Rust tree, lockfile and dependency notices now match read-only Pi Stuff `84bd5bce60a77c4298484d4b7c810d4fe5220a1b`, inspected with `git show`. This carries WebRTC `0.17.2` to `0.21.1`, its `rtc` core, Opus `0.4.0` with statically built libopus `1.6.1`, Rubato `5.0.1` and the pinned dependency resolution. Existing OpenAI Codex Apache notices and the source revision in `VENDORED.md` remain intact. The added codec and WebRTC notices ship alongside them.
+
+The integration uses explicit peer-event handlers and polled data-channel events. Remote playout and data reception belong to a session-owned worker set. Offer failure closes the partially constructed peer before application workers start. Teardown marks the session closing, cancels and joins encoding and event workers, then closes the peer. Data-channel closure disables input. Remote-track callbacks schedule owned work without blocking the peer driver. RTP output reads the negotiated Opus payload type from sender parameters rather than assuming the offer's payload number. Capture and playback retain their existing processing and speaker-epoch boundaries in separate modules. The JSONL protocol remains version 6 and host-native execution remains an explicit capability.
+
+Linux x64 was rebuilt with the supported `node scripts/build-voice-helper.mjs` path, which runs `cargo build --release --locked`. Independent review found that this machine's glibc 2.44 produced an executable requiring glibc 2.43, above the previous 2.34 baseline. The shipped Linux x64 asset was therefore replaced by the matching immutable `84bd5bce` binary, which requires at most glibc 2.34. All six shipped target binaries come from that source revision. Foreign targets were not locally rebuilt.
+
+The shipped Linux x64 binary was then exercised through real bridge start, offer, stop and shutdown. Its source hash is `a73d795f8c1bc14384537766fd1ba197f7adb2d45c44fb943fc1b84c502ed9d9`.
+
+A disposable check ran the locally rebuilt Linux helper through four bridge offer cycles, input muting, speaker suppression transitions, PCM submission, malformed-answer failure and joined stop. Each stop returned the process to six open descriptors. Closing stdin during an active bridge also exited successfully. These checks opened local WebRTC sockets, but no audio device or external provider. Negotiated media exchange, acoustic behaviour, provider entitlement, device compatibility and execution on the other five targets remain unverified by this migration check. No permanent tests were added.
 
 ## PR #552 refresh
 

@@ -171,6 +171,7 @@ export function observeCodeCell(
 	maxTokens: number,
 	acknowledge: (taskId: number, revision: number) => boolean,
 ): ToolExecutionResult {
+	if (observation.recoveredSession) return observation.result;
 	const details = observation.result.details;
 	const revision =
 		details !== null && typeof details === "object" && !Array.isArray(details)
