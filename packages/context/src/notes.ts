@@ -44,7 +44,8 @@ export function createNotesTool(options: {
 }) {
 	const tool = defineTool({
 		name: "notes",
-		description: "Persistent notes",
+		description:
+			"Persistent notes for handing off task state between context windows",
 		parameters: notesParameters,
 		structuredOutputSchema: Type.Object({}, { additionalProperties: true }),
 		prepareArguments: prepareNotesArguments,

@@ -11,12 +11,17 @@ export class NotebookCellSettlement {
 	private readonly delegate: NotebookToolCallbacks;
 	private readonly exitToken: string;
 	private readonly cancelActive: () => void;
+	private readonly completed:
+		| ((cell: NotebookCell) => Promise<void>)
+		| undefined;
 	constructor(
 		session: () => NotebookSessionRuntime,
 		delegate: NotebookToolCallbacks,
 		exitToken: string,
 		cancelActive: () => void,
+		completed?: (cell: NotebookCell) => Promise<void>,
 	) {
+		this.completed = completed;
 		this.session = session;
 		this.delegate = delegate;
 		this.exitToken = exitToken;
@@ -51,7 +56,7 @@ export class NotebookCellSettlement {
 				await this.endCellRuntime(cell);
 				if (cell.result.status === "ok") {
 					await session.observations.recordNpmImports(cell.source);
-					session.checkpoints.schedule();
+					if (!this.completed) session.checkpoints.schedule();
 				}
 			}
 		} catch (error) {
@@ -83,6 +88,15 @@ export class NotebookCellSettlement {
 					cell,
 				);
 			} finally {
+				try {
+					await this.completed?.(cell);
+				} catch (error) {
+					cell.result = {
+						status: "error",
+						items: [],
+						errorText: `Notebook result could not be saved: ${error instanceof Error ? error.message : String(error)}. The live notebook is unchanged; inspect saved profiles before retrying. External side effects were not rolled back.`,
+					};
+				}
 				cell.markCompleted();
 			}
 		}

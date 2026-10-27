@@ -1,5 +1,7 @@
 # Board parity
 
+The merged PR #552 delta at `1338b66a..84bd5bce` is recorded in the [tool-guidance audit](tool-guidance.md). Native standing guidance now replaces generic work logging with the source's coordination-only posting boundary. A disposable real-Harness capture confirmed it reaches the model exactly once. Existing tool arguments, results, membership and lifecycle are unchanged.
+
 ## Pinned references and native boundary
 
 Discussion contracts come from [`@howaboua/pi-shepherdr` 0.2.13](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb/packages/pi-shepherdr/src/board), revision `5dc8fa4bbded063f9c158e2af7a8a53eeaea7fbb`. Empty-call discovery, thread references and subscription catch-up use the selected refresh at `69f50cf70e8a7b05c2349be6227f521b6504f80e`.

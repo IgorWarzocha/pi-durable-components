@@ -33,6 +33,7 @@ export class NotebookExecutionRuntime {
 	private activeCell: NotebookCell | undefined;
 	private nextCellId = 1;
 	private starting = false;
+	private readonly cellPrefix: string;
 
 	constructor(
 		session: () => NotebookSessionRuntime,
@@ -40,7 +41,10 @@ export class NotebookExecutionRuntime {
 			context: ToolExecutionContext,
 			signal?: AbortSignal,
 		) => Promise<void>,
+		completed?: (cell: NotebookCell) => Promise<void>,
+		cellPrefix = "notebook",
 	) {
+		this.cellPrefix = cellPrefix;
 		this.session = session;
 		this.prepareSession = prepareSession;
 		this.delegate = new NotebookToolCallbacks({
@@ -55,6 +59,7 @@ export class NotebookExecutionRuntime {
 			() => {
 				if (this.activeCell) this.delegate.cancelCell(this.activeCell.id);
 			},
+			completed,
 		);
 	}
 
@@ -62,7 +67,7 @@ export class NotebookExecutionRuntime {
 		return this.activeCell?.id;
 	}
 	runningCellId(): string | undefined {
-		return this.activeCell && !this.activeCell.result
+		return this.activeCell && !this.activeCell.isCompleted()
 			? this.activeCell.id
 			: undefined;
 	}
@@ -100,11 +105,14 @@ export class NotebookExecutionRuntime {
 		const session = this.session();
 		await this.prepareSession(context, signal);
 		await session.checkpoints.flush();
-		const { code, yieldTimeMs, maxOutputTokens } = parseExecSource(source);
+		signal?.throwIfAborted();
+		const { code, yieldTimeMs, maxOutputTokens } = parseExecSource(source, {
+			allowIsolated: true,
+		});
 		const effectiveYieldTime = yieldTimeMs ?? DEFAULT_CODE_MODE_EXEC_YIELD_MS;
 		const journal = session.observations.journal();
 		this.nextCellId = Math.max(this.nextCellId, (journal?.cells ?? 0) + 1);
-		const id = `notebook-${this.nextCellId++}`;
+		const id = `${this.cellPrefix}-${this.nextCellId++}`;
 		session.observations.recordMemory(undefined);
 		const cell = new NotebookCell({
 			id,

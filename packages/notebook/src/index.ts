@@ -92,11 +92,13 @@ export function createNotebookMode(options: NotebookModeOptions) {
 		engine,
 		surfaceTools: ["exec", "wait", "notebook"],
 		cancelTask: options.cancelTask,
+		isolatedConcurrency: 4,
 	});
 	const waitAttempts = new Map<TaskId, number>();
 	const exec = defineTool({
 		name: "exec",
-		description: "Run TypeScript in a persistent Deno notebook",
+		description:
+			"Run TypeScript in a persistent Deno notebook; isolated:true saves a separate candidate",
 		parameters: Type.Object(
 			{ code: Type.String() },
 			{ additionalProperties: false },
@@ -119,7 +121,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 			return { code: value.code };
 		},
 		async execute(args, api, context) {
-			const parsed = parseExecSource(args.code);
+			const parsed = parseExecSource(args.code, { allowIsolated: true });
 			const contracts = (await api.agent(context)).callable
 				.map(readToolContract)
 				.filter((contract) => !contract.nativeOnly);
@@ -131,6 +133,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 				{
 					code: parsed.code,
 					max_output_tokens: parsed.maxOutputTokens ?? 10000,
+					isolated: parsed.isolated,
 				},
 				api,
 				context,
@@ -231,7 +234,7 @@ export function createNotebookMode(options: NotebookModeOptions) {
 		sections: [
 			section("notebook", (input) => {
 				const base =
-					"exec: TypeScript, top-level await and globals persist. Run exec cells sequentially. Bare values are discarded. Use text(value), image(value), generatedImage(value), notify(value), store(key,value), load(key), exit() and yield_control(). ALL_TOOLS lists selected tool contracts. Reuse matching retained globals. Keep one-offs block-local. Retain only what you plan to reuse, and clean up when the task ends. Keep retained helpers self-contained; recreate imports, closures and live handles after restart. Keep canonical project artifacts in files and carry shell state through files or arguments. Ask before adding npm imports inside this Deno notebook, then use exact-version npm: specifiers. This rule does not govern repository dependencies. Inside exec tools.notebook supports status without query, list and diagnostics. Run other notebook actions after exec returns.";
+					'exec: TypeScript, top-level await and globals persist. Run normal exec cells sequentially. A leading // @exec: {"isolated":true} runs a separate kernel from committed state, up to four at once; completion saves a candidate without changing live bindings. Use wait to continue or terminate. Bare values are discarded. Use text(value), image(value), generatedImage(value), notify(value), store(key,value), load(key), exit() and yield_control(). ALL_TOOLS lists selected tool contracts. Reuse matching retained globals. Keep one-offs block-local. Retain only what you plan to reuse, and clean up when the task ends. Keep retained helpers self-contained; recreate imports, closures and live handles after restart. Keep canonical project artifacts in files and carry shell state through files or arguments. Ask before adding npm imports inside this Deno notebook, then use exact-version npm: specifiers. This rule does not govern repository dependencies. Inside exec tools.notebook supports status without query, list and diagnostics. Run other notebook actions after exec returns.';
 				const promoted = input.agent.callable
 					.filter((tool) => !["exec", "wait", "notebook"].includes(tool.name))
 					.map(readToolContract)

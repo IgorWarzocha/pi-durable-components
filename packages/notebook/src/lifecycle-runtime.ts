@@ -9,6 +9,7 @@ interface NotebookBindingStatus {
 	kind: "value" | "definition" | "runtime-only";
 	disposable?: "sync" | "async" | undefined;
 	globalProperty: boolean;
+	configurable: boolean;
 }
 
 export interface NotebookKernelStatus {
@@ -53,10 +54,11 @@ export function notebookStatusSource(names: string[], marker: string): string {
       type: typeof __value,
       kind: __kind,
 	  globalProperty: Object.prototype.hasOwnProperty.call(globalThis, ${JSON.stringify(name)}),
+	  configurable: Object.getOwnPropertyDescriptor(globalThis, ${JSON.stringify(name)})?.configurable === true,
       ...(__disposable ? { disposable: __disposable } : {}),
     });
   } catch (__error) {
-	__bindings.push({ name: ${JSON.stringify(name)}, type: "unavailable", kind: "runtime-only", globalProperty: false });
+	__bindings.push({ name: ${JSON.stringify(name)}, type: "unavailable", kind: "runtime-only", globalProperty: false, configurable: false });
   }`,
 		)
 		.join("");

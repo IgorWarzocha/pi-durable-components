@@ -109,7 +109,7 @@ export function createToolRollover(
 					return {
 						status: "checkpoint_required",
 						message:
-							"Save the current task checkpoint in notes, then call new_context alone again. The current window has not changed.",
+							"Save the current task checkpoint in your own notes using a relative path, wait for success, then call new_context alone again. Another agent's notes do not save your checkpoint. The current window has not changed.",
 					};
 				const receipt = await tx.doc(ToolWindow, live.run.taskId);
 				receipt.request ??= {
@@ -202,7 +202,7 @@ export function createToolRollover(
 							{
 								role: "system",
 								content: safe
-									? "Read your saved notes and resume the task."
+									? "Read your saved notes with the notes tool and resume the task."
 									: (preparation.error ??
 										"Context rollover was skipped because the conversation changed or foreground work is still running. The window is unchanged. Save fresh notes and retry new_context after that work settles."),
 								timestamp: now(),

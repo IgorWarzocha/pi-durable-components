@@ -1,6 +1,7 @@
 import { copyJson, type JsonValue } from "@earendil-works/chord";
 import type { ToolExecutionResult } from "@earendil-works/pi-durable";
 import type { CellObservation } from "../../execution/src/cell-contract.ts";
+import { TRUNCATED_OUTPUT_NOTICE } from "../../execution/src/exec-source.ts";
 
 export function guestContent(
 	kind: "text" | "image",
@@ -66,7 +67,7 @@ export function observeWorkerCell(
 	if (truncated)
 		content.push({
 			type: "text",
-			text: "[Output truncated for this observation]",
+			text: TRUNCATED_OUTPUT_NOTICE,
 		});
 	if (observation.status === "running")
 		content.unshift({

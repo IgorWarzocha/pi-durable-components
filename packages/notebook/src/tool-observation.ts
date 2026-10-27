@@ -5,6 +5,7 @@ import {
 	type ToolExecutionApi,
 } from "@earendil-works/pi-durable";
 import type { CellObservation } from "../../execution/src/cell-contract.ts";
+import { TRUNCATED_OUTPUT_NOTICE } from "../../execution/src/exec-source.ts";
 import { boundOutput } from "../../execution/src/output.ts";
 
 const ObservationCursor = defineDocFamily<{ items: number }, null>({
@@ -65,6 +66,9 @@ export async function observeNotebookCell(
 	const emitted = [
 		...(marker ? [{ type: "text" as const, text: marker }] : []),
 		...(bounded.text ? [{ type: "text" as const, text: bounded.text }] : []),
+		...(bounded.droppedBytes
+			? [{ type: "text" as const, text: TRUNCATED_OUTPUT_NOTICE }]
+			: []),
 		...content.filter((each) => each.type !== "text"),
 	];
 	if (emitted.length === 0) emitted.push({ type: "text", text: "OK" });

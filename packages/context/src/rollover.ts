@@ -344,7 +344,7 @@ export function createRollover(
 						task.conversationId,
 						task.id,
 						"howaboua.context.continuation",
-						"Read your saved notes and resume the task.",
+						"Read your saved notes with the notes tool and resume the task.",
 						runtime.now(),
 					);
 					if (!generation)

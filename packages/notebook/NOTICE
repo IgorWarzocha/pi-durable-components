@@ -1,5 +1,6 @@
 Applicable PR #552 changes adapted from howaboua-pi-stuff revision
-1338b66a1067c254fec46746ef96b6bd9456148b. TypeScript execution mode
+84bd5bce60a77c4298484d4b7c810d4fe5220a1b. Existing Deno isolated candidates, commit-ordered snapshot reads
+and Deno 2.9.8 provisioning pins are carried. TypeScript execution mode
 and QuickJS Notebook are excluded. See docs/parity for native adaptations.
 
 Notebook runtime source adapted from @howaboua/pi-codex-conversion

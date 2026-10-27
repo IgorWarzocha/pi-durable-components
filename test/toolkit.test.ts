@@ -78,7 +78,7 @@ test("native context rollover and mode switching preserve isolated V8 and Deno s
 						message.role === "user" ||
 						(message.role === "system" &&
 							messageText(message) ===
-								"Read your saved notes and resume the task."),
+								"Read your saved notes with the notes tool and resume the task."),
 				);
 				const last = request.messages.findLast(
 					(message) => message.role !== "system",
@@ -127,7 +127,10 @@ test("native context rollover and mode switching preserve isolated V8 and Deno s
 					}
 					return fauxAssistantMessage("toolkit complete");
 				}
-				if (trigger === "Read your saved notes and resume the task.") {
+				if (
+					trigger ===
+					"Read your saved notes with the notes tool and resume the task."
+				) {
 					assert.equal(
 						request.messages.some(
 							(message) =>

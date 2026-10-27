@@ -61,6 +61,8 @@ export type CellCoordinatorOptions = {
 	readonly name: string;
 	readonly engine: CellEngine;
 	readonly surfaceTools: readonly string[];
+	/** Notebook admits independent checkpoint-copy cells alongside its single live cell. */
+	readonly isolatedConcurrency?: number;
 	/** Individual task cancellation is a host operation, not part of the tool invocation API. */
 	readonly cancelTask: (
 		id: TaskId,

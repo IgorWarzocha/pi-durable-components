@@ -4,6 +4,8 @@ Reference: `howaboua-pi-stuff` revision `3d0faf5a6f0bc67c0bd9248d07da6ddfa901b28
 
 ## Pi 1.4 refresh
 
+The merged PR #552 alignment at `84bd5bce` carries the generic truncation recovery notice through native Code observations. It preserves independent output budgets and warns against rerunning side effects to recover omitted output. Shared isolated admission remains Notebook-only. The pinned V8 host and public Code arguments are unchanged. Focused strict TypeScript checking passed.
+
 The 2026-10-22 refresh compares the reference with prior pin `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`. Completed delegate traces retain the real nested Durable call IDs. Any direct nested termination request reaches a successfully completed cell, including cells containing other ordinary calls. Failed cells do not propagate termination. Durable 1.4 still owns the outer model round, which terminates only when every result requests it. Native `api.executeTool` children retain Durable's documented non-propagating control contract.
 
 Shared execution documents now declare explicit checkpoint policies. Task-only invocation and provenance documents retire with their task. Completed cell receipts and observation cursors store complete bases. The nested tool API exposes the Harness clock and reads the live Models collection on every access. Admission includes sleeping tasks when enforcing the single-cell boundary.

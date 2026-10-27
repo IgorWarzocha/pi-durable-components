@@ -3,6 +3,7 @@ import type {
 	JsonObject,
 	ToolExecutionResult,
 } from "@earendil-works/pi-durable";
+import { TRUNCATED_OUTPUT_NOTICE } from "../../execution/src/exec-source.ts";
 import type { CellObservation } from "../../execution/src/index.ts";
 import { runtimeResult } from "./result.ts";
 import type {
@@ -45,11 +46,14 @@ export class CodeCellOutput {
 				this.output.push({ ...item, text });
 				if (text.length < item.text.length && !this.truncated) {
 					this.truncated = true;
-					this.output.push({ type: "input_text", text: "[Output truncated]" });
+					this.output.push({
+						type: "input_text",
+						text: TRUNCATED_OUTPUT_NOTICE,
+					});
 				}
 			} else if (!this.truncated) {
 				this.truncated = true;
-				this.output.push({ type: "input_text", text: "[Output truncated]" });
+				this.output.push({ type: "input_text", text: TRUNCATED_OUTPUT_NOTICE });
 			}
 		}
 	}
@@ -185,12 +189,12 @@ export function observeCodeCell(
 			continue;
 		}
 		if (remaining <= 0) {
-			if (!truncated) content.push({ ...item, text: "[Output truncated]" });
+			if (!truncated) content.push({ ...item, text: TRUNCATED_OUTPUT_NOTICE });
 			truncated = true;
 		} else if (item.text.length > remaining) {
 			content.push({
 				...item,
-				text: `${item.text.slice(0, remaining)}\n[Output truncated]`,
+				text: `${item.text.slice(0, remaining)}\n${TRUNCATED_OUTPUT_NOTICE}`,
 			});
 			remaining = 0;
 			truncated = true;

@@ -1,6 +1,6 @@
 # Functionality parity
 
-The latest refresh carries applicable changes from Pi Stuff [PR #552](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/552), pinned at `1338b66a1067c254fec46746ef96b6bd9456148b` against base `a06eae4d141fae421a8d0108a4a560013d6508a8`. TypeScript execution mode and QuickJS Notebook are explicitly deferred. The last whole-package audit covered all 23 existing packages at `12c4357b`.
+The latest refresh carries applicable changes from merged Pi Stuff [PR #552](https://github.com/IgorWarzocha/howaboua-pi-stuff/pull/552), pinned at `84bd5bce60a77c4298484d4b7c810d4fe5220a1b`. The earlier refresh covered `1338b66a1067c254fec46746ef96b6bd9456148b` against base `a06eae4d141fae421a8d0108a4a560013d6508a8`. The last whole-package audit covered the original 23 packages at `12c4357b`.
 
 The original extraction used source `b2006db9` and Durable reference `earendil-works/pi` at `f5d20047b`, published as `@earendil-works/pi-durable` 1.0.2. This repository still pins Durable, pi-ai and Chord 1.4.0. Earlier version references below record port-time evidence, not the current dependency requirement. Reference checkout paths are development evidence, not runtime requirements.
 
@@ -20,7 +20,13 @@ The 2026-10-21 refresh compares that carried pin with source release commit `753
 
 The runtime upgrade uses published Durable, pi-ai and Chord 1.4.0, with upstream release reference `earendil-works/pi` at `4a080252f06caf63a525d7873c5d94d3c23887e0`. SQLite opening automatically migrates to schema version 2, which older Durable versions cannot reopen. Older runtimes also cannot resume sleeping tasks in JSONL. Hosts must upgrade their runtime and installed components together and plan recovery before opening existing storage. Components use native document checkpoint policies and durable sleep phases rather than patching upstream. New telemetry and client identity capabilities remain host-controlled.
 
-## PR #552 refresh
+## Merged PR #552 alignment
+
+The earlier refresh below deferred the new execution modes. Igor later authorised both. [TS Notebook](parity/ts-notebook.md) carries strict Rust-backed checking and persistent Node state. [JS Notebook](parity/js-notebook.md) carries QuickJS VM checkpoints and project sharing. Both register ordinary Durable tools and include shell tools. Existing Deno Notebook now supports four isolated candidate kernels. The provider carries the merged SSE retry and deadline policy. Context carries the `read` alias and checkpoint guidance. Destructive history pruning remains unavailable because Durable's public storage API does not provide transcript deletion. No hidden-history substitute is claimed.
+
+The full repository gate passed for all 25 packages. An independent review identified and corrected JS's normal-plus-four-isolated admission limit. Real runtime probes are recorded in the component evidence. A fresh scripts-disabled external consumer imported all 25 package roots and typechecked all 49 public declaration exports with `skipLibCheck: false`. JS Notebook's own separate build uses the explicitly approved `skipLibCheck` exception for the upstream QuickJS declaration defect. The rest of the repository checks dependency declarations normally. No live providers, audio devices or non-Linux platforms were revalidated.
+
+## Earlier PR #552 refresh
 
 Context adds opt-in BM25 search of retired visible conversation text through an explicit native index capability. Plaintext Notes and History results stay structured and lose storage bookkeeping, while host presentation metadata remains available. Freshness now rejects saves inside failed or unfinished owning work. A host callback can refresh connected services before rollover, with persisted interruption receipts and a fresh native safety check before the cut. [Context evidence](parity/context.md#pr-552-refresh) records these contracts and validation.
 
@@ -28,7 +34,7 @@ Browser and Web expose their useful payloads as ordinary structured tool results
 
 The Notes/PCC ownership split already matches native ownership here: Context owns notes, history and rollover, while OpenAI Responses owns transport and caching. Provider preparation, native replay and isolated keepalive have existing portable equivalents. Native retained entries and fork snapshots replace Pi JSONL, Tree manifests, extension ordering and config migration. Board sections already rebuild from the current native context. These are traced equivalents, not compatibility implementations.
 
-Ask, Sandbox, Observatory and Suggestions are separate Pi products outside the existing component set. Their UI, index and guidance changes are not new portable products in this refresh. Pi settings, Electron, aggregate packaging, formatter churn and unrelated dependency upgrades are not copied into this repository. Neither new execution mode is registered, and the dirty QuickJS source checkout was left untouched. No Howcode integration, host selection or live capability was changed.
+Ask, Sandbox, Observatory and Suggestions are separate Pi products outside the existing component set. Their UI, index and guidance changes were not new portable products in this refresh. Pi settings, Electron, aggregate packaging, formatter churn and unrelated dependency upgrades were not copied into this repository. Both execution modes were deferred at this earlier stage. No Howcode integration, host selection or live capability was changed.
 
 ## Whole-package audit
 

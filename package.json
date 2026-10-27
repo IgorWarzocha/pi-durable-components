@@ -15,7 +15,7 @@
 		"setup:native": "npm --prefix node_modules/node-pty run install",
 		"lint": "biome check .",
 		"format": "biome check --write .",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "tsc --noEmit && tsc --noEmit -p packages/js-notebook/tsconfig.json",
 		"knip": "knip --no-progress --include files,dependencies,unlisted,unresolved,cycles,exports,nsExports,types,nsTypes,enumMembers,namespaceMembers,duplicates",
 		"test": "node scripts/workspaces.mjs test",
 		"build": "node scripts/workspaces.mjs build",

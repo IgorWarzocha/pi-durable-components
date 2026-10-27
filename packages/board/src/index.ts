@@ -85,7 +85,8 @@ export function createBoard(
 		sections: [
 			{
 				key: "board-documentation",
-				render: () => "Record useful work, decisions and outcomes on Board.",
+				render: () =>
+					"Board: post only work-changing decisions, findings, ownership or blockers. Reply in existing threads; link rather than repeat. Personal checkpoints belong in notes. Skip acknowledgements, routine status and duplicate completion reports. Channels group workstreams; threads group topics.",
 			},
 		],
 		tools: [tool],

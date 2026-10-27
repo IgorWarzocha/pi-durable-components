@@ -76,7 +76,7 @@ Definitions are reread before execution. The live loader refreshes ordinary regi
 
 ## Runtime and persistence
 
-Deno 2.9.7 downloads only when execution or diagnostics first needs it. Archives and extracted binaries are verified against pinned sizes and SHA-256 checksums. Linux, macOS, and Windows support x64 and ARM64. `stateDirectory` owns the executable cache, private session checkpoints, project generations, conflict journals, named profiles, and standard `.ipynb` journals. `maxHeapMiB` defaults to 4096. `profile` optionally loads a named profile at kernel startup.
+Deno 2.9.8 downloads only when execution or diagnostics first needs it. Archives and extracted binaries are verified against pinned sizes and SHA-256 checksums. Linux, macOS, and Windows support x64 and ARM64. `stateDirectory` owns the executable cache, private session checkpoints, project generations, conflict journals, named profiles, and standard `.ipynb` journals. `maxHeapMiB` defaults to 4096. `profile` optionally loads a named profile at kernel startup.
 
 Each conversation has a private kernel. Project bindings merge under cross-process locks. Other live kernels are not mutated. Checkpoints restore by value, not by replay. Imported modules, promises, weak collections, and live resource handles must be recreated after restart. Function restoration requires self-contained definitions. Durable pins protect bindings from release and pruning. Startup and tool-result hooks are deliberately awaited, and hook calls do not recursively trigger hooks.
 
@@ -99,6 +99,8 @@ drained on close.
 
 This is native Deno, with filesystem, network, process, and codec capabilities. It is not a JavaScript-only substitute or a security sandbox. `native.environmentId` must match the execution environment. Remote and container environments must explicitly provision the harness and Deno in the same native namespace. A mismatch fails rather than falling back to host files. `native.env` selects the kernel process environment when supplied.
 
-Only one exec cell can be active per conversation. `wait` observes that cell without replaying it. Termination cancels owned nested work and invalidates the active kernel. External side effects are not rolled back. After a host restart, interrupted work is reported instead of being executed again. Live kernels and PTYs do not survive a host restart.
+One normal exec cell can be active per conversation. A leading `// @exec: {"isolated":true}` starts a separate Deno kernel from committed saved state, with up to four isolated cells alongside the normal cell. Each successful isolated cell saves a named candidate without changing live bindings. Use `notebook` list to find candidates and load to add their supported bindings by value. Release or rename collisions before loading. Arbitrary closures, types, imports and live handles do not transfer.
+
+`wait` observes or terminates a cell without replaying it. Termination cancels owned nested work and invalidates that cell's kernel. External tool and file effects remain shared and are not rolled back. Restart, reset and close stop isolated cells too. After a host restart, interrupted work is reported instead of being executed again. Live kernels and PTYs do not survive a host restart.
 
 Call `await notebook.close()` before closing your harness. It joins active cells and closes kernels, bridge servers, and owned shell sessions.

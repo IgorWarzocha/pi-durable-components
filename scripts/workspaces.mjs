@@ -199,6 +199,19 @@ if (command === "test") {
 				"bun",
 			);
 		}
+		if (manifest.name === "@howaboua/pi-durable-ts-notebook") {
+			await run(
+				[
+					"build",
+					join(directory, "src/worker.ts"),
+					"--target=node",
+					"--format=esm",
+					"--packages=external",
+					`--outfile=${join(directory, "dist/worker.js")}`,
+				],
+				"bun",
+			);
+		}
 	}
 } else {
 	const artifacts = [];
@@ -254,6 +267,9 @@ if (command === "test") {
 			...(manifest.name === "@howaboua/pi-durable-context"
 				? ["dist/history-search-worker.js"]
 				: []),
+			...(manifest.name === "@howaboua/pi-durable-ts-notebook"
+				? ["dist/worker.js"]
+				: []),
 		]) {
 			if (!paths.has(required.replace(/^\.\//, "")))
 				throw new Error(`${manifest.name} tarball is missing ${required}`);
@@ -300,6 +316,8 @@ if (command === "test") {
 		}
 		if (manifest.name === "@howaboua/pi-durable-context")
 			expectedJavaScript.add("dist/history-search-worker.js");
+		if (manifest.name === "@howaboua/pi-durable-ts-notebook")
+			expectedJavaScript.add("dist/worker.js");
 		const actualJavaScript = [...paths].filter((path) => path.endsWith(".js"));
 		if (
 			actualJavaScript.length !== expectedJavaScript.size ||

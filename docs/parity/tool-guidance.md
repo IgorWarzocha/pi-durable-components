@@ -1,0 +1,25 @@
+# Merged PR #552 tool-guidance audit
+
+Compared read-only `IgorWarzocha/howaboua-pi-stuff` revisions `1338b66a1067c254fec46746ef96b6bd9456148b` and `84bd5bce`, the merged PR head. This is a scoped delta audit, not a new whole-package acceptance claim. It excludes the deferred TypeScript and QuickJS execution modes. Native registrations remain the only Code and Notebook integration boundary. No global GPT prose switch is introduced.
+
+| Component | Delta and native disposition |
+| --- | --- |
+| Agents | `agents-discovery.ts` expands alternate compressed help without changing native delegation arguments or results. Native help already covers exact targets, distinct scope, blocking fan-out, sharing and watches. The ordinary `/quit` clarification remains excluded because native conversations are not terminal processes. Fleet, message and settlement splits do not require a parallel native owner. |
+| Board | `briefing.ts` and `contract.ts` revise alternate prose. Native help already retains closure authority, summaries, paging and notification semantics. The native standing section was weaker than the source briefing: it encouraged generic work logs. It now states coordination-only posting, existing-thread replies, links instead of repetition, private checkpoint ownership and channel/thread scope once, replacing that vague instruction. Root process setup and Pi window-briefing identity remain host concerns. |
+| Browser | `browser/help.ts` changes alternate wording only. Native help already retains selected-host affinity, reference provenance, independent batches and consequential-action safety. JSON results, artifact continuations and shared-browser ownership are unchanged. |
+| Web and Imagegen | Entry-point deltas compress alternate invocation guidance. Native registrations already preserve returned web references versus final Markdown URLs, image generation versus editing selectors, transparency and image-result handling. No specialised execution bridge is needed. |
+| Sites | The documentation description changes only its alternate wording. Direct provider results, redaction, preparation, cleanup and deferred resource schemas remain unchanged. |
+| Skills | Entry-point guidance and catalogue batch/reference help change alternate wording only. Native guidance already requires initial discovery and relevant reads. Native help distinguishes selector batches from complete commands and reference-only reads from initial bodies. Structured string output and host read evidence remain separate. |
+| Pulses, Guardian and Nested Agents MD | Only formatter or package metadata changes in this range. Scheduler ownership, fail-closed authorisation and environment-scoped nested instruction loading need no behavioural port. |
+| Voice | Source controller, session, settings and audio responsibilities are split into smaller owners, with dependency and helper rebuilds. Model-facing prompt and tool definition owners are unchanged. No alternate voice prompt or process integration is added. This audit does not claim acceptance of native audio binaries or live calls. |
+| Apply Patch | Native-source changes select `similar` 3's `RawMyers` to retain minimal display diffs and adapt tree-sitter's capture API. The TypeScript component uses neither dependency and retains its parser, file mutation and native environment contracts. Bundled-helper rebuilds are not a reason to import Rust execution. |
+
+## Recovery guidance ownership
+
+The new truncation recovery instruction is in PCC `src/tools/code-mode/tool-result.ts`: later results may be omitted, narrow reads or fetch missing help separately, and never repeat side effects for output. This belongs at the generic execution observation boundary, not in each component's tool help. Native Code's bare truncation markers were identified and handed to the execution owner during this refresh. Browser, Board and Skills retain their own existing cursor or offset recovery contracts.
+
+Delegate checkpoint paths belong to Notes `src/windows.ts`, not Shepherdr's dispatch schema. Delegates save their own relative notes and return those paths; handoffs save successfully before returning the checkpoint path. The native equivalent belongs to Context's continuity policy, selected for workers by the host. Agents preserves full worker replies and returned conversation IDs without inventing a second checkpoint store or silently enabling Context. These boundaries were handed to the Context and execution owners rather than duplicated here.
+
+## Validation
+
+A disposable Node 26 probe used the production Board extension, MemoryStorage, Durable Harness and pi-ai faux provider. Its captured model request contained the replacement coordination instruction exactly once and no obsolete generic work-log instruction. It made no Board post or external request. Source comparison used `git show`, `git diff` and pinned-tree search without changing the reference checkout. No permanent tests were added. The coordinator owns the final repository gate.

@@ -37,7 +37,7 @@ function checkpointGuidance(
 				? "Request a new context window only when the host reports eligible history."
 				: "Before requesting a new context window, save current state and wait for the write to succeed.";
 	return [
-		"Notes are recovery state, not a diary. Keep one concise, authoritative note per task or topic at a stable path. Task checkpoints cover request, constraints, decisions, status, next steps and history IDs. Use write_file to replace stale state and mark completion. Link to existing notes instead of copying or summarising their contents. Recording isn't permission to implement.",
+		"Notes are recovery state, not a diary. Write checkpoints and reports to relative paths in your own notes. Delegates do likewise and return their note paths. Keep one concise, authoritative note per task or topic at a stable path. Task checkpoints cover request, constraints, decisions, status, next steps and history IDs. Use write_file to replace stale state and mark completion. Link to existing notes instead of copying or summarising their contents. Recording isn't permission to implement.",
 		`Batch saves at meaningful milestones, not every reply or intermediate step. ${rollover} For handoffs, save current state and wait for success; include the checkpoint path. After rollover, read the checkpoint, then only needed links. Don't reread notes still in context unless they may have changed. Use history for missing details. If no checkpoint is available, use history to recover missing context.`,
 		"Previous skill reads don't carry into this window. Read the skills needed for the current task.",
 	].join("\n\n");

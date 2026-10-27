@@ -8,6 +8,8 @@ QuickJS comes from exact `quickjs-emscripten` and `@jitl/quickjs-wasmfile-releas
 
 ## Runtime evidence
 
+The merged PR #552 alignment at `84bd5bce` reuses the generic truncation recovery notice without changing Worker Code's observation budgets, single-cell admission or QuickJS runtime. This is not the deferred QuickJS Notebook product. Focused strict TypeScript checking passed.
+
 `packages/worker-code/test/workflows.test.mjs` runs the maintained component through Wrangler's real workerd runtime with compiled WASM and a real Durable Harness. Its workflow exercises:
 
 - Guest isolation and rejection of imports outside the supplied snapshot.

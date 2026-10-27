@@ -95,7 +95,7 @@ export class NotebookReleaseController {
 			statusMarker,
 		);
 		const restartRequired = status.bindings.some(
-			({ globalProperty }) => !globalProperty,
+			({ globalProperty, configurable }) => !globalProperty || !configurable,
 		);
 		let result: NotebookReleaseResult;
 		if (restartRequired) {

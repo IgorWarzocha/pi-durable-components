@@ -1,5 +1,6 @@
 import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
 import type { ToolExecutionResult } from "@earendil-works/pi-durable";
+import { TRUNCATED_OUTPUT_NOTICE } from "../../execution/src/exec-source.ts";
 import type { RuntimeResponse } from "./runtime-contract.ts";
 
 /** The source bridge bounds text at four characters per requested token and images independently. */
@@ -19,7 +20,7 @@ export function runtimeResult(
 				if (!truncated)
 					content.push({
 						type: "text",
-						text: `${item.text.slice(0, chars)}\n[Output truncated]`,
+						text: `${item.text.slice(0, chars)}\n${TRUNCATED_OUTPUT_NOTICE}`,
 					});
 				truncated = true;
 				chars = 0;

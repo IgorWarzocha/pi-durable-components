@@ -15,6 +15,7 @@ export type InvocationState = {
 	result: StoredResult;
 	checkpoint?: JsonValue;
 	yieldCount?: number;
+	isolated?: boolean;
 	droppedBytes?: number;
 	droppedLines?: number;
 	forwardingCellId?: TaskId;

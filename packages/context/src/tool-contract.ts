@@ -152,6 +152,14 @@ export function prepareNotesArguments(input: unknown): NotesArguments {
 		typeof args === "object" &&
 		!Array.isArray(args) &&
 		"action" in args &&
+		args.action === "read"
+	)
+		args = { ...args, action: "read_file" };
+	if (
+		args !== null &&
+		typeof args === "object" &&
+		!Array.isArray(args) &&
+		"action" in args &&
 		(args.action === "write_file" || args.action === "append_to_file") &&
 		"content" in args
 	) {

@@ -42,6 +42,13 @@ Modifications: explicit host-prepared snapshot and currentness callbacks,
 session-scoped provider-owned scheduling, cancellation and usage reporting.
 No Pi idle hooks, configuration UI, global paths or automatic adoption.
 
+Logical SSE retry admission, elapsed overload/advice deadlines and Terra model
+metadata follow merged PR552 snapshot
+84bd5bce60a77c4298484d4b7c810d4fe5220a1b, compared with 1338b66a.
+Source owners: openai-codex/transport/recovery-budget.ts and sse-request.ts.
+Modifications: instance-owned lifecycle and existing maxRetryDelayMs policy;
+completion observers and interrupted tool streams remain non-replayable.
+
 Portions of the Responses conversion and streaming implementation derive
 from Pi, Copyright (c) 2025 Mario Zechner, MIT licensed.
 

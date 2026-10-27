@@ -65,9 +65,12 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 		): Promise<TaskId<ToolExecutionResult>> {
 			if (driver.closed) throw new Error("Execution host is closed");
 			assertSingleExecutionMode(await api.agent(context));
-			// Foreground, conversation owned. Check and create atomically so parallel exec calls cannot overlap.
+			// Reserve lanes atomically, including kernels still starting or settling.
 			const copied = copyJson(input) as JsonObject;
 			return api.commit(async (tx) => {
+				const isolatedLimit = options.isolatedConcurrency ?? 0;
+				const isolated = isolatedLimit > 0 && input["isolated"] === true;
+				let isolatedCount = 0;
 				for (const status of [
 					"pending",
 					"running",
@@ -81,17 +84,26 @@ export function createCellCoordinator(options: CellCoordinatorOptions) {
 							kind: task.definition.name,
 							status,
 						},
-						1,
+						isolatedLimit + 1,
 					);
-					if (live.items.length > 0)
-						throw new Error(
-							`Cell ${live.items[0]?.id} is still running. Wait or terminate it before starting another cell`,
-						);
+					for (const cell of live.items) {
+						if ((await tx.doc(InvocationDoc, cell.id)).isolated)
+							isolatedCount++;
+						else if (!isolated)
+							throw new Error(
+								`Cell ${cell.id} is still running. Wait or terminate it before starting another cell`,
+							);
+					}
 				}
+				if (isolated && isolatedCount >= isolatedLimit)
+					throw new Error(
+						`Notebook allows ${options.isolatedConcurrency} isolated cells at a time; wait for or terminate an isolated cell first`,
+					);
 				const id = await tx.createTask(task, copied, {
 					ownership: { kind: "conversation" },
 				});
 				const doc = await tx.doc(InvocationDoc, id);
+				if (isolated) doc.isolated = true;
 				doc.forwardingCellId = id;
 				doc.forwardingBudget =
 					typeof input["max_output_tokens"] === "number"

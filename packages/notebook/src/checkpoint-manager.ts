@@ -89,6 +89,13 @@ export class NotebookCheckpointManager {
 		this.lastCheckpointAt = undefined;
 	}
 
+	// Capture completed disk commits without flushing or querying a running kernel.
+	readCommitted(capture: () => Promise<void>): Promise<void> {
+		const operation = this.maintenance.then(capture);
+		this.maintenance = operation.catch(() => undefined);
+		return operation;
+	}
+
 	async discard(): Promise<void> {
 		if (this.timer) clearTimeout(this.timer);
 		this.timer = undefined;

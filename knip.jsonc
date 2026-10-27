@@ -102,6 +102,16 @@
 			// Internal shell/custom-command source and the lazy Deno provisioner's proxy loader.
 			"ignoreDependencies": ["node-pty", "smol-toml", "proxy-from-env"]
 		},
+		"packages/ts-notebook": {
+			"entry": ["src/worker.ts"],
+			"project": ["src/**/*.ts"],
+			"ignoreDependencies": ["node-pty", "smol-toml"]
+		},
+		"packages/js-notebook": {
+			"entry": [],
+			"project": ["src/**/*.ts"],
+			"ignoreDependencies": ["node-pty", "smol-toml"]
+		},
 		"packages/web": {
 			"entry": ["test/**/*.test.mjs", "test/worker.ts"],
 			"project": ["src/**/*.ts", "test/**/*.ts", "test/**/*.mjs"],

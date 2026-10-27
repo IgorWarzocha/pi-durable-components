@@ -265,7 +265,7 @@ export class NotebookProfileRestoreError extends Error {
 	}
 }
 
-async function withProfileLock<T>(
+export async function withProfileLock<T>(
 	path: string,
 	operation: () => Promise<T>,
 	signal?: AbortSignal,

@@ -48,6 +48,40 @@ const SUPPLEMENTAL_MODELS: Model<"openai-codex-responses">[] = [
 		},
 	},
 	{
+		id: "gpt-6.1-terra",
+		name: "GPT-6.1 Terra",
+		api: "openai-codex-responses",
+		provider: "openai-codex",
+		baseUrl: DEFAULT_CODEX_BASE_URL,
+		reasoning: true,
+		input: ["text", "image"],
+		// https://developers.openai.com/api/docs/models/gpt-6.1-terra
+		cost: {
+			input: 1,
+			output: 5,
+			cacheRead: 0.05,
+			cacheWrite: 1.25,
+			tiers: [
+				{
+					inputTokensAbove: 272_000,
+					input: 2,
+					output: 7.5,
+					cacheRead: 0.1,
+					cacheWrite: 2.5,
+				},
+			],
+		},
+		contextWindow: 500_000,
+		maxTokens: 128_000,
+		thinkingLevelMap: { off: null, minimal: null, xhigh: "xhigh", max: "max" },
+		compat: {
+			supportsOpenAIGrammarTools: true,
+			supportsMidConvoSystemMessages: true,
+			supportsAdditionalTools: true,
+			supportsToolSearch: true,
+		},
+	},
+	{
 		id: "gpt-6.1-sol",
 		name: "GPT-6.1 Sol",
 		api: "openai-codex-responses",
@@ -198,7 +232,8 @@ export function openAICodexProviderModels(): Model<"openai-codex-responses">[] {
 		...models,
 		...SUPPLEMENTAL_MODELS.filter(({ id }) => !existing.has(id)),
 	].map((model) => {
-		if (model.id === "gpt-6.1-sol") {
+		// Codex advertises 500K and low through max, unlike the API catalogue.
+		if (model.id === "gpt-6.1-sol" || model.id === "gpt-6.1-terra") {
 			return {
 				...model,
 				contextWindow: 500_000,

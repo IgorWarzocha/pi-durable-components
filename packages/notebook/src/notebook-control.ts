@@ -84,7 +84,7 @@ Example: {"input":"{\\"action\\":\\"status\\",\\"query\\":\\"*\\"}"}
 Action objects accept only the fields shown below; ? means optional.
 
 {"action":"status","query"?:string}  Memory, checkpoint and retained-state summary; query inspects matching live bindings
-{"action":"list","query"?:string}  List saved profiles, optionally filtered by name
+{"action":"list","query"?:string}  List saved profiles and isolated candidates, optionally filtered by name
 {"action":"checkpoint"}  Persist current serializable state
 {"action":"save","name":string}  Save current state as a named profile
 {"action":"load","name":string}  Load a profile by value without replaying cells; release or rename colliding bindings first
@@ -100,7 +100,7 @@ query uses case-insensitive * and ? globs. prune requires a nonempty query. name
 
 Hooks must be self-contained fn(event), awaited when invoked. startup gets {type:"startup"} once per fresh kernel after restoration, not when pinned; Tools cannot run during startup. tool_result gets {type:"tool_result",toolName,input,status:"success"|"error",result?,error?} after nested tool settlement; handlers are awaited in name order and their tool calls do not retrigger hooks. Recreate imports and live handles inside the function. Startup failures block execution; unpin remains available. External side effects are not rolled back.
 
-Run management calls after exec returns. Inside exec, tools.notebook({}) returns help. tools.notebook({action,...}) supports status without query, list and diagnostics only. A blocked call returns the top-level retry. release/prune may restart the kernel for lexical bindings, clearing runtime-only handles. Inspect reported cleanup failures and restore notices. For failed state/helpers, diagnose, repair or prune, then verify recovery. restart restores completed state; reset discards only session state.
+Run management calls after exec returns. Inside exec, tools.notebook({}) returns help. tools.notebook({action,...}) supports status without query, list and diagnostics only. A blocked call returns the top-level retry. release/prune may restart the kernel for lexical bindings, clearing runtime-only handles. Normal cells allow one active execution. isolated:true runs a separate Deno kernel from committed saved state, up to four at once. Use wait to continue or terminate. Completion saves a named candidate without changing live state. list exposes candidates; load adds saved bindings by value and rejects collisions. Release or rename collisions first. Only checkpoint-supported state transfers, not arbitrary closures, types or imports. External tool and file effects remain shared. Inspect reported cleanup failures and restore notices. For failed state/helpers, diagnose, repair or prune, then verify recovery. restart restores completed state; reset discards only session state.
 
 Reusable-global examples foo/bar are installed when neither name is occupied; inspect their .description and .usage before use.`;
 

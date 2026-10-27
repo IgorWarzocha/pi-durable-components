@@ -1,6 +1,8 @@
 // Adapted from pi-codex-conversion at b2006db9def12c373ae48e70044d30f7d6b7e34f, MIT. See ../NOTICE.
 
+import { parseExecSource } from "../../execution/src/exec-source.ts";
 import { NotebookExecutionRuntime } from "./execution-runtime.ts";
+import { NotebookIsolatedRuntime } from "./isolated-runtime.ts";
 import { NotebookLifecycleController } from "./lifecycle.ts";
 import {
 	projectStateBindingSelection,
@@ -25,9 +27,13 @@ export class NotebookClient implements NotebookExecutionClient {
 	private readonly session: NotebookSessionRuntime;
 	private readonly lifecycle: NotebookLifecycleController;
 	private readonly recovery: NotebookRecoveryController;
+	private readonly isolated: NotebookIsolatedRuntime;
 
 	constructor(options: NotebookRuntimeOptions) {
 		let session!: NotebookSessionRuntime;
+		this.isolated = new NotebookIsolatedRuntime(options, (capture) =>
+			session.checkpoints.readCommitted(capture),
+		);
 		this.execution = new NotebookExecutionRuntime(
 			() => session,
 			(context, signal) => this.prepareSession(context, signal),
@@ -96,12 +102,19 @@ export class NotebookClient implements NotebookExecutionClient {
 		});
 	}
 
-	execute(
+	async execute(
 		source: string,
 		context: ToolExecutionContext,
 		signal?: AbortSignal,
 		tools: NotebookToolDefinition[] = [],
 	): Promise<RuntimeResponse> {
+		const parsed = parseExecSource(source, { allowIsolated: true });
+		if (!this.isolated.identityMatches(context)) await this.shutdown();
+		if (parsed.isolated) {
+			if (!this.session.identityMatches(context.sessionContext))
+				await this.shutdown();
+			return this.isolated.execute(source, context, signal, tools);
+		}
 		return this.execution.execute(source, context, signal, tools);
 	}
 
@@ -111,6 +124,8 @@ export class NotebookClient implements NotebookExecutionClient {
 		context: ToolExecutionContext,
 		signal?: AbortSignal,
 	): Promise<RuntimeResponse> {
+		if (this.isolated.has(cellId))
+			return this.isolated.wait(cellId, yieldTimeMs, context, signal);
 		return this.execution.wait(cellId, yieldTimeMs, context, signal);
 	}
 
@@ -119,6 +134,8 @@ export class NotebookClient implements NotebookExecutionClient {
 		context: ToolExecutionContext,
 		signal?: AbortSignal,
 	): Promise<RuntimeResponse> {
+		if (this.isolated.has(cellId))
+			return this.isolated.terminate(cellId, context, signal);
 		return this.execution.terminate(cellId, context, signal);
 	}
 
@@ -152,6 +169,8 @@ export class NotebookClient implements NotebookExecutionClient {
 		context: ToolExecutionContext,
 		signal?: AbortSignal,
 	): Promise<NotebookControlResult> {
+		if (request.action === "restart" || request.action === "reset")
+			await this.isolated.shutdown();
 		let result: NotebookControlResult;
 		try {
 			result = await this.lifecycle.control(request, context, signal);
@@ -169,6 +188,7 @@ export class NotebookClient implements NotebookExecutionClient {
 	}
 
 	async shutdown(): Promise<void> {
+		await this.isolated.shutdown();
 		await this.session.abortStartup(
 			new Error("Notebook session is shutting down"),
 		);

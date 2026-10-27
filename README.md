@@ -49,6 +49,8 @@ Each component's guide includes its install command and host configuration.
 | [OpenAI Responses](packages/openai-responses) | Use cached OpenAI or Codex WebSockets on Node and Workers, with Responses Lite in Codex mode |
 | [Code Mode](packages/code) | Run JavaScript that calls tools, with a fresh context for each cell |
 | [Notebook Mode](packages/notebook) | Run persistent TypeScript with imports, checkpoints and profiles |
+| [TS Notebook](packages/ts-notebook) | Run strictly checked TypeScript with persistent closures and class instances |
+| [JS Notebook](packages/js-notebook) | Run persistent JavaScript with complete QuickJS VM checkpoints |
 | [Worker Code](packages/worker-code) | Run bounded JavaScript and ordinary tools inside Cloudflare Workers |
 | [Git](packages/git) | Read repository diffs, full-text context and images through an explicit execution capability |
 | [UI SDK](packages/ui) | Build interactive component UIs with live state, actions and streams through one host contract |
@@ -64,7 +66,7 @@ The UI SDK works with component-defined state and interactions, without importin
 
 The tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
 
-Code and Notebook both include shell tools. Select one execution mode per conversation. Both discover the conversation's ordinary tools, including tools from other Durable extensions.
+Code and all three Notebook packages include shell tools. Select one execution mode per conversation. Each discovers the conversation's ordinary tools, including tools from other Durable extensions. TS and JS Notebook are available in the source tree and local development archives, not the published 0.8.1 release.
 
 Worker Code is a separate, bounded execution mode. It uses QuickJS WASM without shell, native imports or ambient network access. It is not a replacement for native Code or Notebook.
 

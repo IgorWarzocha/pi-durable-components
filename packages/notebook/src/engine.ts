@@ -187,7 +187,11 @@ export function createNotebookEngine(
 					: 10000;
 			let response = await current.client.execute(
 				"// @exec: " +
-					JSON.stringify({ yield_time_ms: 100, max_output_tokens: budget }) +
+					JSON.stringify({
+						yield_time_ms: 100,
+						max_output_tokens: budget,
+						isolated: input["isolated"] === true,
+					}) +
 					"\n" +
 					input["code"],
 				current.context,

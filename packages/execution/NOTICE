@@ -1,3 +1,6 @@
+Generic truncation recovery guidance follows Pi Stuff merged PR #552
+revision 84bd5bce60a77c4298484d4b7c810d4fe5220a1b, retaining the MIT notices below.
+
 Bounded output buffer refreshed from @earendil-works/pi-durable 1.0.4's
 published dist/harness/output.js.map source (src/harness/output.ts), building
 on revision f5d20047b3ad43d068a8eb61bd4e1f193bedbce6.
