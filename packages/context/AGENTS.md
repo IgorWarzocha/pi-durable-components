@@ -1,5 +1,6 @@
 - Keep one notes-and-retained-history policy. Same-group conversations in one storage share reads; note writes belong to the caller. Board membership is not a context permission boundary.
 - Use the host's Durable storage and public task, document and submission APIs. Do not add a transcript database, private Durable imports or an admission monkeypatch.
+- Pi Stuff's optional destructive history pruning is not ported: Durable 1.4 exposes no public transcript-entry deletion. Do not substitute hidden history or mutate storage privately. SQLite avoids loading retired history on open; JSONL reconstructs all retained history in memory. Reassess pruning when Durable offers a safe public deletion contract.
 - Cut a head only at native idle or in `afterTools` for the sole completed `new_context` round with no other foreground work or queued inbox items. Commit that proof, the window and the replay receipt together. Never terminate or replace the native input just to roll its context. Initialization must never cut existing history.
 - Persist original held input and cancellation intent before releasing admission. Observe real native settlement; never infer idle deadlines from assistant timestamps.
 - Replayed note writes must return their original receipt without refreshing freshness. Forks inherit notes as of the fork entry, not a running rollover or admission queue.
