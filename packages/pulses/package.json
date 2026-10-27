@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-pulses",
-	"version": "0.8.1",
+	"version": "0.9.0",
 	"description": "Persistent native scheduled pulse conversations",
 	"type": "module",
 	"license": "MIT",

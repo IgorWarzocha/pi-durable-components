@@ -6,6 +6,10 @@ The package supplies `exec`, `wait`, `notebook`, `exec_command` and `write_stdin
 
 ## Host setup
 
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-ts-notebook-0.9.0.tgz
+```
+
 Use a Node.js host, not Bun. Supported platforms are Linux and macOS on x64 or arm64, and Windows on x64. Install optional dependencies so `tsrs` can supply its native compiler. The package requires Pi Durable 1.4.0 and Node 22.19.0 or later.
 
 Workers run native Node processes with filesystem, network and subprocess access in the explicitly matched execution environment. They are not a security sandbox. The shell backend must match the same environment.

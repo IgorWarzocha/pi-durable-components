@@ -10,10 +10,10 @@ The source tree requires Pi Durable 1.4.0. Most components require a Node.js hos
 
 Durable 1.4 automatically migrates SQLite storage to schema version 2. Older Durable versions cannot reopen it. Upgrade the host and its components together, and plan recovery before opening an existing database. Older versions also cannot resume the new sleeping tasks in JSONL storage.
 
-[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Release 0.8.1 includes all 23 components and targets Durable 1.4.0, with matching pi-ai and Chord versions. For example, install Apply Patch:
+[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Release 0.9.0 includes all 25 components and targets Durable 1.4.0, with matching pi-ai and Chord versions. For example, install Apply Patch:
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.1/howaboua-pi-durable-apply-patch-0.8.1.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-apply-patch-0.9.0.tgz
 ```
 
 Then add it to the registry passed to your Harness:
@@ -66,7 +66,7 @@ The UI SDK works with component-defined state and interactions, without importin
 
 The tool packages also expose [headless summary and detail contracts](docs/presentations.md). Build native controls around the same bound state without importing a component's execution runtime into the browser. Hosts decide when to acquire detail and where to display it.
 
-Code and all three Notebook packages include shell tools. Select one execution mode per conversation. Each discovers the conversation's ordinary tools, including tools from other Durable extensions. TS and JS Notebook are available in the source tree and local development archives, not the published 0.8.1 release.
+Code and all three Notebook packages include shell tools. Select one execution mode per conversation. Each discovers the conversation's ordinary tools, including tools from other Durable extensions.
 
 Worker Code is a separate, bounded execution mode. It uses QuickJS WASM without shell, native imports or ambient network access. It is not a replacement for native Code or Notebook.
 

@@ -3,7 +3,7 @@
 Interactive browser components backed by host-owned state, actions and streams. The root entry has no React, Git or Durable runtime import. Components run as trusted in-process code, not in a sandbox.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.1/howaboua-pi-durable-ui-0.8.1.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-ui-0.9.0.tgz
 ```
 
 ## Interactive components

@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-grok-voice",
-	"version": "0.8.1",
+	"version": "0.9.0",
 	"description": "Grok realtime voice and dictation for Pi Durable",
 	"type": "module",
 	"license": "MIT",

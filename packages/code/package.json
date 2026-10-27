@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-code",
-	"version": "0.8.1",
+	"version": "0.9.0",
 	"description": "Code execution and shell tools for Pi Durable",
 	"type": "module",
 	"license": "MIT",

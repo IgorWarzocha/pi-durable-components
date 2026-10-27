@@ -5,7 +5,7 @@ Component-owned preferences with global and project overrides. Components valida
 The core package has no filesystem dependency. The `/node` entry provides JSON persistence for Node 22.19 or later.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.8.1/howaboua-pi-durable-settings-0.8.1.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-settings-0.9.0.tgz
 ```
 
 ## Connect a component

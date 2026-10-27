@@ -6,7 +6,11 @@ The component registers `exec`, `wait`, `notebook`, `exec_command` and `write_st
 
 ## Host setup
 
-Use Node.js 22.19 or later. Bun hosts are rejected because worker termination is part of the cancellation boundary. Install the package and its declared Durable peers through your application's package manager. QuickJS and its WASM loader are pinned dependencies, not downloaded by a notebook cell.
+```sh
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-js-notebook-0.9.0.tgz
+```
+
+Use Node.js 22.19 or later. Bun hosts are rejected because worker termination is part of the cancellation boundary. Install the package and its declared Durable peers through your application's package manager. QuickJS and its WASM loader use exact versions. If the installed runtime is unavailable, the component can provision its owned cache on first use and reuse it offline.
 
 Create `createJsNotebookMode` with a `stateDirectory`, `native: { environmentId }`, a matching shell backend and a `cancelTask` callback that calls the owning Harness's `abortTask`. Install its `extension` in your Durable registry, then call `bind(harness)`. Call `close()` when the application shuts down.
 
