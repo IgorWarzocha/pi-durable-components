@@ -4,6 +4,11 @@
 	"description": "Component-owned settings with explicit scope and persistence",
 	"type": "module",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/IgorWarzocha/pi-durable-components.git",
+		"directory": "packages/settings"
+	},
 	"author": "Igor Warzocha",
 	"engines": {
 		"node": ">=22.19.0"

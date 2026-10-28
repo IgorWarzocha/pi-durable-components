@@ -4,6 +4,11 @@
 	"description": "Bounded Worker-native JavaScript execution for Pi Durable",
 	"type": "module",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/IgorWarzocha/pi-durable-components.git",
+		"directory": "packages/worker-code"
+	},
 	"author": "Igor Warzocha",
 	"main": "./dist/index.js",
 	"types": "./dist/worker-code/src/index.d.ts",

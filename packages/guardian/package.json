@@ -4,6 +4,11 @@
 	"description": "Explicit Durable tool rules and one-shot Codex action review",
 	"type": "module",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/IgorWarzocha/pi-durable-components.git",
+		"directory": "packages/guardian"
+	},
 	"author": "Igor Warzocha",
 	"engines": {
 		"node": ">=22.19.0"

@@ -4,6 +4,11 @@
 	"description": "Scoped AGENTS.md guidance with lazy nested discovery",
 	"type": "module",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/IgorWarzocha/pi-durable-components.git",
+		"directory": "packages/nested-agents-md"
+	},
 	"author": "Igor Warzocha",
 	"engines": {
 		"node": ">=22.19.0"

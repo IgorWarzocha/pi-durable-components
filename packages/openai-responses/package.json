@@ -4,6 +4,11 @@
 	"description": "OpenAI and Codex Responses provider with cached WebSockets and explicit Worker support",
 	"type": "module",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/IgorWarzocha/pi-durable-components.git",
+		"directory": "packages/openai-responses"
+	},
 	"author": "Igor Warzocha",
 	"engines": {
 		"node": ">=22.19.0"

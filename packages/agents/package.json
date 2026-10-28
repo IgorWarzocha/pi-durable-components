@@ -4,6 +4,11 @@
 	"description": "Durable agent delegation and coordination",
 	"type": "module",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/IgorWarzocha/pi-durable-components.git",
+		"directory": "packages/agents"
+	},
 	"author": "Igor Warzocha",
 	"engines": {
 		"node": ">=22.19.0"
