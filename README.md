@@ -4,29 +4,77 @@ File tools, web search, image generation, browser control, worker delegation, sh
 
 Install only the components you need. Use their tools directly, or call them together from JavaScript with Code Mode or persistent TypeScript with Notebook Mode.
 
+## How this fits into your app
+
+Pi Durable is a TypeScript library for running agents, with persisted conversations, tasks and tool execution. Your application hosts that runtime and supplies its models, credentials, storage and user interface. These components add tools and services to it. Howcode is one consuming app. None of these packages requires Howcode.
+
+Any compatible Durable host can use the packages through their public APIs. Installing an npm dependency makes its code available to your app. Your app must still register it, provide its required capabilities and choose which conversations can use it. There is no automatic plugin discovery or shared marketplace loader in these packages today.
+
+For app authors building a component catalogue, the [marketplace proposal](docs/marketplace.md) describes the shared portable boundary and the remaining activation work. It does not require Howcode's adapter format.
+
 ## Install
 
-The source tree requires Pi Durable 1.4.0. Most components require a Node.js host. Worker Code and the OpenAI Responses provider also support Cloudflare Workers. Tool extensions are imported by your application and installed with Durable's `registry.install(...)`. The OpenAI Responses provider registers with your host's pi-ai Models collection. Neither uses `pi install`.
+Release 0.9.1 includes all 25 components and targets Pi Durable, pi-ai and Chord 1.4.0. Most components require Node.js 22.19 or newer. Worker Code and the OpenAI Responses provider also support Cloudflare Workers with the configuration in their guides. A browser-only app needs a backend for native components.
 
 Durable 1.4 automatically migrates SQLite storage to schema version 2. Older Durable versions cannot reopen it. Upgrade the host and its components together, and plan recovery before opening an existing database. Older versions also cannot resume the new sleeping tasks in JSONL storage.
 
-[Prebuilt packages](https://github.com/IgorWarzocha/pi-durable-components/releases) can be installed with npm. They are not published to the npm registry. Release 0.9.1 includes all 25 components and targets Durable 1.4.0, with matching pi-ai and Chord versions. For example, install Apply Patch:
+For example, install Apply Patch with its matching runtime peers:
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.1/howaboua-pi-durable-apply-patch-0.9.1.tgz
+npm install @howaboua/pi-durable-apply-patch@0.9.1 @earendil-works/pi-durable@1.4.0 @earendil-works/pi-ai@1.4.0 @earendil-works/chord@1.4.0
 ```
 
-Then add it to the registry passed to your Harness:
+All 25 components are also available as [GitHub release archives](https://github.com/IgorWarzocha/pi-durable-components/releases/tag/v0.9.1). Their package guides include archive install commands. Neither installation method uses `pi install`.
+
+## Connect a Durable host
+
+For a plain tool extension such as Apply Patch, install it in the registry passed to your Harness. This example uses your app's configured Models collection, selected model, storage and request context. The workspace must already be authorised by your app. `NodeExecutionEnv` grants local filesystem and process access; its working directory is not a sandbox.
 
 ```ts
-import { createRegistry } from "@earendil-works/pi-durable";
+import type { Context } from "@earendil-works/chord";
+import type { Models } from "@earendil-works/pi-ai/models";
+import {
+  createRegistry, Harness, type ModelRef, type Storage,
+} from "@earendil-works/pi-durable";
+import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { ApplyPatch } from "@howaboua/pi-durable-apply-patch";
 
-const registry = createRegistry();
-registry.install(ApplyPatch);
+export async function openAgent(options: {
+  models: Models;
+  model: ModelRef;
+  storage: Storage;
+  workspace: string;
+  context: Context;
+}) {
+  const { models, model, storage, workspace, context } = options;
+  const registry = createRegistry();
+  registry.install(ApplyPatch);
+  const environment = new NodeExecutionEnv({ cwd: workspace });
+  const harness = await Harness.open(storage, {
+    models, registry, env: () => environment,
+  }, context);
+  const conversation = await harness.root(context, {
+    agent: { model, extensions: [ApplyPatch] },
+  });
+  return { harness, conversation, environment };
+}
 ```
 
-If your application already has a registry, use that one. Conversations use installed extensions by default. If you select extensions explicitly, include `ApplyPatch` in that selection. Remove it with `registry.uninstall(ApplyPatch)`.
+Submit input and observe results through your normal Durable APIs. At shutdown, close the Harness and then call `environment.cleanup(context)`. The app owns the storage lifetime.
+
+If your app already has a Harness, add the extension to its existing registry rather than opening a second runtime. Conversations use registered extensions by default. An app with user-controlled enablement should persist an explicit extension selection for each conversation, including an empty selection when everything is disabled. Registering a package must not silently enable it for every user.
+
+### What your host needs to provide
+
+- **One shared runtime.** Resolve compatible Durable, pi-ai and Chord peers to the host's instances. Do not bundle private copies of those runtimes into a component.
+- **Registration and selection.** Plain extensions use `registry.install(extension)`. Select them through the conversation's `agent.extensions`. Code and Notebook discover ordinary selected tools automatically, without component-specific bridges.
+- **Capabilities and credentials.** Supply the conversation's execution environment and any additional native process, browser, network, audio or settings capabilities required by the component. Models owns provider access. A missing capability must remain unavailable rather than falling back to the host machine.
+- **Lifecycle.** Some packages export factories rather than a ready-made extension. Create them with their documented options, install the returned extension, bind them to the Harness where required, and close them through their documented lifecycle. Preserve live work when changing a selection. Removing a registry entry is not resource cleanup.
+- **The right integration kind.** The OpenAI Responses package registers a provider with `models.setProvider(...)`, not the tool registry. UI SDK and Settings expose host-facing contracts. Do not guess a factory from an export name or treat every package root as an extension.
+
+Components run as trusted application code. Package installation, imports and native helpers can execute code. Catalogue entries and permission descriptions are not a sandbox. The host must enforce its grants and trust policy before loading or activating a component.
+
+Component-specific setup is documented in the guides below. A host can support plain extensions without implementing every optional service, UI or native capability. Unsupported components should stay visibly unavailable. Disabling or uninstalling a component must stop its owned work without replaying interrupted side effects or silently deleting feature data.
 
 Upgrading Agents from 0.5.0 requires installing standalone Board and updating saved extension selections before resume. See the [Board migration guide](packages/board/README.md#migrating-from-bundled-board).
 

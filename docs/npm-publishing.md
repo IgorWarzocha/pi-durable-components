@@ -1,6 +1,6 @@
 # npm publishing
 
-The 25 packages are currently published as GitHub release archives, not npm packages. Use `v0.9.1` for the first npm bootstrap. The npm workflow publishes the exact archives from a published GitHub release after checking its manifest and SHA-256 checksums. It preflights all package versions against the public npm registry. An existing version is skipped only when its registry integrity matches the archive. A conflicting version stops the run before any publication.
+The npm workflow publishes all 25 packages from the exact archives of a published GitHub release after checking its manifest and SHA-256 checksums. It preflights all package versions against the public npm registry. An existing version is skipped only when its registry integrity matches the archive. A conflicting version stops the run before any publication. Use `v0.9.1` for the first npm bootstrap.
 
 ## Bootstrap
 
