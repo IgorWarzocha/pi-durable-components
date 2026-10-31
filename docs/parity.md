@@ -34,6 +34,8 @@ One independent review identified cross-account cookie sharing in marketplace We
 
 The 26-package delivery gate passed formatting, builds, catalogue consistency, strict TypeScript, Knip, all 28 retained workflows and dry packs. The producer-stop delta then passed focused SDK and Pulses builds, real lifecycle probes, and workspace lint, strict types and Knip. All 26 final archives installed into a fresh external npm consumer with scripts disabled and MCP 1.32.0. All 74 public declaration entries passed strict TypeScript without `skipLibCheck`. All 26 roots and 73 host-runtime entries imported. The dedicated JS worker entry requires its owning runtime's worker data rather than a main-thread import. Installed Worker Code WASM compiled, and the standalone SQLite host completed placement, retirement, read-only rejoin and ordered shutdown using only installed public packages.
 
+All 29 public GitHub release assets matched their local SHA-256 digests. After npm's automated validation completed, all 26 public latest versions and SRI-verified tarball bytes matched the release. Howcode's consuming integration exercised real public-registry review, installation while disabled, explicit enablement and tool selection, a successful Apply Patch call, disabling and removal. Empty saved selections and legacy direct Notebook installations survived. Those consumer changes are committed locally, not distributed as app releases.
+
 ## PR #561 and hotfix alignment
 
 | Source delta | Native disposition |
