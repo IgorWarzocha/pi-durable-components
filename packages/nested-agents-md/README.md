@@ -5,7 +5,7 @@ Load project guidance from the conversation's filesystem environment. Cwd ancest
 Install the package alongside Chord and Pi Durable 1.4.0. Install and select its extension in the same way as ordinary Durable extensions:
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-nested-agents-md-0.9.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.1/howaboua-pi-durable-nested-agents-md-0.9.1.tgz
 ```
 
 ```ts

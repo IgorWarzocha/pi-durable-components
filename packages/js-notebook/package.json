@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-js-notebook",
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"description": "Persistent QuickJS notebook and shell tools for Pi Durable",
 	"type": "module",
 	"license": "MIT",

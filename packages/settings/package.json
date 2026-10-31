@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-settings",
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"description": "Component-owned settings with explicit scope and persistence",
 	"type": "module",
 	"license": "MIT",

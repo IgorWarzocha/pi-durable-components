@@ -1,12 +1,12 @@
 # npm publishing
 
-The 25 packages are currently published as GitHub release archives, not npm packages. `v0.9.0` is the first bootstrap candidate. The npm workflow publishes the exact archives from a published GitHub release after checking its manifest and SHA-256 checksums. It preflights all package versions against the public npm registry. An existing version is skipped only when its registry integrity matches the archive. A conflicting version stops the run before any publication.
+The 25 packages are currently published as GitHub release archives, not npm packages. Use `v0.9.1` for the first npm bootstrap. The npm workflow publishes the exact archives from a published GitHub release after checking its manifest and SHA-256 checksums. It preflights all package versions against the public npm registry. An existing version is skipped only when its registry integrity matches the archive. A conflicting version stops the run before any publication.
 
 ## Bootstrap
 
 Do not run this until publication is authorised. First push the workflow to the default branch and confirm that the `@howaboua` npm scope belongs to the intended account or organisation. Create a short-lived granular npm token with permission to create and publish all 25 packages in that scope, including bypass 2FA if required by npm's current policy. Add it as the repository Actions secret `NPM_TOKEN`.
 
-Run **Publish release to npm** from GitHub Actions with tag `v0.9.0` and authentication `bootstrap`. The token is used only by that step. The workflow does not create package settings or credentials. If a run is interrupted, review its output and run it again with the same tag. Already published archives must have matching integrity.
+Run **Publish release to npm** from GitHub Actions with tag `v0.9.1` and authentication `bootstrap`. The token is used only by that step. The workflow does not create package settings or credentials. If a run is interrupted, review its output and run it again with the same tag. Already published archives must have matching integrity.
 
 The v0.9.0 archives were built before the repository metadata added for trusted publishing. They are bootstrap archives, not eligible for this workflow's trusted-publishing preflight. They are not rebuilt or replaced.
 
@@ -22,4 +22,4 @@ After successful trusted publication, restrict token-based publishing on npm and
 
 ## Validate without publishing
 
-Run `node scripts/publish-npm.mjs dist/release-0.9.0 v0.9.0 validate` to inspect the local archive set. Validation never contacts npm or publishes. The publishing modes check the public registry before attempting any upload. Neither validation nor local preparation proves credentials, npm scope ownership or trusted-publisher configuration.
+Run `node scripts/publish-npm.mjs dist/release-0.9.1 v0.9.1 validate` to inspect the local archive set. Validation never contacts npm or publishes. The publishing modes check the public registry before attempting any upload. Neither validation nor local preparation proves credentials, npm scope ownership or trusted-publisher configuration.

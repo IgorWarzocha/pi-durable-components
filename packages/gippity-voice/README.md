@@ -14,7 +14,7 @@ The component includes local WebRTC audio, manual dictation, microphone mute, de
 Credentials stay in Models. The native helper and browser never receive provider credentials. Native devices, microphone permissions, provider entitlement and acoustic behavior need separate real-device acceptance.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-gippity-voice-0.9.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.1/howaboua-pi-durable-gippity-voice-0.9.1.tgz
 ```
 
 ## Transcribe browser audio

@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-gippity-voice",
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"description": "Codex Live and OpenAI Realtime WebRTC voice and dictation for Pi Durable",
 	"type": "module",
 	"license": "MIT",

@@ -3,7 +3,7 @@
 Git diff, statistics, full-text context and image reads for Pi Durable and trusted application hosts. No browser or React dependency.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-git-0.9.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.1/howaboua-pi-durable-git-0.9.1.tgz
 ```
 
 ```ts

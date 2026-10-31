@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-dictation",
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"description": "Portable local Whisper dictation with the sherpa-onnx native runtime",
 	"type": "module",
 	"license": "MIT",

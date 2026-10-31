@@ -7,7 +7,7 @@ The host supplies named profiles as Durable `AgentChange` presets. This package 
 ## Install in a host
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-agents-0.9.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.1/howaboua-pi-durable-agents-0.9.1.tgz
 ```
 
 Upgrading from 0.5.0? Board is now a separate package. Follow the migration section below before resuming saved conversations.

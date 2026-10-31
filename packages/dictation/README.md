@@ -5,7 +5,7 @@ Local Whisper dictation for Node.js 22.19 or later, using the native
 This package does not capture microphone audio or register agent tools.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.0/howaboua-pi-durable-dictation-0.9.0.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.1/howaboua-pi-durable-dictation-0.9.1.tgz
 ```
 
 ```ts
