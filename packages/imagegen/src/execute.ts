@@ -4,6 +4,7 @@ import type {
 	ConversationId,
 	ToolExecutionApi,
 } from "@earendil-works/pi-durable";
+import type { CodexCookieStore } from "../../../internal/codex/cloudflare-cookies.ts";
 import { resolveCodexToolModel } from "../../../internal/codex/config.ts";
 import { callingModel } from "../../../internal/codex/durable.ts";
 import { codexToolProviderHeaders } from "../../../internal/codex/headers.ts";
@@ -13,7 +14,10 @@ import {
 	resolveCodexToolProvider,
 	supportsExecutableCodexTool,
 } from "../../../internal/codex/resolve.ts";
-import type { CodexRuntimeOptions } from "../../../internal/codex/types.ts";
+import type {
+	CodexRuntimeOptions,
+	CodexToolProvider,
+} from "../../../internal/codex/types.ts";
 import { saveGeneratedImages } from "./artifacts.ts";
 import {
 	IMAGE_GENERATION_UNSUPPORTED_MESSAGE,
@@ -25,6 +29,13 @@ import { recentConversationImageUrls } from "./history.ts";
 import { buildImageGenerationRequest } from "./request.ts";
 
 export interface ImageGenerationToolOptions extends CodexRuntimeOptions {
+	/** Explicit host-owned egress; omitted by existing native callers. */
+	fetch?: typeof globalThis.fetch;
+	runtime?: "node" | "workerd";
+	cookieStore?: (
+		provider: CodexToolProvider,
+		context: Context,
+	) => CodexCookieStore | Promise<CodexCookieStore>;
 	/** Durable 1.0.2's tool conversation handle has no context reader. */
 	conversation?: (
 		id: ConversationId,
@@ -120,6 +131,7 @@ export async function executeCodexImageGeneration(
 	);
 	const provider = await resolveCodexToolProvider(current, options, context);
 	const headers = codexToolProviderHeaders(provider);
+	const cookieStore = await options.cookieStore?.(provider, context);
 	headers.set("accept", "application/json");
 	headers.set("x-codex-image-turn-id", api.callId);
 	let response;
@@ -130,6 +142,9 @@ export async function executeCodexImageGeneration(
 				method: "POST",
 				headers,
 				body: JSON.stringify(request.body),
+				...(options.fetch ? { fetch: options.fetch } : {}),
+				...(options.runtime ? { runtime: options.runtime } : {}),
+				...(cookieStore ? { cookieStore } : {}),
 				...(context.abortSignal ? { signal: context.abortSignal } : {}),
 			},
 		);

@@ -117,7 +117,11 @@ export function createModelManagement(
 		targetPath: string,
 		signal?: AbortSignal,
 	) {
-		const { response, metadata } = await fetchDownloadResponse(url, signal);
+		const { response, metadata } = await fetchDownloadResponse(
+			url,
+			signal,
+			config.fetchDownload,
+		);
 		if (!response.body) {
 			throw new Error(`Download failed: missing response body for ${url}`);
 		}

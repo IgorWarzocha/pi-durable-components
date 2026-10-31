@@ -354,8 +354,8 @@ export function createPulses(options: PulsesOptions) {
 			void bindingFlight.catch(options.onError);
 			return bindingFlight;
 		},
-		/** Stop admission first; host must drain/close native task invocations before releasing this binding. */
-		async unbind() {
+		/** Stop new admissions and drain admission work while task bindings remain available. */
+		async stopAdmission() {
 			accepting = false;
 			unsubscribeClose?.();
 			unsubscribeClose = undefined;
@@ -365,6 +365,10 @@ export function createPulses(options: PulsesOptions) {
 			timer = undefined;
 			await pending;
 			if (bindingFlight) await bindingFlight.catch(() => {});
+		},
+		/** Release only after the host has drained/closed native task invocations. */
+		async unbind() {
+			await component.stopAdmission();
 			bindingFlight = undefined;
 			harness = undefined;
 		},

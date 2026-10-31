@@ -11,6 +11,7 @@ import { defineExtension } from "@earendil-works/pi-durable";
 import { createInput } from "./admission.ts";
 import { createHistoryTool } from "./history.ts";
 import type { RankedHistory } from "./history-ranker.ts";
+import { waitForInputPlacement } from "./input-placement.ts";
 import {
 	Admission,
 	type ContextHost,
@@ -195,6 +196,20 @@ export function createContextManagement(options: {
 		unbind(harness: Harness): void {
 			if (binding?.harness === harness) binding = undefined;
 		},
+		/** Read an existing receipt without opening a window, creating a document or resuming work. */
+		async rejoin(
+			id: ConversationId,
+			requestId: string,
+			context: Context,
+		): Promise<TaskId<InputResult> | undefined> {
+			const receipt = await host().harness.snapshot(
+				InputReceipt,
+				id,
+				requestId,
+				context,
+			);
+			return receipt?.task;
+		},
 		async submit(
 			id: ConversationId,
 			draft: InputSubmissionDraft,
@@ -229,6 +244,10 @@ export function createContextManagement(options: {
 			);
 			host().harness.resume();
 			return task;
+		},
+		/** Resolves at native admission, before the turn's final answer. Observation cancellation leaves work owned. */
+		waitForSubmission(task: TaskId<InputResult>, context: Context) {
+			return waitForInputPlacement(host(), task, context);
 		},
 		async retry(id: ConversationId, context: Context): Promise<void> {
 			const conv = await conversation(host(), id, context);

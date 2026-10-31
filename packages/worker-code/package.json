@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-worker-code",
-	"version": "0.9.1",
+	"version": "0.10.0",
 	"description": "Bounded Worker-native JavaScript execution for Pi Durable",
 	"type": "module",
 	"license": "MIT",
@@ -25,7 +25,11 @@
 			"types": "./dist/worker-code/src/index.d.ts",
 			"import": "./dist/index.js"
 		},
-		"./quickjs.wasm": "./dist/quickjs.wasm"
+		"./quickjs.wasm": "./dist/quickjs.wasm",
+		"./component": {
+			"types": "./dist/worker-code/src/activation.d.ts",
+			"import": "./dist/activation.js"
+		}
 	},
 	"files": [
 		"dist",
@@ -37,15 +41,30 @@
 	"dependencies": {
 		"@jitl/quickjs-wasmfile-release-sync": "0.32.0",
 		"quickjs-emscripten": "0.32.0",
-		"typebox": "1.3.27"
+		"typebox": "1.3.27",
+		"@howaboua/pi-durable-components": "0.10.0"
 	},
 	"peerDependencies": {
 		"@earendil-works/chord": "1.4.0",
 		"@earendil-works/pi-ai": "1.4.0",
 		"@earendil-works/pi-durable": "1.4.0",
-		"@modelcontextprotocol/sdk": "1.25.2"
+		"@modelcontextprotocol/sdk": ">=1.25.2 <2"
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"durable": {
+		"schemaVersion": 1,
+		"kind": "extension",
+		"entry": "./component",
+		"runtimes": [
+			"node",
+			"workerd"
+		],
+		"requires": [
+			"durable.compiled-wasm.v1"
+		],
+		"permissions": [],
+		"selectionGroup": "execution"
 	}
 }

@@ -1,0 +1,6 @@
+Pi Durable Components host SDK
+Copyright (c) 2026 Igor Warzocha
+Licensed under the MIT License. See LICENSE.
+
+Uses the public contracts of Pi Durable, pi-ai and Chord as external dependencies.
+No Howcode implementation or Pi ExtensionAPI compatibility layer is included.

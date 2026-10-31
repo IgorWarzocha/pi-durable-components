@@ -72,8 +72,9 @@ for (const { manifest } of workspaces.values()) {
 		if (
 			workspaces.has(dependency) &&
 			!(
-				manifest.name === "@howaboua/pi-durable-ui" &&
-				dependency === "@howaboua/pi-durable-git"
+				dependency === "@howaboua/pi-durable-components" ||
+				(manifest.name === "@howaboua/pi-durable-ui" &&
+					dependency === "@howaboua/pi-durable-git")
 			)
 		)
 			throw new Error(
@@ -106,10 +107,12 @@ if (command === "test") {
 	if (tests.length === 0) throw new Error("No contract tests found");
 	await run(["--experimental-strip-types", "--test", ...tests.sort()]);
 } else if (command === "build") {
-	// Git contracts must be built before the UI declarations consume their public export.
-	for (const { directory, manifest } of selected.sort((a, b) =>
-		a.manifest.name.localeCompare(b.manifest.name),
-	)) {
+	// Shared component contracts precede adapters; Git precedes optional UI declarations.
+	for (const { directory, manifest } of selected.sort((a, b) => {
+		if (a.manifest.name === "@howaboua/pi-durable-components") return -1;
+		if (b.manifest.name === "@howaboua/pi-durable-components") return 1;
+		return a.manifest.name.localeCompare(b.manifest.name);
+	})) {
 		await rm(join(directory, "dist"), {
 			recursive: true,
 			force: true,
@@ -213,6 +216,8 @@ if (command === "test") {
 			);
 		}
 	}
+	if (selectedNames.length === 0)
+		await run([join(root, "scripts/component-catalogue.mjs"), "--check"]);
 } else {
 	const artifacts = [];
 	if (destination) await mkdir(resolve(root, destination), { recursive: true });

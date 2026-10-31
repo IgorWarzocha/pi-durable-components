@@ -6,21 +6,26 @@ import type {
 	ToolExecutionApi,
 	Tx,
 } from "@earendil-works/pi-durable";
+import type {
+	ScheduledAdmissionDecision,
+	ScheduledInput,
+	ScheduledOccurrence,
+	ScheduledResult,
+	ScheduledSource,
+	ScheduledTrigger,
+	SchedulingBinding,
+} from "@howaboua/pi-durable-components";
 import type { PulseDefinition } from "./definitions.ts";
 
-export type PulseBinding = {
-	key: string;
-	root: string;
-	parentConversationId?: ConversationId;
-};
-export type PulseSource = { id: string; text: string; error?: string };
+export type PulseBinding = SchedulingBinding;
+export type PulseSource = ScheduledSource;
 export type PulseRunRequest = {
 	bindingKey: string;
 	pulseId: string;
 	requestId: string;
 };
-export type PulseTrigger = "manual" | "scheduled";
-export type PulseOccurrence = { count: number; startAt: number; endAt: number };
+export type PulseTrigger = ScheduledTrigger;
+export type PulseOccurrence = ScheduledOccurrence;
 export type PulseAdmission = {
 	binding: PulseBinding;
 	definition: PulseDefinition;
@@ -30,27 +35,11 @@ export type PulseAdmission = {
 	conversationId: ConversationId;
 	occurrence?: PulseOccurrence;
 };
-export type PulseAdmissionDecision =
-	| { status: "accepted" }
-	| { status: "blocked"; reason: string; retryAt?: number };
-export type PulseInputDelivery = {
-	conversationId: ConversationId;
-	taskId: TaskId;
-	requestId: string;
-	content: string;
-};
+export type PulseAdmissionDecision = ScheduledAdmissionDecision;
+export type PulseInputDelivery = ScheduledInput;
 /** The abort-before-dispatch case has a native task outcome but no submission receipt. */
-export type PulseOutcome = SettledSubmissionRecord | { status: "aborted" };
-export type PulseResultDelivery = {
-	parentConversationId: ConversationId;
-	conversationId: ConversationId;
-	taskId: TaskId;
-	outcome: PulseOutcome;
-	requestId: string;
-	title: string;
-	text: string;
-	occurrence?: PulseOccurrence;
-};
+export type PulseOutcome = ScheduledResult["outcome"];
+export type PulseResultDelivery = ScheduledResult;
 export interface PulsesOptions {
 	/** Resolve the caller's authorised binding in api.env. Never infer from global bindings or host paths. */
 	resolveToolBinding?(api: ToolExecutionApi, context: Context): Promise<string>;

@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-openai-responses",
-	"version": "0.9.1",
+	"version": "0.10.0",
 	"description": "OpenAI and Codex Responses provider with cached WebSockets and explicit Worker support",
 	"type": "module",
 	"license": "MIT",
@@ -19,6 +19,10 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
+		},
+		"./component": {
+			"types": "./dist/activation.d.ts",
+			"import": "./dist/activation.js"
 		}
 	},
 	"files": [
@@ -32,13 +36,30 @@
 		"openai": "7.19.0",
 		"proxy-from-env": "2.1.0",
 		"sharp": "0.35.5",
-		"undici": "8.10.2"
+		"undici": "8.10.2",
+		"@howaboua/pi-durable-components": "0.10.0"
 	},
 	"peerDependencies": {
 		"@earendil-works/pi-ai": "1.4.0",
-		"@modelcontextprotocol/sdk": "1.25.2"
+		"@modelcontextprotocol/sdk": ">=1.25.2 <2"
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"durable": {
+		"schemaVersion": 1,
+		"kind": "provider",
+		"entry": "./component",
+		"runtimes": [
+			"node",
+			"workerd"
+		],
+		"requires": [
+			"durable.network.v1"
+		],
+		"permissions": [
+			"network",
+			"models"
+		]
 	}
 }

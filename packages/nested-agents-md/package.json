@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-nested-agents-md",
-	"version": "0.9.1",
+	"version": "0.10.0",
 	"description": "Scoped AGENTS.md guidance with lazy nested discovery",
 	"type": "module",
 	"license": "MIT",
@@ -19,6 +19,10 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
+		},
+		"./component": {
+			"types": "./dist/activation.d.ts",
+			"import": "./dist/activation.js"
 		}
 	},
 	"files": [
@@ -34,5 +38,20 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"dependencies": {
+		"@howaboua/pi-durable-components": "0.10.0"
+	},
+	"durable": {
+		"schemaVersion": 1,
+		"kind": "extension",
+		"entry": "./component",
+		"runtimes": [
+			"node"
+		],
+		"requires": [],
+		"permissions": [
+			"filesystem"
+		]
 	}
 }

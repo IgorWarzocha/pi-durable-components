@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-settings",
-	"version": "0.9.1",
+	"version": "0.10.0",
 	"description": "Component-owned settings with explicit scope and persistence",
 	"type": "module",
 	"license": "MIT",
@@ -34,5 +34,16 @@
 	"sideEffects": false,
 	"publishConfig": {
 		"access": "public"
+	},
+	"durable": {
+		"schemaVersion": 1,
+		"kind": "library",
+		"runtimes": [
+			"node",
+			"workerd",
+			"browser"
+		],
+		"requires": [],
+		"permissions": []
 	}
 }

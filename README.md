@@ -8,23 +8,23 @@ Install only the components you need. Use their tools directly, or call them tog
 
 Pi Durable is a TypeScript library for running agents, with persisted conversations, tasks and tool execution. Your application hosts that runtime and supplies its models, credentials, storage and user interface. These components add tools and services to it. Howcode is one consuming app. None of these packages requires Howcode.
 
-Any compatible Durable host can use the packages through their public APIs. Installing an npm dependency makes its code available to your app. Your app must still register it, provide its required capabilities and choose which conversations can use it. There is no automatic plugin discovery or shared marketplace loader in these packages today.
+Any compatible Durable host can use the packages through their public APIs. Installing an npm dependency makes its code available to your app. Your app must still register it, provide its required capabilities and choose which conversations can use it.
 
-For app authors building a component catalogue, the [marketplace proposal](docs/marketplace.md) describes the shared portable boundary and the remaining activation work. It does not require Howcode's adapter format.
+The [component SDK](packages/components) adds a shared catalogue, verified package inspection and activation lifecycle. Apps can offer a marketplace without importing Howcode. Follow the [host integration guide](docs/marketplace.md) or run the [standalone example](examples/marketplace).
 
 ## Install
 
-Release 0.9.1 publishes all 25 components individually to npm and targets Pi Durable, pi-ai and Chord 1.4.0. Most components require Node.js 22.19 or newer. Worker Code and the OpenAI Responses provider also support Cloudflare Workers with the configuration in their guides. A browser-only app needs a backend for native components.
+Release 0.10.0 publishes 26 packages individually to npm and targets Pi Durable, pi-ai and Chord 1.4.0. It includes 23 activation entries and three libraries. Most components require Node.js 22.19 or newer. Worker Code and the OpenAI Responses provider also support Cloudflare Workers with the configuration in their guides. A browser-only app needs a backend for native components.
 
 Durable 1.4 automatically migrates SQLite storage to schema version 2. Older Durable versions cannot reopen it. Upgrade the host and its components together, and plan recovery before opening an existing database. Older versions also cannot resume the new sleeping tasks in JSONL storage.
 
 For example, install Apply Patch with its matching runtime peers:
 
 ```sh
-npm install @howaboua/pi-durable-apply-patch@0.9.1 @earendil-works/pi-durable@1.4.0 @earendil-works/pi-ai@1.4.0 @earendil-works/chord@1.4.0
+npm install @howaboua/pi-durable-apply-patch@0.10.0 @earendil-works/pi-durable@1.4.0 @earendil-works/pi-ai@1.4.0 @earendil-works/chord@1.4.0
 ```
 
-All 25 components are also available as [GitHub release archives](https://github.com/IgorWarzocha/pi-durable-components/releases/tag/v0.9.1). Their package guides include archive install commands. Neither installation method uses `pi install`.
+All 26 packages are also available as [GitHub release archives](https://github.com/IgorWarzocha/pi-durable-components/releases/tag/v0.10.0). Their package guides include archive install commands. Neither installation method uses `pi install`.
 
 ## Connect a Durable host
 
@@ -84,6 +84,7 @@ Each component's guide includes its install command and host configuration.
 
 | Component | Use it to |
 |---|---|
+| [Component SDK](packages/components) | Inspect exact package bytes, supply shared capability grants and activate components through one portable lifecycle |
 | [Apply Patch](packages/apply-patch) | Add, edit, move and delete files with Codex-format patches |
 | [View Image](packages/view-image) | View local images or describe them for text-only models |
 | [Skills](packages/skills) | Find skills and read their instructions and references |

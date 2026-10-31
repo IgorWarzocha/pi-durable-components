@@ -1,0 +1,136 @@
+{
+	"schemaVersion": 1,
+	"name": "Howaboua Durable Components",
+	"components": [
+		{
+			"package": "@howaboua/pi-durable-agents",
+			"version": "0.10.0",
+			"description": "Durable agent delegation and coordination"
+		},
+		{
+			"package": "@howaboua/pi-durable-apply-patch",
+			"version": "0.10.0",
+			"description": "Codex-style patches for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-board",
+			"version": "0.10.0",
+			"description": "Persistent discussion boards for Durable conversations"
+		},
+		{
+			"package": "@howaboua/pi-durable-browser",
+			"version": "0.10.0",
+			"description": "Logged-in browser control for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-code",
+			"version": "0.10.0",
+			"description": "Code execution and shell tools for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-components",
+			"version": "0.10.0",
+			"description": "Portable Durable component catalogues, capability contracts and activation lifecycle"
+		},
+		{
+			"package": "@howaboua/pi-durable-context",
+			"version": "0.10.0",
+			"description": "Local notes, retained history and durable context rollover"
+		},
+		{
+			"package": "@howaboua/pi-durable-dictation",
+			"version": "0.10.0",
+			"description": "Portable local Whisper dictation with the sherpa-onnx native runtime"
+		},
+		{
+			"package": "@howaboua/pi-durable-gippity-voice",
+			"version": "0.10.0",
+			"description": "Codex Live and OpenAI Realtime WebRTC voice and dictation for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-git",
+			"version": "0.10.0",
+			"description": "Explicit native Git read capability and Durable tools"
+		},
+		{
+			"package": "@howaboua/pi-durable-grok-voice",
+			"version": "0.10.0",
+			"description": "Grok realtime voice and dictation for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-guardian",
+			"version": "0.10.0",
+			"description": "Explicit Durable tool rules and one-shot Codex action review"
+		},
+		{
+			"package": "@howaboua/pi-durable-imagegen",
+			"version": "0.10.0",
+			"description": "Codex image generation and editing for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-js-notebook",
+			"version": "0.10.0",
+			"description": "Persistent QuickJS notebook and shell tools for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-nested-agents-md",
+			"version": "0.10.0",
+			"description": "Scoped AGENTS.md guidance with lazy nested discovery"
+		},
+		{
+			"package": "@howaboua/pi-durable-notebook",
+			"version": "0.10.0",
+			"description": "Persistent notebook execution and shell tools for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-openai-responses",
+			"version": "0.10.0",
+			"description": "OpenAI and Codex Responses provider with cached WebSockets and explicit Worker support"
+		},
+		{
+			"package": "@howaboua/pi-durable-pulses",
+			"version": "0.10.0",
+			"description": "Persistent native scheduled pulse conversations"
+		},
+		{
+			"package": "@howaboua/pi-durable-settings",
+			"version": "0.10.0",
+			"description": "Component-owned settings with explicit scope and persistence"
+		},
+		{
+			"package": "@howaboua/pi-durable-sites",
+			"version": "0.10.0",
+			"description": "ChatGPT Sites tools for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-skills",
+			"version": "0.10.0",
+			"description": "Progressive skill discovery for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-ts-notebook",
+			"version": "0.10.0",
+			"description": "Strict TypeScript Notebook with persistent live closures and classes for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-ui",
+			"version": "0.10.0",
+			"description": "Interactive component SDK with live state, actions, streams and host-owned capabilities"
+		},
+		{
+			"package": "@howaboua/pi-durable-view-image",
+			"version": "0.10.0",
+			"description": "Image inspection and description for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-web",
+			"version": "0.10.0",
+			"description": "Codex web search and navigation for Pi Durable"
+		},
+		{
+			"package": "@howaboua/pi-durable-worker-code",
+			"version": "0.10.0",
+			"description": "Bounded Worker-native JavaScript execution for Pi Durable"
+		}
+	]
+}

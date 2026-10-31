@@ -1,5 +1,5 @@
 {
-	"name": "@howaboua/pi-durable-components",
+	"name": "@howaboua/pi-durable-components-workspace",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
@@ -21,9 +21,12 @@
 		"build": "node scripts/workspaces.mjs build",
 		"pack:dry": "node scripts/workspaces.mjs pack:dry",
 		"pack": "node scripts/workspaces.mjs pack dist",
+		"catalogue": "node scripts/component-catalogue.mjs",
 		"check": "bun run lint && bun run build && bun run typecheck && bun run knip && bun run test && bun run pack:dry"
 	},
 	"devDependencies": {
+		"@howaboua/pi-durable-components": "workspace:*",
+		"@types/semver": "7.8.0",
 		"@howaboua/pi-durable-git": "workspace:*",
 		"@howaboua/pi-durable-ui": "workspace:*",
 		"@pierre/diffs": "1.6.1",

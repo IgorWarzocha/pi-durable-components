@@ -1,14 +1,12 @@
-export type PulseSchedule =
-	| { kind: "manual" }
-	| { kind: "interval"; everyMs: number }
-	| { kind: "daily"; hour: number; minute: number }
-	| { kind: "weekly"; day: number; hour: number; minute: number }
-	| { kind: "at"; atMs: number };
+export type {
+	ScheduledQuietHours as PulseQuietHours,
+	ScheduledTiming as PulseSchedule,
+} from "@howaboua/pi-durable-components";
 
-export type PulseQuietHours = {
-	startMinute: number;
-	endMinute: number;
-};
+import type {
+	ScheduledQuietHours as PulseQuietHours,
+	ScheduledTiming as PulseSchedule,
+} from "@howaboua/pi-durable-components";
 
 const DURATION_PATTERN =
 	/^(\d+)\s*(m|min|mins|minute|minutes|h|hr|hour|hours|d|day|days)$/iu;

@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-grok-voice",
-	"version": "0.9.1",
+	"version": "0.10.0",
 	"description": "Grok realtime voice and dictation for Pi Durable",
 	"type": "module",
 	"license": "MIT",
@@ -19,6 +19,10 @@
 		".": {
 			"types": "./dist/packages/grok-voice/src/index.d.ts",
 			"import": "./dist/index.js"
+		},
+		"./component": {
+			"types": "./dist/packages/grok-voice/src/activation.d.ts",
+			"import": "./dist/activation.js"
 		}
 	},
 	"files": [
@@ -35,13 +39,14 @@
 	"dependencies": {
 		"typebox": "1.3.27",
 		"ws": "8.21.3",
-		"@types/ws": "8.18.1"
+		"@types/ws": "8.18.1",
+		"@howaboua/pi-durable-components": "0.10.0"
 	},
 	"peerDependencies": {
 		"@earendil-works/chord": "1.4.0",
 		"@earendil-works/pi-ai": "1.4.0",
 		"@earendil-works/pi-durable": "1.4.0",
-		"@modelcontextprotocol/sdk": "1.25.2"
+		"@modelcontextprotocol/sdk": ">=1.25.2 <2"
 	},
 	"publishConfig": {
 		"access": "public"
@@ -50,5 +55,28 @@
 		"build:audio-helper": "node scripts/build-audio-helper.mjs",
 		"verify:audio-helper": "node scripts/verify-audio-binaries.mjs",
 		"plan:audio-helper": "node scripts/plan-audio-binaries.mjs"
+	},
+	"durable": {
+		"schemaVersion": 1,
+		"kind": "extension",
+		"entry": "./component",
+		"runtimes": [
+			"node"
+		],
+		"requires": [
+			"howaboua.audio.lease.v1",
+			"durable.audio.pcm24.v1",
+			"durable.node-execution.v1",
+			"durable.models.v1",
+			"durable.network.v1",
+			"durable.state.v1"
+		],
+		"permissions": [
+			"audio",
+			"network",
+			"process",
+			"models",
+			"storage"
+		]
 	}
 }

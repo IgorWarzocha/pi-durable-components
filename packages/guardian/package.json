@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-guardian",
-	"version": "0.9.1",
+	"version": "0.10.0",
 	"description": "Explicit Durable tool rules and one-shot Codex action review",
 	"type": "module",
 	"license": "MIT",
@@ -19,6 +19,10 @@
 		".": {
 			"types": "./dist/packages/guardian/src/index.d.ts",
 			"import": "./dist/index.js"
+		},
+		"./component": {
+			"types": "./dist/packages/guardian/src/activation.d.ts",
+			"import": "./dist/activation.js"
 		}
 	},
 	"files": [
@@ -35,5 +39,18 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"dependencies": {
+		"@howaboua/pi-durable-components": "0.10.0"
+	},
+	"durable": {
+		"schemaVersion": 1,
+		"kind": "extension",
+		"entry": "./component",
+		"runtimes": [
+			"node"
+		],
+		"requires": [],
+		"permissions": []
 	}
 }

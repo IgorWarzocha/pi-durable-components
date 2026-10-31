@@ -75,6 +75,8 @@ export type DictationServiceOptions = {
 	modelDirectory: string;
 	/** Ordered discovery roots, replacing PI_* model directories when supplied. The managed root is appended. */
 	modelSearchDirectories?: readonly string[];
+	/** Host-authorised model egress, called separately for every redirect hop. */
+	fetchDownload?: (url: string, init: RequestInit) => Promise<Response>;
 	/** Overrides PI_SHERPA_ONNX_LANGUAGE. Blank uses the model or request language. */
 	language?: string;
 	/** Positive integer overriding PI_SHERPA_ONNX_NUM_THREADS. */

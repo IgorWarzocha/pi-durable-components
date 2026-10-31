@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-dictation",
-	"version": "0.9.1",
+	"version": "0.10.0",
 	"description": "Portable local Whisper dictation with the sherpa-onnx native runtime",
 	"type": "module",
 	"license": "MIT",
@@ -31,6 +31,10 @@
 		"./helpers": {
 			"types": "./dist/packages/dictation/src/helpers.d.ts",
 			"import": "./dist/helpers.js"
+		},
+		"./component": {
+			"types": "./dist/packages/dictation/src/activation.d.ts",
+			"import": "./dist/activation.js"
 		}
 	},
 	"files": [
@@ -41,9 +45,28 @@
 	],
 	"sideEffects": false,
 	"dependencies": {
-		"sherpa-onnx-node": "1.13.8"
+		"sherpa-onnx-node": "1.13.8",
+		"@howaboua/pi-durable-components": "0.10.0"
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"durable": {
+		"schemaVersion": 1,
+		"kind": "service",
+		"entry": "./component",
+		"runtimes": [
+			"node"
+		],
+		"requires": [
+			"durable.node-execution.v1",
+			"durable.network.v1",
+			"durable.state.v1"
+		],
+		"permissions": [
+			"filesystem",
+			"process",
+			"network"
+		]
 	}
 }

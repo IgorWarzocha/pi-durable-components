@@ -3,7 +3,7 @@
 Guardian blocks explicitly selected tools or reviews one pending action before execution. Rules are empty by default. Unmatched calls pass through. A matching block rule wins over review and makes no inference.
 
 ```sh
-npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.9.1/howaboua-pi-durable-guardian-0.9.1.tgz
+npm install https://github.com/IgorWarzocha/pi-durable-components/releases/download/v0.10.0/howaboua-pi-durable-guardian-0.10.0.tgz
 ```
 
 ```ts

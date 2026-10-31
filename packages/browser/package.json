@@ -1,6 +1,6 @@
 {
 	"name": "@howaboua/pi-durable-browser",
-	"version": "0.9.1",
+	"version": "0.10.0",
 	"description": "Logged-in browser control for Pi Durable",
 	"type": "module",
 	"license": "MIT",
@@ -23,6 +23,10 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js"
+		},
+		"./component": {
+			"types": "./dist/activation.d.ts",
+			"import": "./dist/activation.js"
 		}
 	},
 	"files": [
@@ -36,9 +40,29 @@
 		"@earendil-works/chord": "1.4.0",
 		"@earendil-works/pi-ai": "1.4.0",
 		"@earendil-works/pi-durable": "1.4.0",
-		"@modelcontextprotocol/sdk": "1.25.2"
+		"@modelcontextprotocol/sdk": ">=1.25.2 <2"
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"dependencies": {
+		"@howaboua/pi-durable-components": "0.10.0"
+	},
+	"durable": {
+		"schemaVersion": 1,
+		"kind": "extension",
+		"entry": "./component",
+		"runtimes": [
+			"node"
+		],
+		"requires": [
+			"durable.browser.v1",
+			"durable.state.v1"
+		],
+		"permissions": [
+			"browser",
+			"filesystem",
+			"network"
+		]
 	}
 }

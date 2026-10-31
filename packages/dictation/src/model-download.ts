@@ -132,7 +132,11 @@ function isRedirectStatus(status: number) {
 	);
 }
 
-export async function fetchDownloadResponse(url: string, signal?: AbortSignal) {
+export async function fetchDownloadResponse(
+	url: string,
+	signal?: AbortSignal,
+	fetchDownload: (url: string, init: RequestInit) => Promise<Response> = fetch,
+) {
 	let currentUrl = url;
 	let metadata: DownloadMetadata = {
 		contentLength: null,
@@ -145,7 +149,7 @@ export async function fetchDownloadResponse(url: string, signal?: AbortSignal) {
 		redirectCount <= MAX_DOWNLOAD_REDIRECTS;
 		redirectCount += 1
 	) {
-		const response = await fetch(currentUrl, {
+		const response = await fetchDownload(currentUrl, {
 			redirect: "manual",
 			...(signal ? { signal } : {}),
 		});
