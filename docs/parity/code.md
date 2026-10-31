@@ -1,5 +1,9 @@
 # Code parity
 
+## PR #561 alignment
+
+The read-only `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` comparison carries PR #561 input normalisation through the shared ordinary nested-registration path. A disposable actual Harness and native V8 check exercised JSON object strings, help-backed discovery, literal strings, configured command objects and arrays, and rejection before an invalid call's effect. The retained V8 integration also passed. Native host, observation and wait contracts are unchanged. Source wait recovery and opaque-state extraction are organisational changes, not new runtime behaviour.
+
 Reference: `howaboua-pi-stuff` revision `3d0faf5a6f0bc67c0bd9248d07da6ddfa901b281`, `packages/pi-codex-conversion/src/tools/code-mode`. The source checkout remains read-only. Native host source tracks OpenAI Codex `rust-v0.163.0`, commit `83086188ae0614bd882818ff1aa23f3194962012`, resolved from its official annotated release tag.
 
 ## Pi 1.4 refresh

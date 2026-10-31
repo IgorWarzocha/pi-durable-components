@@ -1,5 +1,13 @@
 # Shared execution
 
+## PR #561 alignment
+
+The read-only comparison covers Pi Stuff `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d`, including PR #561. Nested function calls decode JSON object or array strings before registration preparation, validation and hooks. Help-backed `"help"` becomes `{}`. Schema-valid strings remain literal. Explicit native `prepareArguments` handlers retain their existing non-JSON string inputs rather than losing accepted functionality. Configured commands serialise object and array input to JSON, preserving literal strings and the existing native `{input:string}` envelope.
+
+Every currently callable registration remains discoverable, including deferred tools. Selection is resolved afresh through `runtime.agent()` at cell admission, so there is no Pi execution-mode latch to clear after tree navigation. Pi branch restoration and mode selection belong to the host. No Pi loader-alias injection, tool bridge or alternate catalogue is introduced.
+
+Disposable checks drove emitted Code, Deno Notebook, TS Notebook and JS Notebook through actual Durable Harness instances. All four accepted structured JSON strings, help, literal strings and command object, array and raw-string inputs. Invalid primitive input did not execute another effect. The existing V8 integration workflow passed. No permanent tests were added.
+
 ## PR #552 refresh
 
 Merged-head `1338b66a..84bd5bce` adds existing-Deno isolated candidates. The internal coordinator now reserves one normal lane and four isolated lanes atomically for Notebook only, including pending startup and completion. Code and Worker Code retain single-cell admission. Interrupted tasks keep their existing uncertain-outcome and no-replay policy. Generic truncation notices across all three products now tell the caller to narrow reads, fetch missing help separately and never replay side effects for output. A disposable real Harness with Deno exercised concurrent public exec calls, admission limits, wait receipts and truncation guidance. [Notebook evidence](notebook.md#pr-552-refresh) records fork persistence and cleanup validation.

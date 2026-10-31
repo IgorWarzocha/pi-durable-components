@@ -1,4 +1,4 @@
-import { Type } from "@earendil-works/pi-ai";
+import { StringEnum, Type } from "@earendil-works/pi-ai";
 import type {
 	AgentChange,
 	ConversationId,
@@ -6,6 +6,7 @@ import type {
 	Tx,
 } from "@earendil-works/pi-durable";
 import type { Static } from "typebox";
+import { Check } from "typebox/value";
 
 export type AgentProfile = {
 	description: string;
@@ -33,7 +34,25 @@ const target = Type.String({ minLength: 1 });
 const message = Type.String({ minLength: 1 });
 const action = <T extends string>(name: T) => ({ action: Type.Literal(name) });
 const object = { additionalProperties: false };
-export const AgentsParameters = Type.Union([
+export const AgentsParameters = Type.Object(
+	{
+		action: Type.Optional(
+			StringEnum([
+				"help",
+				"list",
+				"find",
+				"spawn",
+				"send",
+				"assign",
+				"watch",
+				"unwatch",
+			]),
+		),
+		target: Type.Optional(target),
+	},
+	{ additionalProperties: true },
+);
+const AgentsRequest = Type.Union([
 	Type.Object({ action: Type.Optional(Type.Literal("help")) }, object),
 	Type.Object(
 		{ ...action("list"), offset: Type.Optional(Type.Integer({ minimum: 0 })) },
@@ -81,7 +100,14 @@ export const AgentsParameters = Type.Union([
 	Type.Object({ ...action("watch"), target }, object),
 	Type.Object({ ...action("unwatch"), target }, object),
 ]);
-export type Request = Static<typeof AgentsParameters>;
+export type Request = Static<typeof AgentsRequest>;
+export function parseAgentsRequest(value: unknown): Request {
+	if (!Check(AgentsRequest, value))
+		throw new Error(
+			"Invalid agents request; call agents with {} for action fields",
+		);
+	return value;
+}
 export type WorkRequest = Extract<Request, { action: "spawn" | "assign" }>;
 export const response = (details: JsonObject, isError = false) => ({
 	output: [{ type: "text" as const, text: JSON.stringify(details) }],
@@ -125,7 +151,7 @@ export function help(options: AgentsOptions) {
 			prompt:
 				"Give each worker a distinct scope, desired outcome, relevant project context and issue references. Describe success rather than lists of forbidden investigations",
 			blocking:
-				"Defaults true; spawn profile policy overrides. In JavaScript cells, use await Promise.allSettled for parallel calls that wait for every result, including failures. Use false only to continue other work; completion arrives after your reply. No polling or sleep waits",
+				"Defaults true; spawn profile policy overrides. Await blocking calls; use await Promise.allSettled for parallel calls, including failures. Use false only to continue other work. Background reports arrive automatically: do other work or end this turn, never poll or await timers or extra Promises for reports",
 			send: "Admits a message, wakes idle recipients, steers active work. No wait or implicit watch",
 			watch: "Persists until unwatch; delegation reports are task-scoped",
 			board_thread_id:

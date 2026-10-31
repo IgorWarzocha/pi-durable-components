@@ -30,6 +30,7 @@ interface ExecutionToolContract {
 	readonly inputSchema: JsonValue;
 	readonly deferLoading: boolean;
 	readonly nativeOnly: boolean;
+	readonly discovery?: "help";
 	readonly yieldTimeMs?: number;
 	readonly help: string;
 	readonly prompt: string;
@@ -112,6 +113,7 @@ export function readToolContract(
 	const outputHint = typeof output === "string" ? output : undefined;
 	return {
 		name: tool.name,
+		...(discovery === "help" ? { discovery } : {}),
 		description: tool.description,
 		usage,
 		prompt: discovery === "help" ? `${reference}: ${tool.description}` : usage,

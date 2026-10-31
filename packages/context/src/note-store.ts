@@ -15,6 +15,7 @@ import {
 	GenerationTask,
 	ToolTask,
 } from "@earendil-works/pi-durable";
+import { isNoteWrite } from "./query-input.ts";
 import { latestUserEntry, WindowState } from "./window-state.ts";
 
 export type NoteMetadata = {
@@ -206,12 +207,7 @@ export async function notesAreFresh(
 								.find((item) => item.id === input.callId)
 						: undefined;
 			}
-			if (
-				call?.name === "notes" &&
-				(call.arguments["action"] === "write_file" ||
-					call.arguments["action"] === "append_to_file")
-			)
-				return false;
+			if (call?.name === "notes" && isNoteWrite(call.arguments)) return false;
 		}
 		cursor = page.next;
 	} while (cursor !== undefined);
@@ -303,7 +299,7 @@ export async function renderNotesThreadHint(
 			right.updatedAt - left.updatedAt || left.path.localeCompare(right.path),
 	);
 	const header =
-		"Recent notes (up to 5, most-recent first). More may exist; use notes list_files_by_prefix or search_contents:";
+		"Recent notes (up to 5, most-recent first). More may exist; use notes list or search:";
 	const lines: string[] = [];
 	for (const file of files) {
 		if (lines.length >= 5) break;

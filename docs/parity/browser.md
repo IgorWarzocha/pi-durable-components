@@ -1,5 +1,13 @@
 # Browser parity
 
+## PR #558 to #570 alignment
+
+Compared read-only Pi Stuff `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d`. Raw object preparation now validates before serialisation, matching the source's object and JSON-string paths. The ordinary registration's existing execution metadata also describes raw objects for nested callers, while the provider envelope and runtime parser stay strict. Results remain native structured JSON through ordinary registration. Source Pi loader and Code Mode registration splits are not imported. The native CDP tab-bridge and snapshot-tree owners already match the source's extracted responsibilities.
+
+The public `startBrowserVoice(options, config)` carries source voice-page readiness, acknowledged listening, explicit error and timeout checks for Codex, GipPity and Grok. It requires an explicit `BrowserRuntimeConfig` rather than ambient native paths. It opens an owned tab, clicks start at most once, never changes browser permission or trust policy, and closes automation without closing the page. Caller cancellation remains visible as an error result. Route normalisation and persistence retain `voiceOnly`; `createBrowserExtension({ ...config, voiceOnly: true })` omits the agent tool while preserving public runtime and voice automation. Hosts choose and apply this option explicitly instead of installing Pi settings or global paths.
+
+A disposable private headless Chromium probe exercised the production helper against owned HTML pages: GipPity and Grok acknowledged listening after one click, Codex reported an explicit page error without a click, and an unacknowledged start timed out after one click. Every page remained readable after helper shutdown. This validates DOM-state acknowledgement and lifecycle, not microphone permission, audio transport or a live provider. A separate disposable check exercised voice-only persistence, tool omission and early object validation. Integration caught a remaining TS declaration failure: the actual ordinary registration rejected `tools.browser({action: "help"})` with TS2353 despite accepting it at runtime. After the metadata correction, actual Rust-backed TS Notebook and native Durable dispatch accepted object and JSON calls with identical help results, without CDP discovery. The existing Harness batch-continuation workflow and focused strict TS7 check passed. Temporary profiles, processes and probes were removed. No permanent tests were added.
+
 Pinned source: `howaboua-pi-stuff/packages/pi-browser` at `b2006db9def12c373ae48e70044d30f7d6b7e34f`. The checkout was read only. `packages/browser/NOTICE` retains the MIT notices for pasky and Igor Warzocha and records provenance.
 
 ## Native integration

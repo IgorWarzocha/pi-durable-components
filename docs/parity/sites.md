@@ -1,5 +1,9 @@
 # Sites parity
 
+## PR #558 to #570 reconciliation
+
+Read-only comparison of Pi Stuff `84bd5bce..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` found only Sites changelog and package metadata changes. No service, argument, result or lifecycle implementation changed. The existing ordinary native registrations and structured result boundary remain unchanged.
+
 Source: `packages/pi-chatgpt-sites` at `69f50cf70e8a7b05c2349be6227f521b6504f80e` in `howaboua-pi-stuff`. The source checkout remains read-only. License and modification notices ship with `packages/sites`.
 
 The ordinary `sites` and `sites_documentation` registrations preserve the operation table, fourteen guides, on-demand schemas, bounded results and actionable failures. Empty help needs no credentials or filesystem. Code and Notebook discover these registrations without a Sites bridge.

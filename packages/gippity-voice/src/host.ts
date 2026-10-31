@@ -1,5 +1,6 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { GippityControlConfig } from "./config.ts";
+import type { RealtimeVoiceEventDetails } from "./voice/conversation/wire.ts";
 
 /** Pass the SAME host instance to every voice product in this application. */
 export interface AudioLease {
@@ -42,6 +43,7 @@ export interface GippityLanPermission {
 }
 
 export type GippityPresentation =
+	| { type: "voice-event"; event: RealtimeVoiceEventDetails }
 	| { type: "status"; status: string }
 	| { type: "error"; message: string }
 	| { type: "transcript"; role: "user" | "assistant"; text: string }

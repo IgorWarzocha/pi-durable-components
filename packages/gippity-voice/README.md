@@ -1,13 +1,13 @@
 # GipPity voice for Pi Durable
 
-Talk with a Codex subscription voice assistant while your Durable conversation remains the agent doing the work. Voice requests enter normal Durable admission when the realtime assistant explicitly delegates them. Ordinary voice dialogue stays display-only. Typed messages still work normally.
+Talk through Codex Live or the OpenAI Realtime API while your Durable conversation remains the agent doing the work. Explicitly delegated requests enter normal Durable admission. Ordinary voice dialogue stays display-only. Public Realtime can also invoke the conversation's selected ordinary tools directly. Typed messages still work normally.
 
 The component includes local WebRTC audio, manual dictation, microphone mute, device discovery, opt-in call recovery, context refresh after successful compaction, and HTTPS browser control. Browser dictation edits a revision-checked shared draft. Closing a browser leaves an established call running. Stop ends it. Authorized handoff keeps audio on its original host while work moves to another Durable conversation.
 
 ## Requirements
 
 - Node 22.19 or newer and Pi Durable, Models and Chord 1.4.0.
-- A canonical `openai-codex` OAuth login supplied by the host's Models instance. API keys, custom Codex endpoints and ordinary OpenAI realtime are not supported.
+- For Codex Live and dictation, a canonical `openai-codex` OAuth login supplied by Models. For public Realtime, an API key and HTTP or HTTPS endpoint belonging to the exact Models provider selected in voice settings. OAuth is not public API access.
 - Explicit native process permission matching the conversation's execution environment. Six native helpers are shipped for Linux, macOS and Windows, on x64 and arm64. Linux needs its audio runtime dependencies.
 - One application-owned exclusive audio lease, shared with every voice component, including Grok voice. Acquisition must reject conflicting ownership atomically. Aborting a waiter must not release an existing owner's hardware. Release is idempotent and occurs only after confirmed audio teardown.
 
@@ -71,19 +71,25 @@ Save a scope with `replaceOverride({ scope, value, expectedRevision })`. A `null
 
 Use a stable, unique `instanceName` for each component when installing more than one GipPity instance in the same registry. Each instance binds to one conversation. `providerEnv` supplies explicit proxy settings such as `https_proxy` and `no_proxy`. Ambient process proxy variables are not consulted.
 
+`voice.model` selects `codex-live-1.1`, `realtime-2.1` or `realtime-2.1-mini`. Public Realtime uses `voice.apiProvider`, `realtimeVoice` and `realtimeAlternateVoice`. Its optional `webSearch` uses the selected ordinary `web_run` registration. Codex Live prepares delegated work with `taskDelegationModel`, defaulting to `openai-codex/gpt-6-luna`, and `taskDelegationReasoning`, defaulting to `low`. Preparation failure leaves the request unsent and reports it. Dictation remains a separate Codex OAuth connection regardless of voice model.
+
 ## Context, LAN and handoff
 
 Context summaries are off by default. Set `allowContextSummary: true` and select `voice.contextModel` only after authorizing conversation export to that Models provider. Reasoning defaults to `high`. Generated summaries are displayed and persisted separately from ordinary model history. Failed refresh leaves the established call intact. The realtime backend never changes the Durable conversation's selected model.
 
 LAN control requires a `lan` capability with the matching namespace, TLS key and certificate, bind address, port, and exact allowed HTTPS origins. `startLan(context)` returns the supplied advertised URLs. The server validates Host and Origin. This is trusted-network control, not an internet-safe authenticated service. Do not expose its port publicly. `stopLan()` ends its browser-owned audio but leaves unrelated local audio alone.
 
+`lanStatus()` reports the listener, advertised URLs and browser attachment. An optional host-owned `startBrowserVoice` callback enables `connectLan({ url, host?, signal? }, context)`. Choose a URL advertised by this listener. Browser's public `startBrowserVoice` API can supply the callback. The component does not discover terminal panes or write global request receipts.
+
 For custom static apps, pass an `appFiles` capability and set `lan.customWebApp` with `lan.customWebAppPath`. `createNativeGippityAppFiles` accepts explicitly approved roots and checks real-path containment and asset bounds. Other execution environments supply their own namespace-bound reader. `registerRemoteApp(provider)` publishes one active app's bounded state and events at `/_gippity/apps/<id>/`. The returned function unregisters it. The bundled `GippityRemote` browser client supports audio, shared drafts, app events and `durable:<event>` activity.
 
-Remote JSON controls use your explicit `rpc` callback. Only authorize named operations your app intends to expose. There is no arbitrary Pi API forwarding. Ordinary tools remain normal Durable registrations and are invoked by the delegated agent.
+Remote JSON controls use your explicit `rpc` callback. Only authorise named operations your app intends to expose. There is no arbitrary Pi API forwarding. Public Realtime snapshots selected ordinary Durable tools at call start. Direct calls retain argument preparation, hooks, cancellation and replay policy. `send_task`, `end_call` and `web_search` are reserved voice tool names.
 
 The app's approval UI can call `activityWaiting(title)` and `activityPromptEnded()` to keep browser activity aligned with its prompts. Durable does not emit app UI prompt events.
 
 `depart(channel, context)` and `arrive(channel, continuity, context)` require an application `handoff` grant for an authenticated ordered channel and the target conversation. GipPity accepts WebRTC handoff only. Incompatible PCM transport is rejected before departure. The source retains the physical audio lease until its transferred peer closes. The destination owns provider auth, work admission and a separate channel grant. Each successful handoff flips primary and alternate voice. Reconnect and context refresh preserve that selection.
+
+With source-hosted audio, Stop ends the selected call while retaining its authenticated binding. Start reads fresh destination settings and context. A broken binding reports failure instead of starting on the old conversation. Compatible LAN grants can instead transfer the listener at the same address after certificate, loopback-listener and browser acknowledgement checks. The destination then owns a fresh call independently of the closed handoff channel. An unavailable takeover is reported and leaves LAN hosting at the source.
 
 Call `close(context)` before changing the component's target. Harness shutdown also cancels its background-owned service. Interrupted calls are reported as uncertain and never replayed after reopening storage. Start again explicitly. If process termination cannot be confirmed, ownership is retained and cleanup fails visibly.
 

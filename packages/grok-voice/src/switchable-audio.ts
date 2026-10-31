@@ -33,4 +33,13 @@ export class SwitchableAudio implements RealtimeAudio {
 		this.callbacks = undefined;
 		await this.audio.close();
 	}
+	stopCall(): void {
+		this.audio.stopCall?.();
+	}
+	resumeCall(): void {
+		this.audio.resumeCall?.();
+	}
+	disconnect(): void {
+		this.audio.disconnect?.();
+	}
 }

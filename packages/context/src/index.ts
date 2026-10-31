@@ -19,6 +19,7 @@ import {
 	type InputResult,
 	initializeWindow,
 } from "./lifecycle.ts";
+import type { ContextModelRoles } from "./model-roles.ts";
 import { createNotesTool } from "./notes.ts";
 import { createContextPolicy } from "./policy.ts";
 import type { ContextRemoteCatalog } from "./remote.ts";
@@ -29,6 +30,7 @@ import { WindowState } from "./window-state.ts";
 
 export type { HistoryRanker, RankedHistory } from "./history-ranker.ts";
 export type { InputResult } from "./lifecycle.ts";
+export type { ContextModelRole, ContextModelRoles } from "./model-roles.ts";
 export { readSavedNotes, type SavedNote } from "./note-store.ts";
 export type { ContextRemoteCatalog } from "./remote.ts";
 export type { BeforeRollover } from "./rollover-preparation.ts";
@@ -46,6 +48,8 @@ export function createContextManagement(options: {
 	rankedHistory?: RankedHistory;
 	/** Await connected-service refresh before a window cut. Interrupted effects are not replayed. */
 	beforeRollover?: BeforeRollover;
+	/** User-configured roles, authorised for this conversation. Global paths remain host-owned. */
+	modelRoles?: ContextModelRoles;
 	/** Opt in to a host-owned stable family and agent namespace. No local fallback. */
 	remote?: ContextRemoteCatalog;
 	now?: () => number;
@@ -63,6 +67,11 @@ export function createContextManagement(options: {
 	taskBoundaryReminderTokens?: number;
 }) {
 	let binding: ContextHost | undefined;
+	if (
+		options.modelRoles !== undefined &&
+		typeof options.modelRoles !== "function"
+	)
+		throw new Error("modelRoles requires a host-configured catalogue callback");
 	if (
 		options.remote !== undefined &&
 		typeof options.remote?.catalog !== "function"
@@ -136,6 +145,7 @@ export function createContextManagement(options: {
 		ensureWindow,
 		taskBoundaryReminderTokens,
 		newContextRequests,
+		modelRoles: options.modelRoles,
 		archiveHistory: options.archiveHistory === true,
 		rankedHistory: options.rankedHistory,
 	});
@@ -153,6 +163,7 @@ export function createContextManagement(options: {
 	});
 	const newContext = createToolRollover(host, now, {
 		newContextRequests,
+		modelRoles: options.modelRoles,
 		beforeRollover: options.beforeRollover,
 		...(options.hasEligibleContextHistory === undefined
 			? {}

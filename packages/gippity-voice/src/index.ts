@@ -16,7 +16,9 @@ export type {
 export {
 	DEFAULT_GIPPITY_CONTROL_CONFIG,
 	DEFAULT_GIPPITY_LAN_PORT,
+	GIPPITY_VOICE_MODELS,
 	normalizeGippityControlConfig,
+	OPENAI_REALTIME_VOICES,
 	REALTIME_V3_VOICES,
 	VOICE_CONTEXT_REASONING_LEVELS,
 } from "./config.ts";
@@ -39,6 +41,7 @@ export {
 	createNativeGippityAudioHost,
 } from "./native.ts";
 export type { GippityPreferences } from "./preferences.ts";
+export type { RealtimeVoiceEventDetails } from "./voice/conversation/wire.ts";
 export type {
 	TransferredVoiceControls,
 	VoiceHandoffChannel,

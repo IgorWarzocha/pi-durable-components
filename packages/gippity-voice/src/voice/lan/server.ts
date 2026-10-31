@@ -1,9 +1,15 @@
+import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:https";
 import type { Context } from "@earendil-works/chord";
 import type { AgentEvent } from "@earendil-works/pi-durable";
-import { WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 import type { GippityControlConfig } from "../../config.ts";
+import {
+	GIPPITY_VOICE_MODELS,
+	normalizeVoiceApiProvider,
+	OPENAI_REALTIME_VOICES,
+} from "../../config.ts";
 import type { GippityVoiceControls } from "../../controller.ts";
 import type {
 	AudioLease,
@@ -37,6 +43,11 @@ import { createLanVoiceWebUi } from "./web-ui.ts";
 
 export interface GippityLanServer {
 	readonly urls: string[];
+	browserAttached(): boolean;
+	hasConversation(): boolean;
+	acknowledgeTakeover(token: string): Promise<void>;
+	proveTakeover(verify: (value: unknown) => Promise<unknown>): Promise<void>;
+	releaseForTakeover(): Promise<void>;
 	publish(event: GippityPresentation): void;
 	broadcast(event: unknown): void;
 	agentEvent(event: AgentEvent): void;
@@ -56,6 +67,11 @@ export async function startGippityLanServer(options: {
 	context: Context;
 	resolveAuth(): Promise<CodexVoiceAuth>;
 	remoteApps: GippityRemoteApps;
+	takeoverToken?: string;
+	startConversation?(
+		factory: () => LanHostRealtimePeer,
+		token?: string,
+	): Promise<void>;
 }): Promise<GippityLanServer> {
 	const { permission, controls, context } = options;
 	options.signal.throwIfAborted();
@@ -82,6 +98,8 @@ export async function startGippityLanServer(options: {
 	});
 	const hosts = new Set(origins.map((origin) => origin.host.toLowerCase()));
 	let closing = false;
+	let releasing = false;
+	let takeoverProof: string | undefined;
 	let browserPeer: LanHostRealtimePeer | undefined;
 	let browserVoice = false;
 	let browserStarting = false;
@@ -112,23 +130,25 @@ export async function startGippityLanServer(options: {
 		},
 	});
 	clients = new LanVoiceBrowserClients({
-		async ensureConversation() {
+		async ensureConversation(takeoverToken) {
 			if (closing) throw new Error("LAN server is closing");
 			if (browserVoice && controls.active) return;
 			browserStarting = true;
 			try {
-				await controls.startVoice(
-					context,
-					() => {
-						browserPeer = new LanHostRealtimePeer(options.audio, {
-							onAudio: (pcm) => clients.sendConversationAudio(pcm),
-							onSpeakerSuppressed: (suppressed) =>
-								clients.setConversationSpeakerSuppressed(suppressed),
-						});
-						return browserPeer;
-					},
-					true,
-				);
+				const factory = () => {
+					browserPeer = new LanHostRealtimePeer(options.audio, {
+						onAudio: (pcm) => clients.sendConversationAudio(pcm),
+						onSpeakerSuppressed: (suppressed) =>
+							clients.setConversationSpeakerSuppressed(suppressed),
+					});
+					return browserPeer;
+				};
+				if (options.startConversation)
+					await options.startConversation(factory, takeoverToken);
+				else {
+					if (takeoverToken) throw new Error("LAN takeover was not prepared");
+					await controls.startVoice(context, factory, true);
+				}
 				browserVoice = true;
 			} finally {
 				browserStarting = false;
@@ -171,6 +191,7 @@ export async function startGippityLanServer(options: {
 			await releaseDictation();
 		},
 		async onConversationActivity(active) {
+			if (releasing) return;
 			if (!active && browserVoice) {
 				browserVoice = false;
 				browserPeer = undefined;
@@ -202,6 +223,21 @@ export async function startGippityLanServer(options: {
 			response.setHeader("cache-control", "no-store");
 			response.setHeader("x-content-type-options", "nosniff");
 			response.setHeader("referrer-policy", "no-referrer");
+			if (
+				request.method === "GET" &&
+				request.url?.startsWith("/api/takeover-proof?")
+			) {
+				const address = request.socket.remoteAddress;
+				const valid =
+					["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(address ?? "") &&
+					takeoverProof !== undefined &&
+					new URL(request.url, "https://localhost").searchParams.get(
+						"token",
+					) === takeoverProof;
+				response.writeHead(valid ? 200 : 404, { "content-type": "text/plain" });
+				response.end(valid ? takeoverProof : "Not found");
+				return;
+			}
 			if (!originAllowed(request)) {
 				send(response, 403, { error: "Unapproved LAN Host or Origin" });
 				return;
@@ -308,6 +344,11 @@ export async function startGippityLanServer(options: {
 				});
 				response.write("event: ready\ndata: {}\n\n");
 				clients.connectEvents(client, response);
+				if (options.takeoverToken)
+					clients.sendControl(client, {
+						type: "ready",
+						takeoverToken: options.takeoverToken,
+					});
 				clients.sendControl(client, draft.snapshot());
 				clients.sendControl(client, activity.snapshot());
 				clients.sendControl(client, {
@@ -375,14 +416,36 @@ export async function startGippityLanServer(options: {
 			const voice: Partial<GippityControlConfig["voice"]> = {};
 			for (const [key, value] of Object.entries(body)) {
 				if (key === "clientId") continue;
-				if (key === "v3Voice" || key === "v3AlternateVoice") {
+				if (key === "apiProvider") {
+					const provider = normalizeVoiceApiProvider(value);
+					if (!provider)
+						throw new LanError(400, "Enter a valid API provider name");
+					voice.apiProvider = provider;
+				} else if (key === "model") {
+					const model = GIPPITY_VOICE_MODELS.find((model) => model === value);
+					if (!model) throw new LanError(400, "Choose a listed voice model");
+					voice.model = model;
+				} else if (
+					key === "realtimeVoice" ||
+					key === "realtimeAlternateVoice"
+				) {
+					const selected = OPENAI_REALTIME_VOICES.find(
+						(voice) => voice === value,
+					);
+					if (!selected)
+						throw new LanError(400, "Choose a listed Realtime voice");
+					voice[key] = selected;
+				} else if (key === "v3Voice" || key === "v3AlternateVoice") {
 					if (
 						typeof value !== "string" ||
 						!(choices.voices as readonly string[]).includes(value)
 					)
 						throw new LanError(400, "Choose a listed voice");
 					voice[key] = value as GippityControlConfig["voice"]["v3Voice"];
-				} else if (key === "contextReasoning") {
+				} else if (
+					key === "contextReasoning" ||
+					key === "taskDelegationReasoning"
+				) {
 					if (
 						typeof value !== "string" ||
 						!(choices.contextReasoningLevels as readonly string[]).includes(
@@ -390,7 +453,7 @@ export async function startGippityLanServer(options: {
 						)
 					)
 						throw new LanError(400, "Choose a listed reasoning level");
-					voice.contextReasoning =
+					voice[key] =
 						value as GippityControlConfig["voice"]["contextReasoning"];
 				} else if (key === "contextModel") {
 					if (value === null) voice.contextModel = undefined;
@@ -419,6 +482,7 @@ export async function startGippityLanServer(options: {
 					}
 				} else if (
 					key === "autoResumeRealtime" ||
+					key === "webSearch" ||
 					key === "refreshRealtimeAfterCompaction" ||
 					key === "delegationAcknowledgements" ||
 					key === "forwardReasoningSummaries"
@@ -493,7 +557,8 @@ export async function startGippityLanServer(options: {
 					)
 				: Promise.resolve();
 			for (const socket of sockets.clients) socket.terminate();
-			if (browserVoice || browserStarting) await controls.stopVoice();
+			if (!releasing && (browserVoice || browserStarting))
+				await controls.stopVoice();
 			browserVoice = false;
 			await clients.close();
 			await dictation.close();
@@ -530,6 +595,25 @@ export async function startGippityLanServer(options: {
 	);
 	return {
 		urls: origins.map((origin) => `${origin.origin}/`),
+		browserAttached: () =>
+			[...sockets.clients].some((peer) => peer.readyState === WebSocket.OPEN),
+		hasConversation: () => browserVoice && controls.active,
+		acknowledgeTakeover: (token) => clients.takeover(token),
+		async proveTakeover(verify) {
+			if (takeoverProof)
+				throw new Error("A LAN listener proof is already pending");
+			const token = randomUUID();
+			takeoverProof = token;
+			try {
+				await verify({ port: permission.port, token });
+			} finally {
+				takeoverProof = undefined;
+			}
+		},
+		async releaseForTakeover() {
+			releasing = true;
+			await close();
+		},
 		broadcast: (value) => clients.broadcastControl(value),
 		close,
 		sessionEvent(event, data) {

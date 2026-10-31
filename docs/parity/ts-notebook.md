@@ -1,5 +1,13 @@
 # TypeScript Notebook parity
 
+## PR #561 alignment
+
+Compared read-only Pi Stuff `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d`, including PR #561. Retained destructured variables receive individual declarations. Inferred types use their binding location and fully qualified names. Tool declarations accept JSON strings as well as schema-shaped inputs. Configured command schemas also expose object and array input, serialised by ordinary registration preparation.
+
+The private lifecycle proxy is removed in favour of the ordinary notebook registration and owned nested-task path, reusing the existing JS boundary. Direct actions, help and native input envelopes remain accepted. Only help, status without query, list and diagnostics run inside a cell. Other valid actions return not-run and a top-level retry.
+
+A disposable actual Durable and Node compiler/worker probe retained nested object destructuring, array destructuring with rest and a destructured `node:fs/promises` function into a later strictly checked cell. It also exercised JSON-string nested calls, command objects and arrays, all allowed lifecycle controls and blocked restart without state loss. Forwarded notebook receipts established the ordinary registration path. No dependency or runtime changed and no permanent test was added.
+
 Reference: `IgorWarzocha/howaboua-pi-stuff` merged PR #552 head `84bd5bce60a77c4298484d4b7c810d4fe5220a1b`, read with `git show` from the unchanged source checkout. The carried implementation is `packages/pi-codex-conversion/src/tools/ts-mode`, plus the exact npm cache implementation. `packages/ts-notebook/NOTICE` preserves its MIT notice. Igor explicitly authorised this mode after the earlier TS deferral.
 
 ## Native ownership

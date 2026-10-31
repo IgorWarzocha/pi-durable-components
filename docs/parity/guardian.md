@@ -1,5 +1,9 @@
 # Guardian parity
 
+## PR #558 to #570 reconciliation
+
+Read-only comparison of Pi Stuff `84bd5bce..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` found only Guardian package metadata changes. There is no new authorisation, review or lifecycle implementation to carry. Native pending-slot provenance and fail-closed review remain unchanged.
+
 Source: `packages/pi-codex-guardian` at `69f50cf70e8a7b05c2349be6227f521b6504f80e` in `howaboua-pi-stuff`. Source license and modification notices ship with `packages/guardian`.
 
 Guardian is an ordinary Durable tool hook. Explicit rules are empty by default. Matching block rules win over review. Argument predicates run with bounded native process isolation when explicitly enabled. Invalid configuration and failed matching block execution. The host owns rule loading, trusted-project composition and controls rather than Pi commands or ambient files.

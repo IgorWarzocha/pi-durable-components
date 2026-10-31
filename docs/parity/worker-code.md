@@ -1,5 +1,9 @@
 # Worker Code
 
+## PR #561 alignment
+
+The read-only Pi Stuff comparison `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` changes shared nested argument normalisation, not the Worker Code interpreter. Ordinary registered functions accept equivalent JSON object or array strings and help-backed discovery without a Worker-specific bridge. No deferred QuickJS Notebook product, persistent guest runtime or shell capability is added. Native execution probes are recorded in [Execution parity](execution.md), not claimed as new workerd acceptance.
+
 Worker Code is a new bounded execution mode for Cloudflare Workers. It does not replace or claim parity with the native Code and Notebook implementations pinned in [the parity index](../parity.md). Native shells, arbitrary npm imports, persistent guest globals and host filesystem access are deliberately absent.
 
 The public component registers ordinary `exec` and `wait` tools. It shares the existing Durable cell coordinator and nested-task dispatcher. Editable module handlers use that same dispatcher under their current ordinary tool task, without starting another conversation-level cell or calling registrations directly.

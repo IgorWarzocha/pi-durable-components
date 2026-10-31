@@ -1,5 +1,13 @@
 # OpenAI Responses provider parity
 
+## PR #561 alignment
+
+Compared read-only Pi Stuff `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d`. Exhausted transient WebSocket recovery now falls back only for that request. Only upgrade-required HTTP 426 and oversized-message close 1009 select session-sticky SSE. Authentication failures remain request-local. Exposed unfinished tool calls still forbid retry and fallback, and transient interruption no longer forces the next request onto SSE.
+
+A disposable actual-provider check against local HTTP and WebSocket transports verified next-request WebSocket recovery after connection loss, HTTP 401 and an interrupted exposed tool call. HTTP 426 and close 1009 stayed on SSE. Interrupted tool output produced a terminal error without an SSE replay. All three retained provider workflows passed. These checks establish owned transport policy, not live account compatibility.
+
+The source WebSocket proxy module extraction has no behavioural delta. Reasoning-selector flushing moved within Pi's extension turn lifecycle, not the provider protocol. The native provider already preserves chronological configuration updates in final request order. The consuming host owns recording selector changes before its next request. No Pi event broker, selector state, host edit or prompt-cache policy is introduced.
+
 ## PR #552 refresh
 
 The merged-head alignment compares read-only Pi Stuff `1338b66a..84bd5bce60a77c4298484d4b7c810d4fe5220a1b`. SSE now has one logical retry budget for HTTP opening failures and interrupted response streams. Failed retryable headers start the five-minute recovery clock before reading the error body. Initial healthy responses are not charged against that clock. Fatal error codes, cancellation and completion-observer failures remain terminal. An interrupted tool-call stream is never replayed.

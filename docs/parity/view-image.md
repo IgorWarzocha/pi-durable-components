@@ -1,5 +1,9 @@
 # view_image parity
 
+## PR #558 to #570 reconciliation
+
+Read-only comparison of Pi Stuff `84bd5bce..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` found no View Image implementation changes. Native environment reads, codec validation, original-byte delivery and Models-based description remain unchanged. Source provider and voice changes do not introduce a second image transport here.
+
 ## Pinned sources
 
 - `howaboua-pi-stuff` revision `b2006db9def12c373ae48e70044d30f7d6b7e34f`.

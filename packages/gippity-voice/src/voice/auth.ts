@@ -1,4 +1,5 @@
 import type { Models } from "@earendil-works/pi-ai";
+import type { PublicRealtimeAccess } from "./realtime-auth.ts";
 
 export interface CodexVoiceAuth {
 	headers: Headers;
@@ -6,6 +7,7 @@ export interface CodexVoiceAuth {
 	officialCodex: boolean;
 	loginFailure?(): Error;
 	env?: Record<string, string>;
+	realtime?: PublicRealtimeAccess;
 }
 
 const loginFailure = () =>

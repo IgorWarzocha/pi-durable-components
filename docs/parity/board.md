@@ -1,5 +1,9 @@
 # Board parity
 
+## PR #558 to #570 reconciliation
+
+Read-only comparison of Pi Stuff `84bd5bce..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` found only Board changelog and package metadata changes. No Board implementation changed. Shepherdr's Core transport and relay preparation do not replace native Board membership transactions, conversation identity or committed catch-up receipts. Existing native boundaries remain unchanged.
+
 The merged PR #552 delta at `1338b66a..84bd5bce` is recorded in the [tool-guidance audit](tool-guidance.md). Native standing guidance now replaces generic work logging with the source's coordination-only posting boundary. A disposable real-Harness capture confirmed it reaches the model exactly once. Existing tool arguments, results, membership and lifecycle are unchanged.
 
 ## Pinned references and native boundary

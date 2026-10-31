@@ -1,5 +1,11 @@
 # Web and image generation parity
 
+## PR #558 to #570 alignment
+
+Compared read-only Pi Stuff `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d`. Web's added public service exposes the existing executor without adding conversation messages. Native Web now exports `executeCodexWebSearch` and `WebRunExecutionResult` from its package entry. Callers supply the invocation's public `ToolExecutionApi`, Chord context and explicit provider options. The same executor retains credentials, stable `ProviderDoc` session affinity, response normalisation, redaction and cancellation. There is no Pi event bus, retained service handle or parallel tool bridge. The caller's native context owns cancellation rather than a Pi shutdown listener.
+
+A disposable real-Harness caller tool invoked the exported executor twice against owned fetch responses. It observed stable session identity, forwarded command fields, the fixed 2500-token budget, reusable references and removal of provider bookkeeping. Only the six explicitly submitted probe inputs appeared in context. Focused strict TS7 passed. No external provider request or permanent test was added. Imagegen has only changelog and package-version changes in this range, so its existing implementation remains unchanged.
+
 The accepted reference is `IgorWarzocha/howaboua-pi-stuff` at `b2006db9def12c373ae48e70044d30f7d6b7e34f`. The reference packages are `packages/pi-codex-web-run` and `packages/pi-codex-imagegen`. Their OpenAI Codex protocol snapshots are pinned to `b545c94041017d000e2c8b2f6272705d21b85dfb`. Reference checkouts were read-only.
 
 The 2026-10-09 error-boundary refresh follows source commit `6924420b`, inspected at `69f50cf70e8a7b05c2349be6227f521b6504f80e`. HTTP failures retain status and useful access, challenge or route classification without returning arbitrary backend bodies or endpoints. Transport errors also omit uncontrolled exception text. Image-generation interruption remains an uncertain outcome with no automatic replay. Pi credential-store inspection and login commands are not carried over.

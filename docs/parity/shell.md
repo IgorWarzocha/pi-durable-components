@@ -1,5 +1,9 @@
 # Shell parity
 
+## PR #561 alignment
+
+No shell implementation changed in the read-only Pi Stuff comparison `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d`. Source wait-session recovery was extracted without a contract change. Existing process-local ownership, cancellation, output draining and uncertain-outcome boundaries remain unchanged.
+
 The shared implementation lives in `packages/execution/src/shell.ts` and `packages/execution/src/shell/`. Code and Notebook each include these internal sources. There is no public shell package or execution-mode bridge.
 
 ## Source

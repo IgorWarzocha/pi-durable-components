@@ -18,11 +18,13 @@ export async function discoverAgents(
 		const status = live?.run === undefined ? "idle" : "working";
 		if (args.action === "find") {
 			if (args.status !== undefined && args.status !== status) continue;
+			const query =
+				args.query === undefined ? undefined : normalize(args.query);
 			if (
-				args.query !== undefined &&
-				!`${agent.name}\n${agent.label}\n${agent.profile}\n${agent.target}`
-					.toLowerCase()
-					.includes(args.query.toLowerCase())
+				query !== undefined &&
+				![agent.name, agent.label, agent.profile, String(agent.target)].some(
+					(value) => normalize(value).includes(query),
+				)
 			)
 				continue;
 		}
@@ -42,4 +44,11 @@ export async function discoverAgents(
 		agents: found.slice(offset, offset + 30),
 		...(found.length > offset + 30 ? { nextOffset: offset + 30 } : {}),
 	});
+}
+
+function normalize(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/[-_\s]+/g, " ")
+		.trim();
 }

@@ -2,6 +2,9 @@ import type { VoiceHandoffChannel } from "./handoff-contract.ts";
 
 type Stage = "prepared" | "activate" | "active";
 type RequestMethod =
+	| "session.stop"
+	| "session.start"
+	| "lan.verify"
 	| "peer.start"
 	| "peer.close"
 	| "session.send"
@@ -69,12 +72,15 @@ export class VoiceHandoffLink {
 			return Promise.reject(new Error("Too many pending voice controls"));
 		const id = ++this.sequence;
 		return new Promise((resolve, reject) => {
-			const timer = setTimeout(() => {
-				this.pending.delete(id);
-				const error = new Error("Voice control did not respond");
-				reject(error);
-				this.fail(error);
-			}, 30_000);
+			const timer = setTimeout(
+				() => {
+					this.pending.delete(id);
+					const error = new Error("Voice control did not respond");
+					reject(error);
+					this.fail(error);
+				},
+				method === "session.start" ? 120_000 : 30_000,
+			);
 			this.pending.set(id, { resolve, reject, timer });
 			try {
 				this.send({ type: "request", id, method, value });
@@ -280,6 +286,9 @@ function isStage(value: unknown): value is Stage {
 
 function isRequestMethod(value: unknown): value is RequestMethod {
 	return (
+		value === "lan.verify" ||
+		value === "session.stop" ||
+		value === "session.start" ||
 		value === "peer.start" ||
 		value === "peer.close" ||
 		value === "session.send" ||

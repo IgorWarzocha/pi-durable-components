@@ -1,6 +1,9 @@
 import {
 	DEFAULT_GIPPITY_CONTROL_CONFIG,
+	GIPPITY_VOICE_MODELS,
 	type GippityControlConfig,
+	normalizeVoiceApiProvider,
+	OPENAI_REALTIME_VOICES,
 	REALTIME_V3_VOICES,
 	VOICE_CONTEXT_REASONING_LEVELS,
 } from "./config.ts";
@@ -60,9 +63,18 @@ export function validateGippityPreferences(value: unknown): GippityPreferences {
 						text(model["provider"]) &&
 						text(model["modelId"]);
 				}
+			} else if (key === "model") {
+				valid = GIPPITY_VOICE_MODELS.some((model) => model === field);
+			} else if (key === "apiProvider") {
+				valid = normalizeVoiceApiProvider(field) !== undefined;
+			} else if (key === "realtimeVoice" || key === "realtimeAlternateVoice") {
+				valid = OPENAI_REALTIME_VOICES.some((voice) => voice === field);
 			} else if (key === "v3Voice" || key === "v3AlternateVoice") {
 				valid = REALTIME_V3_VOICES.some((voice) => voice === field);
-			} else if (key === "contextReasoning") {
+			} else if (
+				key === "contextReasoning" ||
+				key === "taskDelegationReasoning"
+			) {
 				valid = VOICE_CONTEXT_REASONING_LEVELS.some((level) => level === field);
 			} else if (key === "dictationShortcutMode") {
 				valid = field === "push" || field === "toggle";

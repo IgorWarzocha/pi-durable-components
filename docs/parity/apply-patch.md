@@ -1,5 +1,9 @@
 # Apply Patch parity
 
+## PR #558 to #570 reconciliation
+
+Read-only comparison of Pi Stuff `84bd5bce..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` found a Pi preview extraction from `rendering.ts` into `patch-preview.ts` and Windows helper provenance updates. The patch parser and mutation implementation have no new delta. Native `presentation.ts` already separates host rendering from the environment-scoped executor. No Pi TUI or binary backend is imported.
+
 ## Pinned sources
 
 - `IgorWarzocha/howaboua-pi-stuff` at `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`, package `pi-codex-conversion`.

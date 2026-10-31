@@ -23,6 +23,10 @@ export type {
 } from "../../../internal/codex/types.ts";
 export { WEB_SEARCH_PARAMETERS } from "./contract.ts";
 export type { WebSearchToolOptions } from "./execute.ts";
+export {
+	executeCodexWebSearch,
+	type WebRunExecutionResult,
+} from "./execute.ts";
 
 export function createWebSearchTool(
 	options: WebSearchToolOptions,

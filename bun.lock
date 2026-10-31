@@ -120,6 +120,7 @@
       "name": "@howaboua/pi-durable-gippity-voice",
       "version": "0.9.0",
       "dependencies": {
+        "typebox": "1.3.27",
         "undici": "8.10.2",
         "ws": "8.21.3",
       },

@@ -23,6 +23,7 @@ import {
 	eachHook,
 	type NestedInput,
 	nestedCall,
+	prepareNestedInput,
 	type Runtime,
 } from "./nested-call.ts";
 import { interrupted, settle } from "./nested-result.ts";
@@ -85,8 +86,8 @@ export function createNestedToolTask(name: string) {
 							: task.input.arguments;
 					const prepared =
 						tool.prepareArguments === undefined
-							? supplied
-							: tool.prepareArguments(supplied);
+							? prepareNestedInput(tool, supplied)
+							: tool.prepareArguments(prepareNestedInput(tool, supplied));
 					args = checked(
 						tool,
 						call,

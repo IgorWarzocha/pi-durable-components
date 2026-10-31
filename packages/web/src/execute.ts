@@ -20,6 +20,7 @@ import {
 	DEFAULT_WEB_SEARCH_MODEL,
 	WEB_SEARCH_MAX_RESPONSE_BYTES,
 	WEB_SEARCH_UNSUPPORTED_MESSAGE,
+	type WebRunOutput,
 } from "./contract.ts";
 import { buildWebSearchRequest, normalizeSearchResponse } from "./request.ts";
 
@@ -36,12 +37,17 @@ export interface WebSearchToolOptions extends CodexRuntimeOptions {
 	fetch?: typeof globalThis.fetch;
 }
 
+export interface WebRunExecutionResult {
+	text: string;
+	details: WebRunOutput;
+}
+
 export async function executeCodexWebSearch(
 	params: Record<string, unknown>,
 	api: ToolExecutionApi,
 	context: Context,
 	options: WebSearchToolOptions,
-) {
+): Promise<WebRunExecutionResult> {
 	const current = await callingModel(api, options, context);
 	if (!supportsExecutableCodexTool(current, options))
 		throw new Error(WEB_SEARCH_UNSUPPORTED_MESSAGE);

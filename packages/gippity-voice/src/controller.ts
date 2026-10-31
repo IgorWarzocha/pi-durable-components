@@ -1,7 +1,8 @@
-import { randomUUID } from "node:crypto";
-import type { Context } from "@earendil-works/chord";
+import { randomUUID, X509Certificate } from "node:crypto";
+import type { Context, JsonValue } from "@earendil-works/chord";
 import {
 	awaitWithContext,
+	BACKGROUND_CONTEXT,
 	withAbortSignal,
 } from "@earendil-works/chord/context";
 import {
@@ -13,7 +14,6 @@ import {
 	type ConversationId,
 	defineExtension,
 	defineTask,
-	type EntryId,
 	type Harness,
 	type TaskId,
 	type TaskRuntime,
@@ -25,10 +25,14 @@ import {
 	type SettingsStorage,
 	settingsObject,
 } from "../../../internal/settings/index.ts";
+import { createNestedToolTask } from "../../execution/src/nested.ts";
+import { readToolContract } from "../../execution/src/tool-contract.ts";
 import {
 	DEFAULT_GIPPITY_CONTROL_CONFIG,
+	GIPPITY_VOICE_MODELS,
 	type GippityControlConfig,
 	normalizeGippityControlConfig,
+	OPENAI_REALTIME_VOICES,
 	REALTIME_V3_VOICES,
 	VOICE_CONTEXT_REASONING_LEVELS,
 } from "./config.ts";
@@ -47,19 +51,24 @@ import {
 	validateGippityPreferences,
 } from "./preferences.ts";
 import { resolveCodexVoiceAuth } from "./voice/auth.ts";
+import type { RealtimeInitialMessageItem } from "./voice/context.ts";
 import {
 	initialVoiceItems,
 	summarizeVoiceContext,
 	VoiceContextSummaryCache,
+	voiceContextBoundary,
 	voiceContextSummaryInput,
+	voiceTranscriptSince,
 } from "./voice/context.ts";
 import { NativeCodexRealtimePeer } from "./voice/conversation/native-peer.ts";
 import type { CodexRealtimePeer } from "./voice/conversation/peer.ts";
 import { CodexRealtimeConversation } from "./voice/conversation/session.ts";
+import { VoiceDelegationQueue } from "./voice/delegation-queue.ts";
 import { CodexDictationSession } from "./voice/dictation/session.ts";
-import type {
-	TransferredVoiceControls,
-	VoiceHandoffChannel,
+import {
+	ownVoiceGrant,
+	type TransferredVoiceControls,
+	type VoiceHandoffChannel,
 } from "./voice/handoff-contract.ts";
 import { startVoiceDeparture } from "./voice/handoff-departure.ts";
 import { HandoffRemotePeer } from "./voice/handoff-peer.ts";
@@ -74,13 +83,36 @@ import {
 	startGippityLanServer,
 } from "./voice/lan/server.ts";
 import {
-	renderRealtimeDelegation,
+	assertLanTakeoverIdentity,
+	LanTakeoverArrival,
+	prepareLanTakeover,
+	verifyLanTakeoverListener,
+} from "./voice/lan/takeover.ts";
+import {
 	renderRealtimeTranscriptTail,
+	renderRealtimeUserInput,
 } from "./voice/prompts.ts";
+import { resolvePublicRealtimeAuth } from "./voice/realtime-auth.ts";
+import { createRealtimeAccess } from "./voice/realtime-tools.ts";
 import { completedVoiceReasoningSummary } from "./voice/reasoning-summary.ts";
+import { SelectedVoiceCall } from "./voice/selected-call.ts";
+import { rewriteTaskDelegation } from "./voice/task-delegation.ts";
 import type { RealtimeVoiceTurn } from "./voice/turns.ts";
 
 type ServiceState = { phase: "ready" } | { phase: "active" };
+interface PreparedVoiceStartup {
+	settings: GippityControlConfig;
+	summary: string | undefined;
+	items: RealtimeInitialMessageItem[] | undefined;
+	inputMuted: boolean;
+	alternateVoice: boolean;
+}
+interface SourceVoiceBinding {
+	grant: { release(): Promise<void> };
+	departure: ReturnType<typeof startVoiceDeparture> | undefined;
+	controls: TransferredVoiceControls | undefined;
+	removeEvents: (() => void) | undefined;
+}
 type ServiceRuntime = TaskRuntime<
 	{ instance: string },
 	ServiceState,
@@ -89,6 +121,19 @@ type ServiceRuntime = TaskRuntime<
 >;
 
 interface GippityVoiceBaseOptions {
+	/** Host-owned browser automation, e.g. Browser's public startBrowserVoice API. */
+	startBrowserVoice?(request: {
+		url: string;
+		provider: "gippity";
+		host?: string;
+		signal?: AbortSignal;
+	}): Promise<{
+		state: "listening" | "error" | "timeout";
+		url: string;
+		refId?: string;
+		detail?: string;
+		status?: string;
+	}>;
 	/** Stable unique name when installing multiple GipPity instances in one registry. */
 	instanceName?: string;
 	/** Capability namespace must equal the selected conversation ExecutionEnv.id. */
@@ -150,6 +195,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 	)
 		throw new Error("Invalid voice instance name");
 	const registrationName = `howaboua.gippity-voice${options.instanceName ? `.${options.instanceName}` : ""}`;
+	const toolTask = createNestedToolTask(`${registrationName}.tool`);
 	if (
 		!options.namespace ||
 		options.audio.namespace !== options.namespace ||
@@ -183,6 +229,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 	let startAbort: AbortController | undefined;
 	let startEpoch = 0;
 	let session: CodexRealtimeConversation | undefined;
+	let activeCallId: string | undefined;
 	let dictation: CodexDictationSession | undefined;
 	let lease: Awaited<ReturnType<AudioLease["acquire"]>> | undefined;
 	let peerFactory: (() => CodexRealtimePeer) | undefined;
@@ -195,10 +242,14 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 	let alternateVoice = false;
 	let transferring = false;
 	let transferred: TransferredVoiceControls | undefined;
+	let selectedCall: SelectedVoiceCall | undefined;
 	let handoffGrant: { release(): Promise<void> } | undefined;
-	let departureGrant: { release(): Promise<void> } | undefined;
 	let handoffLink: VoiceHandoffLink | undefined;
-	let departure: { completion: Promise<void>; close(): void } | undefined;
+	const sourceBindings = new Set<SourceVoiceBinding>();
+	const incomingBindings = new Set<{
+		link: VoiceHandoffLink;
+		grant: { release(): Promise<void> };
+	}>();
 	let removeTransferEvents: (() => void) | undefined;
 	let working = false;
 	const remoteApps = new GippityRemoteApps();
@@ -307,9 +358,15 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 		await current.release();
 		if (lease === current) lease = undefined;
 	};
-	const stopSession = async () => {
+	const stopSession = async (finishAcceptedWork = false) => {
+		selectedCall?.cancel();
+		selectedCall = undefined;
 		const wasRealtime = Boolean(session);
 		startEpoch += 1;
+		if (finishAcceptedWork) {
+			await session?.close(true);
+			await delegations.flushAccepted();
+		} else delegations.cancelHeld();
 		startAbort?.abort();
 		await session?.close();
 		await dictation?.close();
@@ -317,15 +374,22 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 		transferred = undefined;
 		handoffLink?.close();
 		handoffLink = undefined;
-		departure?.close();
-		departure = undefined;
+		for (const binding of incomingBindings) binding.link.close();
+		const departing = [...sourceBindings];
+		await Promise.all(departing.map((binding) => binding.departure?.close()));
+		for (const binding of departing) binding.removeEvents?.();
+		await Promise.all(departing.map((binding) => binding.grant.release()));
+		sourceBindings.clear();
 		removeTransferEvents?.();
 		removeTransferEvents = undefined;
 		await handoffGrant?.release();
 		handoffGrant = undefined;
-		await departureGrant?.release();
-		departureGrant = undefined;
+		await Promise.all(
+			[...incomingBindings].map((binding) => binding.grant.release()),
+		);
+		incomingBindings.clear();
 		session = undefined;
+		activeCallId = undefined;
 		dictation = undefined;
 		peerFactory = undefined;
 		activeConfig = undefined;
@@ -409,16 +473,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					events = await watchEvents(harness, conversationId, context);
 					working = Boolean(events.snapshot.run);
 					events.start(async (batch) => {
-						const delegated = new Set(
-							batch.flatMap((event) =>
-								event.type === "submission" &&
-								event.record.requestId?.startsWith("gippity:") &&
-								event.record.entry !== undefined
-									? [event.record.entry]
-									: [],
-							),
-						);
-						for (const event of batch) handleEvent(event, delegated);
+						for (const event of batch) handleEvent(event);
 					});
 					ready?.resolve();
 					await new Promise<void>((resolve) => {
@@ -459,7 +514,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 	});
 	const extension = defineExtension({
 		name: registrationName,
-		tasks: [task],
+		tasks: [task, toolTask],
 	});
 	async function ensureService(context: Context) {
 		if (runtime && !closing) return;
@@ -526,7 +581,8 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			runtimeContext,
 		);
 	}
-	async function acceptTurn(turn: RealtimeVoiceTurn) {
+	const delegations = new VoiceDelegationQueue(acceptTurn, report);
+	async function acceptTurn(turn: RealtimeVoiceTurn, callId: string) {
 		if (!turn.delegationId) {
 			publish({ type: "transcript", role: "assistant", text: turn.input });
 			await passive("gippity.voice.turn", {
@@ -535,15 +591,17 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			});
 			return;
 		}
-		const active = session;
 		const { conversation, context, runtime } = requireRuntime();
-		active?.activateDelegation(turn.delegationId);
 		await conversation.submit(
 			{
 				type: "input",
-				content: renderRealtimeDelegation(turn.input, turn.transcriptDelta),
+				content: renderRealtimeUserInput(turn.input, turn.transcriptDelta),
 				whenBusy: "steer",
-				requestId: `gippity:${runtime.taskId}:${turn.delegationId}`,
+				entry: {
+					kind: "gippity.voice.delegation",
+					data: { id: turn.delegationId, callId },
+				},
+				requestId: `gippity:${runtime.taskId}:${callId}:${turn.delegationId}`,
 			},
 			context,
 		);
@@ -582,19 +640,13 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 				? await summarizeVoiceContext(runtime.models, settings, input, signal)
 				: undefined);
 		const latest = await project();
-		const boundary = (entries: typeof view.entries) =>
-			entries.findLast(
-				(entry) =>
-					entry.model?.length && entry.kind !== "gippity.voice.lifecycle",
-			)?.id;
 		const latestInput = voiceContextSummaryInput(
 			runtime.conversationId,
 			latest,
 			settings,
 		);
 		if (
-			view.head?.id !== latest.head?.id ||
-			boundary(view.entries) !== boundary(latest.entries) ||
+			voiceContextBoundary(view) !== voiceContextBoundary(latest) ||
 			input?.key !== latestInput?.key
 		)
 			throw new Error(
@@ -606,10 +658,59 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 		}
 		return result;
 	}
-	async function resolveAuth(signal: AbortSignal) {
+	async function resolveAuth(signal: AbortSignal, settings = config) {
 		const { runtime } = requireRuntime();
+		const selected = await runtime.agent(runtimeContext!);
+		const execute = async (
+			name: string,
+			args: unknown,
+			toolContext: { signal: AbortSignal },
+		) => {
+			toolContext.signal.throwIfAborted();
+			let id!: TaskId<import("@earendil-works/pi-durable").ToolExecutionResult>;
+			const context = withAbortSignal(toolContext.signal, runtimeContext!);
+			await runtime.commit(async (tx) => {
+				id = await tx.createTask(
+					toolTask,
+					{ name, arguments: args as JsonValue },
+					{ ownership: { kind: "task", taskId: runtime.taskId } },
+				);
+			}, context);
+			const abort = () => {
+				void harness!.abortTask(id, BACKGROUND_CONTEXT).catch(report);
+			};
+			toolContext.signal.addEventListener("abort", abort, { once: true });
+			try {
+				toolContext.signal.throwIfAborted();
+				const receipt = await runtime.waitForTask(id, context);
+				if (receipt.state.outcome.status !== "completed")
+					throw new Error(
+						`Tool ${name}: ${receipt.state.outcome.status}${receipt.state.outcome.status === "failed" ? `: ${receipt.state.outcome.error.message}` : ""}`,
+					);
+				return receipt.state.outcome.result;
+			} finally {
+				toolContext.signal.removeEventListener("abort", abort);
+				if (toolContext.signal.aborted) {
+					await harness!.abortTask(id, BACKGROUND_CONTEXT);
+					await harness!.waitForTask(id, BACKGROUND_CONTEXT);
+				}
+			}
+		};
+		const auth =
+			settings.voice.model === "codex-live-1.1"
+				? await resolveCodexVoiceAuth(runtime.models, providerSessionId, signal)
+				: await resolvePublicRealtimeAuth(
+						runtime.models,
+						settings.voice.apiProvider,
+						signal,
+						createRealtimeAccess(selected, settings.voice.webSearch, execute),
+					);
+		if (options.providerEnv) auth.env = { ...auth.env, ...options.providerEnv };
+		return auth;
+	}
+	async function resolveDictationAuth(signal: AbortSignal) {
 		const auth = await resolveCodexVoiceAuth(
-			runtime.models,
+			requireRuntime().runtime.models,
 			providerSessionId,
 			signal,
 		);
@@ -624,9 +725,10 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 		items = initialVoiceItems(prepared),
 		greeting: "start" | "arrival" | "none" = "start",
 	) {
-		const auth = await resolveAuth(signal);
+		const auth = await resolveAuth(signal, settings);
 		signal.throwIfAborted();
 		const peer = factory();
+		const callId = randomUUID();
 		let current!: CodexRealtimeConversation;
 		current = new CodexRealtimeConversation(
 			{
@@ -636,7 +738,27 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					void passive("gippity.voice.user-transcript", { text }).catch(report);
 				},
 				onTurn: (turn) => {
-					void acceptTurn(turn).catch(report);
+					delegations.push(turn, callId);
+				},
+				onEvent: (event) => publish({ type: "voice-event", event }),
+				rewriteDelegation: (turn, signal) =>
+					rewriteTaskDelegation(
+						requireRuntime().runtime.models,
+						settings.voice,
+						turn,
+						signal,
+					),
+				onDelegationError: report,
+				onEndCall: () => {
+					void current
+						.waitForFinalPlayback()
+						.then(() =>
+							enqueue(async () => {
+								if (session === current && current.isEndingCall)
+									await stopSession(true);
+							}),
+						)
+						.catch(report);
 				},
 				onTranscriptTail: (text) => {
 					void passive(
@@ -685,8 +807,10 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 				},
 			},
 			peer,
+			settings.voice.model !== "codex-live-1.1",
 		);
 		session = current;
+		activeCallId = callId;
 		const abort = () => {
 			void current.close().catch(report);
 		};
@@ -696,13 +820,14 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			signal.throwIfAborted();
 			if (session !== current) throw new Error("Voice startup was superseded");
 			current.markEstablished();
+			if (working) current.agentStarted();
 			if (greeting !== "none")
 				current.greet(Boolean(prepared), greeting === "arrival");
 			if (greeting !== "none")
 				await passive(
 					"gippity.voice.lifecycle",
 					{ mode: "realtime", state: "active" },
-					'<realtime_voice_session state="active">A separate voice assistant is conversing with the user. This lifecycle event carries no task. Handle realtime_delegation as ordinary authoritative user requests. Handle typed messages normally. During longer delegated work give meaningful user-facing progress between tool calls. Shape delegated replies for concise natural spoken delivery. Include visual links, code, commands or tables only when specifically requested. Do not invoke interactive question tools unless requested. Ask necessary clarifying questions in ordinary assistant text.</realtime_voice_session>',
+					'<realtime_voice_session state="active">A separate voice assistant is conversing with the user. This lifecycle event carries no task. Handle user requests normally. During longer work give meaningful user-facing progress between tool calls.</realtime_voice_session>',
 				);
 			publish({ type: "lifecycle", active: true });
 			if (prepared) {
@@ -723,7 +848,10 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 		factory: () => CodexRealtimePeer = () =>
 			new NativeCodexRealtimePeer(options.audio),
 		replace = false,
+		startup?: PreparedVoiceStartup,
 	) {
+		if (!startup && transferred) return transferred.startCall();
+		if (!startup && selectedCall) return selectedCall.start();
 		const requestedEpoch = startEpoch;
 		await ensureService(context);
 		return enqueue(async () => {
@@ -731,7 +859,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 				throw new Error("Voice startup cancelled");
 			if (
 				dictation ||
-				transferring ||
+				(transferring && !startup) ||
 				transferred ||
 				(session && !replace) ||
 				(lease && !session)
@@ -751,16 +879,26 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			);
 			try {
 				await configSerial;
-				const settings = structuredClone(config);
-				alternateVoice = false;
-				const prepared = await prepareSummary(signal, settings);
+				const settings = startup?.settings ?? structuredClone(config);
+				alternateVoice = startup?.alternateVoice ?? false;
+				if (startup) muted = startup.inputMuted;
+				const prepared = startup
+					? startup.summary
+					: await prepareSummary(signal, settings);
 				if (previous) {
 					await previous.close();
 					if (session === previous) session = undefined;
 				}
 				peerFactory = factory;
 				activeConfig = settings;
-				await openVoice(factory, signal, settings, prepared);
+				await openVoice(
+					factory,
+					signal,
+					settings,
+					prepared,
+					startup?.items,
+					startup ? "arrival" : "start",
+				);
 			} catch (error) {
 				await stopSession();
 				throw error;
@@ -770,6 +908,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 	async function refreshContext(signal?: AbortSignal) {
 		if (!session || !peerFactory || !activeConfig || !startAbort || !runtime)
 			return;
+		if (session.isEndingCall) return;
 		const previous = session;
 		const factory = peerFactory;
 		const settings = activeConfig;
@@ -786,27 +925,57 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			startAbort.signal,
 			...(signal ? [signal] : []),
 		]);
-		// Summarization failure leaves the established call intact.
-		const prepared = await prepareSummary(refreshSignal, settings, true);
-		if (!prepared || session !== previous) return;
-		refreshSignal.throwIfAborted();
-		await previous.close();
-		session = undefined;
+		const releaseDelegations = delegations.hold();
 		try {
-			await openVoice(
-				factory,
-				refreshSignal,
-				settings,
-				prepared,
-				initialVoiceItems(prepared),
-				"none",
+			await delegations.flushAccepted();
+			const before = await requireRuntime().conversation.context(
+				runtimeContext!,
 			);
-		} catch (error) {
-			await stopSession();
-			throw error;
+			const prepared = await prepareSummary(refreshSignal, settings, true);
+			if (prepared) await previous.waitForInput(refreshSignal);
+			const latest = await requireRuntime().conversation.context(
+				runtimeContext!,
+			);
+			if (voiceContextBoundary(before) !== voiceContextBoundary(latest))
+				throw new Error(
+					"Conversation changed while preparing voice context; keeping the current call",
+				);
+			if (!prepared || session !== previous || previous.isEndingCall) return;
+			refreshSignal.throwIfAborted();
+			const items = initialVoiceItems(prepared);
+			const tail = voiceTranscriptSince(latest, before);
+			if (tail)
+				items?.push({
+					type: "message",
+					role: "developer",
+					content: [
+						{
+							type: "input_text",
+							text: `Voice conversation since the continuity summary. Background history, not a new task.\n<startup_context>\n${tail}\n</startup_context>`,
+						},
+					],
+				});
+			await previous.close();
+			session = undefined;
+			try {
+				// Once the old call closes, finish replacement unless voice itself stops.
+				await openVoice(
+					factory,
+					AbortSignal.any([runtime.signal, startAbort.signal]),
+					settings,
+					prepared,
+					items,
+					"none",
+				);
+			} catch (error) {
+				await stopSession();
+				throw error;
+			}
+		} finally {
+			releaseDelegations();
 		}
 	}
-	function handleEvent(event: AgentEvent, delegated: ReadonlySet<EntryId>) {
+	function handleEvent(event: AgentEvent) {
 		if (transferred) return;
 		const notification =
 			event.type === "snapshot"
@@ -821,7 +990,10 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 		if (event.type === "snapshot") working = Boolean(event.run);
 		if (event.type === "run_start") working = true;
 		if (event.type === "run_end") working = false;
-		if (event.type === "run_start") session?.resumeAgentWork();
+		if (event.type === "run_start") {
+			session?.agentStarted();
+			session?.resumeAgentWork();
+		}
 		if (event.type === "run_end") session?.settleAgentTurn();
 		if (event.type === "message_update")
 			for (const change of event.changes)
@@ -832,13 +1004,18 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					change.type === "toolcall_start"
 				)
 					session?.resumeAgentWork();
+		if (
+			event.type === "message_end" &&
+			event.entry.kind === "gippity.voice.delegation" &&
+			isRecord(event.entry.data) &&
+			typeof event.entry.data["id"] === "string"
+		)
+			if (event.entry.data["callId"] === activeCallId)
+				session?.activateDelegation(event.entry.data["id"]);
+			else session?.agentStarted();
 		if (event.type === "message_end")
 			for (const message of event.entry.model ?? []) {
-				if (
-					message.role === "user" &&
-					UserEntry.is(event.entry) &&
-					!delegated.has(event.entry.id)
-				) {
+				if (message.role === "user" && UserEntry.is(event.entry)) {
 					const text =
 						typeof message.content === "string"
 							? message.content
@@ -853,13 +1030,13 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					.flatMap((part) => (part.type === "text" ? [part.text] : []))
 					.join("\n");
 				if (message.stopReason === "toolUse") {
-					const progress = text.trim()
-						? text
-						: activeConfig?.voice.forwardReasoningSummaries
+					session?.agentProgress(
+						text,
+						activeConfig?.voice.forwardReasoningSummaries
 							? completedVoiceReasoningSummary(message)
-							: undefined;
-					if (progress) session?.agentProgress(progress);
-				} else session?.agentResult(text);
+							: undefined,
+					);
+				} else session?.agentResult(text, message.stopReason);
 			}
 		if (event.type === "compaction_start" && event.reason !== "manual")
 			session?.announceCompactionStart(
@@ -892,6 +1069,40 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 				.catch(report);
 		}
 	}
+	async function ensureLan(
+		context: Context,
+		takeover?: { token: string; startup: PreparedVoiceStartup },
+	): Promise<string[]> {
+		await ensureService(context);
+		if (!options.lan) throw new Error("HTTPS LAN permission was not supplied");
+		await enqueue(async () => {
+			if (lan) {
+				if (takeover) throw new Error("LAN takeover requires a free listener");
+				return;
+			}
+			const arrival = new LanTakeoverArrival(
+				takeover?.token,
+				takeover?.startup,
+			);
+			lan = await startGippityLanServer({
+				permission: options.lan!,
+				audio: options.audio,
+				appFiles: options.appFiles,
+				lease: options.lease,
+				owner: `${leaseOwner}:${conversationId}`,
+				signal: runtime!.signal,
+				controls,
+				context: runtimeContext!,
+				resolveAuth: () => resolveDictationAuth(runtime!.signal),
+				remoteApps,
+				...(takeover ? { takeoverToken: takeover.token } : {}),
+				startConversation: (factory, token) =>
+					startVoice(runtimeContext!, factory, true, arrival.consume(token)),
+			});
+			if (events) lan.agentEvent(events.snapshot);
+		});
+		return lan!.urls;
+	}
 	const controls = {
 		settingsContribution,
 		bindHarness(value: Harness, target: ConversationId) {
@@ -904,13 +1115,22 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			harness = value;
 			conversationId = target;
 		},
-		startVoice,
+		startVoice(
+			context: Context,
+			factory?: () => CodexRealtimePeer,
+			replace = false,
+		) {
+			return startVoice(context, factory, replace);
+		},
 		/** Await before retiring a context window so voice can retain its outgoing history. */
 		async refreshContext(signal?: AbortSignal) {
 			if (!activeConfig?.voice.refreshRealtimeAfterCompaction) return;
 			await enqueue(() => refreshContext(signal));
 		},
 		async stopVoice() {
+			delegations.cancelHeld();
+			if (transferred) return transferred.stopCall();
+			if (selectedCall) return selectedCall.stop();
 			startEpoch += 1;
 			startAbort?.abort();
 			await enqueue(stopSession);
@@ -954,7 +1174,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					signal,
 				);
 				try {
-					const auth = await resolveAuth(signal);
+					const auth = await resolveDictationAuth(signal);
 					dictation = new CodexDictationSession(
 						{
 							onStatus: (status) => publish({ type: "status", status }),
@@ -1060,6 +1280,14 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					contextModel: config.voice.contextModel ?? null,
 				},
 				voices: REALTIME_V3_VOICES,
+				voiceModels: GIPPITY_VOICE_MODELS,
+				realtimeVoices: OPENAI_REALTIME_VOICES,
+				webSearchAvailable: (
+					await requireRuntime().runtime.agent(runtimeContext!)
+				).callable.some(
+					(tool) =>
+						tool.name === "web_run" && !readToolContract(tool).nativeOnly,
+				),
 				contextReasoningLevels: VOICE_CONTEXT_REASONING_LEVELS,
 				contextModels: available.map((model) => ({
 					provider: model.provider,
@@ -1117,32 +1345,49 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			});
 		},
 		async startLan(context: Context) {
-			await ensureService(context);
-			if (!options.lan)
-				throw new Error("HTTPS LAN permission was not supplied");
-			await enqueue(async () => {
-				if (!lan) {
-					lan = await startGippityLanServer({
-						permission: options.lan!,
-						audio: options.audio,
-						appFiles: options.appFiles,
-						lease: options.lease,
-						owner: `${leaseOwner}:${conversationId}`,
-						signal: runtime!.signal,
-						controls,
-						context: runtimeContext!,
-						resolveAuth: () => resolveAuth(runtime!.signal),
-						remoteApps,
-					});
-					if (events) lan.agentEvent(events.snapshot);
-				}
-			});
-			return lan!.urls;
+			return ensureLan(context);
 		},
 		async stopLan() {
 			const current = lan;
 			lan = undefined;
 			await current?.close();
+		},
+		lanStatus() {
+			return {
+				running: Boolean(lan),
+				urls: lan?.urls ?? [],
+				browserAttached: lan?.browserAttached() ?? false,
+			};
+		},
+		async connectLan(
+			request: { url: string; host?: string; signal?: AbortSignal },
+			context: Context,
+		) {
+			request.signal?.throwIfAborted();
+			const urls = await controls.startLan(context);
+			if (!urls.includes(request.url))
+				throw new Error(
+					"Choose an explicit URL from the running server's URLs",
+				);
+			if (
+				request.host &&
+				request.host !== "local" &&
+				["localhost", "127.0.0.1", "[::1]"].includes(
+					new URL(request.url).hostname,
+				)
+			)
+				throw new Error("A remote browser needs a non-loopback server URL");
+			if (!options.startBrowserVoice)
+				throw new Error("Browser voice startup capability was not supplied");
+			request.signal?.throwIfAborted();
+			const { host, ...browser } = request;
+			const result = await options.startBrowserVoice({
+				...browser,
+				provider: "gippity",
+				...(host && host !== "local" ? { host } : {}),
+			});
+			request.signal?.throwIfAborted();
+			return result;
 		},
 		onSessionEvent(listener: (event: string, data: unknown) => void) {
 			listeners.add(listener);
@@ -1162,6 +1407,7 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			publish({ type: "activity", state: working ? "working" : "idle" });
 		},
 		async close(context: Context) {
+			delegations.cancelHeld();
 			startEpoch += 1;
 			startAbort?.abort();
 			await controls.stopLan();
@@ -1207,17 +1453,28 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 			const source = session;
 			const factory = peerFactory;
 			const settings = activeConfig;
+			let binding: SourceVoiceBinding | undefined;
 			try {
 				const { runtime, conversation } = requireRuntime();
 				const signal = AbortSignal.any([
 					runtime.signal,
 					...(context.abortSignal ? [context.abortSignal] : []),
 				]);
-				departureGrant = await options.handoff(
-					{ channel, conversationId: runtime.conversationId, transport },
-					signal,
+				const grant = ownVoiceGrant(
+					await options.handoff(
+						{ channel, conversationId: runtime.conversationId, transport },
+						signal,
+					),
 				);
-				departure = startVoiceDeparture({
+				const owned: SourceVoiceBinding = {
+					grant,
+					departure: undefined,
+					controls: undefined,
+					removeEvents: undefined,
+				};
+				binding = owned;
+				sourceBindings.add(owned);
+				const departure = startVoiceDeparture({
 					signal,
 					channel,
 					captured: {
@@ -1225,7 +1482,9 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 						alternateVoice,
 						sourceActive: () => session === source,
 						bindControls: () => {},
-						async release(signal) {
+						async release(signal, beforeStop) {
+							signal.throwIfAborted();
+							await beforeStop?.();
 							signal.throwIfAborted();
 							await source.close();
 							signal.throwIfAborted();
@@ -1241,9 +1500,15 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 						},
 						start: (peer) => peer.start(settings),
 						transferred(_peer, value) {
+							owned.controls = value;
+							// A return arrival may reuse this physical host through an older binding.
+							// Media ownership must not replace its new local conversation selection.
+							if (session && session !== source) return;
 							transferred = value;
 							removeTransferEvents?.();
-							removeTransferEvents = value.onSessionEvent((event, data) => {
+							removeTransferEvents = undefined;
+							owned.removeEvents?.();
+							owned.removeEvents = value.onSessionEvent((event, data) => {
 								for (const listener of listeners) listener(event, data);
 								if (handoffLink && !handoffLink.closed)
 									handoffLink.notify({ type: "session.event", event, data });
@@ -1251,9 +1516,10 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 							});
 						},
 						async finished(_peer, error) {
-							transferred = undefined;
-							removeTransferEvents?.();
-							removeTransferEvents = undefined;
+							if (owned.departure?.detached && transferred === owned.controls)
+								transferred = undefined;
+							owned.removeEvents?.();
+							owned.removeEvents = undefined;
 							if (session !== source) {
 								handoffLink?.close();
 								handoffLink = undefined;
@@ -1262,26 +1528,68 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 								await releaseLease();
 								publish({ type: "lifecycle", active: false });
 							}
-							await departureGrant?.release();
-							departureGrant = undefined;
-							report(error);
+							await owned.grant.release();
+							sourceBindings.delete(owned);
+							if (!owned.departure?.detached) report(error);
 						},
 					},
 					async waitForSettled(signal) {
+						await source.waitForInput(signal);
 						await awaitWithContext(conversation.waitForIdle(context), context);
 						signal.throwIfAborted();
 						await source.waitForPlaybackEnd(signal);
 					},
 					onReleased(value) {
+						owned.controls = value;
 						transferred = value;
 					},
 					onClosed: report,
+					...(lan?.hasConversation()
+						? {
+								lanTakeover: async (offer, releaseAudio, verify) => {
+									const server = lan;
+									if (!server?.hasConversation() || !options.lan)
+										throw new Error(
+											"The source LAN conversation changed before takeover",
+										);
+									try {
+										if (!offer)
+											throw new Error(
+												"The target cannot take over this LAN address",
+											);
+										assertLanTakeoverIdentity(
+											{
+												certificate: new X509Certificate(options.lan.cert)
+													.fingerprint256,
+											},
+											offer,
+										);
+										await server.proveTakeover(verify);
+									} catch (error) {
+										report(
+											new Error(
+												`LAN remains at the source; closing it ends the voice call. ${error instanceof Error ? error.message : String(error)}`,
+											),
+										);
+										return undefined;
+									}
+									await releaseAudio(() =>
+										server.acknowledgeTakeover(offer.token),
+									);
+									await server.releaseForTakeover();
+									if (lan === server) lan = undefined;
+									await releaseLease();
+									return options.lan.port;
+								},
+							}
+						: {}),
 				});
+				owned.departure = departure;
 				await departure.completion;
 			} catch (error) {
 				if (session === source) {
-					await departureGrant?.release();
-					departureGrant = undefined;
+					await binding?.grant.release();
+					if (binding) sourceBindings.delete(binding);
 				}
 				throw error;
 			} finally {
@@ -1299,13 +1607,30 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 				throw new Error(
 					"GipPity handoff requires WebRTC; PCM conversion is not available",
 				);
-			if (!options.handoff || transferring || controls.active || lease)
+			const returning = Boolean(
+				transferred && sourceBindings.size && !session && !dictation,
+			);
+			if (
+				!options.handoff ||
+				transferring ||
+				(!returning && (controls.active || lease || selectedCall))
+			)
 				throw new Error("Destination voice is busy or handoff is unauthorized");
 			if (Buffer.byteLength(continuity) > 64 * 1024)
 				throw new Error("Voice handoff continuity is oversized");
 			transferring = true;
 			let remote: HandoffRemotePeer | undefined;
 			let removeStartupAbort: (() => void) | undefined;
+			let lanCommitted = false;
+			let arrivalActivated = false;
+			let arrivedGrant: { release(): Promise<void> } | undefined;
+			let incoming:
+				| { link: VoiceHandoffLink; grant: { release(): Promise<void> } }
+				| undefined;
+			const previousSelection = transferred;
+			const previousIncoming = handoffLink;
+			const previousGrant = handoffGrant;
+			const previousAbort = startAbort;
 			try {
 				await ensureService(context);
 				const { runtime } = requireRuntime();
@@ -1315,14 +1640,52 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 					startAbort.signal,
 					...(context.abortSignal ? [context.abortSignal] : []),
 				]);
-				handoffGrant = await options.handoff(
-					{ channel, conversationId: runtime.conversationId, transport },
-					signal,
+				arrivedGrant = ownVoiceGrant(
+					await options.handoff(
+						{ channel, conversationId: runtime.conversationId, transport },
+						signal,
+					),
 				);
+				handoffGrant = arrivedGrant;
 				const prepared = await prepareSummary(signal);
 				await resolveAuth(signal);
+				let lanPreparation: ReturnType<typeof prepareLanTakeover> | undefined;
+				try {
+					if (options.lan && !lan)
+						lanPreparation = prepareLanTakeover(options.lan);
+				} catch {
+					// Optional LAN preparation must not break an ordinary native transfer.
+					// A LAN source reports the absent offer and retains source hosting.
+				}
 				const link = new VoiceHandoffLink(channel, {
 					async request(method, value) {
+						if (method === "session.stop" || method === "session.start") {
+							if (transferred)
+								return method === "session.stop"
+									? transferred.stopCall()
+									: transferred.startCall();
+							if (!selectedCall)
+								throw new Error("Selected-session voice is still connecting");
+							return method === "session.stop"
+								? selectedCall.stop()
+								: selectedCall.start();
+						}
+						if (method === "lan.verify") {
+							if (
+								!lanPreparation ||
+								!isRecord(value) ||
+								value["port"] !== lanPreparation.certificate.port
+							)
+								throw new Error(
+									"LAN takeover requires permission for the source listener's port",
+								);
+							await verifyLanTakeoverListener(
+								lanPreparation.certificate.cert,
+								value,
+								signal,
+							);
+							return;
+						}
 						if (method === "session.send" && typeof value === "string")
 							return controls.sendText(value, context);
 						if (method === "session.rpc" && isRecord(value))
@@ -1338,19 +1701,26 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 						} else throw new Error("Invalid destination voice notification");
 					},
 					closed(error) {
+						if (lanCommitted) return;
 						startAbort?.abort();
 						remote?.disconnected(error);
 						report(error);
-						void enqueue(stopSession).catch(report);
+						if (!returning || arrivalActivated)
+							void enqueue(stopSession).catch(report);
 					},
 				});
 				handoffLink = link;
+				incoming = { link, grant: arrivedGrant };
+				incomingBindings.add(incoming);
 				const cancelled = () => link.fail(new Error("Voice arrival cancelled"));
 				signal.addEventListener("abort", cancelled, { once: true });
 				removeStartupAbort = () =>
 					signal.removeEventListener("abort", cancelled);
 				signal.throwIfAborted();
-				link.stage("prepared");
+				link.stage(
+					"prepared",
+					lanPreparation ? { lanTakeover: lanPreparation.offer } : undefined,
+				);
 				const activation = await link.waitFor("activate");
 				if (
 					!isRecord(activation) ||
@@ -1365,12 +1735,8 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 				const settings = structuredClone(config);
 				if (alternateVoice)
 					settings.voice.v3Voice = settings.voice.v3AlternateVoice;
-				const factory = () => {
-					remote = new HandoffRemotePeer(link);
-					return remote;
-				};
-				peerFactory = factory;
-				activeConfig = settings;
+				if (alternateVoice)
+					settings.voice.realtimeVoice = settings.voice.realtimeAlternateVoice;
 				const items = [
 					...(initialVoiceItems(prepared) ?? []),
 					{
@@ -1384,9 +1750,90 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 						],
 					},
 				];
+				const takeover = activation["lanTakeover"];
+				if (takeover !== undefined) {
+					if (
+						!lanPreparation ||
+						!isRecord(takeover) ||
+						takeover["token"] !== lanPreparation.offer.token ||
+						takeover["port"] !== lanPreparation.certificate.port
+					)
+						throw new Error("Invalid LAN takeover activation");
+					await ensureLan(context, {
+						token: lanPreparation.offer.token,
+						startup: {
+							settings,
+							summary: prepared,
+							items,
+							inputMuted: muted,
+							alternateVoice,
+						},
+					});
+					signal.throwIfAborted();
+					lanCommitted = true;
+					handoffLink = undefined;
+					await arrivedGrant.release();
+					handoffGrant = undefined;
+					incomingBindings.delete(incoming);
+					link.stage("active", { lanTakeover: true });
+					return;
+				}
+				const factory = () => {
+					remote = new HandoffRemotePeer(link);
+					return remote;
+				};
+				arrivalActivated = true;
+				transferred = undefined;
+				selectedCall?.cancel();
+				selectedCall = undefined;
+				for (const source of sourceBindings) {
+					source.removeEvents?.();
+					source.removeEvents = undefined;
+				}
+				peerFactory = factory;
+				activeConfig = settings;
 				await enqueue(() =>
 					openVoice(factory, signal, settings, prepared, items, "arrival"),
 				);
+				selectedCall = new SelectedVoiceCall({
+					active: () => Boolean(session || dictation || transferred),
+					cancelStartup: () => {
+						delegations.cancelHeld();
+						startAbort?.abort();
+					},
+					stop: () =>
+						enqueue(async () => {
+							if (handoffLink !== link) return;
+							await session?.close();
+							session = undefined;
+							activeCallId = undefined;
+							publish({ type: "status", status: "idle" });
+							publish({ type: "lifecycle", active: false });
+						}),
+					start: (cancellation) =>
+						enqueue(async () => {
+							if (link.closed || handoffLink !== link)
+								throw new Error("Selected voice connection closed");
+							startAbort = new AbortController();
+							const restarting = AbortSignal.any([
+								runtime.signal,
+								startAbort.signal,
+								cancellation,
+							]);
+							const latest = structuredClone(config);
+							if (alternateVoice) {
+								latest.voice.v3Voice = latest.voice.v3AlternateVoice;
+								latest.voice.realtimeVoice =
+									latest.voice.realtimeAlternateVoice;
+							}
+							const summary = await prepareSummary(restarting, latest);
+							restarting.throwIfAborted();
+							peerFactory = factory;
+							activeConfig = latest;
+							await openVoice(factory, restarting, latest, summary);
+						}),
+				});
+				removeTransferEvents?.();
 				removeTransferEvents = controls.onSessionEvent((event, data) => {
 					if (!link.closed) link.notify({ type: "session.event", event, data });
 				});
@@ -1410,7 +1857,14 @@ export function createGippityVoice(options: GippityVoiceOptions) {
 				try {
 					channel.close();
 				} finally {
-					await enqueue(stopSession);
+					if (returning && !arrivalActivated) {
+						await arrivedGrant?.release();
+						if (incoming) incomingBindings.delete(incoming);
+						transferred = previousSelection;
+						handoffLink = previousIncoming;
+						handoffGrant = previousGrant;
+						startAbort = previousAbort;
+					} else await enqueue(stopSession);
 				}
 				throw error;
 			} finally {

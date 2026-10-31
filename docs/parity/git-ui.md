@@ -1,5 +1,9 @@
 # Git and UI SDK
 
+## PR #558 to #570 reconciliation
+
+Read-only comparison of Pi Stuff `84bd5bce..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` adds Core terminal and pane transport in Shepherdr, not Git reading or the public native UI capability contract. Those host-specific changes do not replace either package's existing owner. Git and UI retain their separately pinned Howcode source boundary and have no implementation change from this Pi Stuff range.
+
 The source boundary is Howcode at `5c7a4e2b75c3682ce8aeb911f4dc425693507508`. Native read behavior comes from `components/git/service/directory-git/worktree-snapshot.ts`, `git-runner.ts`, `file-content.ts` and the image-read portion of `commit-context.ts`. Renderer defaults and lifecycle contracts come from the Git diff UI and trusted package host. The source checkout was read-only. Both new packages preserve its MIT notice.
 
 ## Preserved behavior

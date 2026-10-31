@@ -63,11 +63,26 @@ const management = createContextManagement({
 
 The idle clock starts when this component observes actual input settlement. It does not use Durable's task timestamps. Recovery can delay the idle deadline, but cannot move it earlier by guessing from an assistant timestamp.
 
+Notes uses `list`, `read`, `search`, `append` and `write`. `path` selects a file for reads and writes or a prefix for listing and searching. `limit` bounds listing and search results. History uses `list_windows`, `list`, `read` and `search`. Empty calls return help. Previous long action names and field aliases remain accepted, as do equivalent JSON strings in nested calls. Conflicting aliases and unknown operational fields reject.
+
 Keep each task checkpoint at a stable note path and update it in place, including completion. Link separate reusable findings and deferred ideas instead of copying them. Deferred work is not authorization to implement. Include checkpoint paths in handoffs. The bootstrap lists only five recent paths; use `notes` list or search to find others.
 
-Unassigned conversations in the same storage remain readable, including legacy conversations and host-created peers. When Agents assigns Context visibility groups, `notes` and `history` allow cross-conversation reads only within the caller's group; separate groups are isolated in both directions. Agents sharing defaults off, so a spawned worker gets a private group unless its controller enables sharing. A profile with `shareContext: false` also starts a private group, even when the controller enables sharing. A child can inherit its caller's group but cannot use profile sharing to widen it. Board membership does not grant or restrict Context visibility. This is a tool-level visibility policy, not a security boundary against other host tools or direct storage access. Use conversation IDs returned by Agents or the host. For example, `history` with `{"action":"search_contents","target":"42","query":"deployment"}` searches a visible conversation without waking it. These reads do not copy its context into the caller's prompt beyond the requested results.
+Unassigned conversations in the same storage remain readable, including legacy conversations and host-created peers. When Agents assigns Context visibility groups, `notes` and `history` allow cross-conversation reads only within the caller's group; separate groups are isolated in both directions. Agents sharing defaults off, so a spawned worker gets a private group unless its controller enables sharing. A profile with `shareContext: false` also starts a private group, even when the controller enables sharing. A child can inherit its caller's group but cannot use profile sharing to widen it. Board membership does not grant or restrict Context visibility. This is a tool-level visibility policy, not a security boundary against other host tools or direct storage access. Use conversation IDs returned by Agents or the host. For example, `history` with `{"action":"search","target":"42","query":"deployment"}` searches a visible conversation without waking it. These reads do not copy its context into the caller's prompt beyond the requested results.
 
 Normal threshold and manual compaction are declined. Overflow compaction remains an emergency fallback using the configured model, within the same logical window. For a host-initiated rollover, call `management.newContext(conversation.id, ctx)` and await its task. It requests a checkpoint through native instructions when needed, without inventing a user message or sending an extra continuation after the cut. Rollover instructions remain chronological system messages in Durable, projected to developer messages by providers that support that role. User and peer messages retain their original roles.
+
+## Model roles
+
+Supply `modelRoles(conversationId, context)` to expose user-configured roles authorised for that conversation. Each role has `id`, `description`, `provider`, `model` and `reasoning`. The host owns configuration storage and access policy. The agent sees only IDs, descriptions and guidance to switch for sustained scope changes rather than brief specialist detours.
+
+```ts
+const management = createContextManagement({
+  models,
+  modelRoles: (conversationId, context) => hostRoles(conversationId, context),
+});
+```
+
+After saving its checkpoint, the agent can call `new_context({ role: "frontend" })`. The component checks the configured model and provider access, prepares the outgoing context through `beforeRollover`, then commits the new model, reasoning level and context window together. The same conversation resumes from its notes. Omitting `role` keeps the current model and reasoning. Missing roles, unavailable provider access, changed model settings, failed preparation or unsafe rollover leave the selection unchanged. Existing checkpoint and history-eligibility gates still apply. Disabling agent-requested windows also removes role guidance.
 
 ## Ranked history
 

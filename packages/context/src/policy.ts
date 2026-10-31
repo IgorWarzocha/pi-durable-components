@@ -19,11 +19,13 @@ import { Type } from "typebox";
 import { refreshRankedHistory } from "./history.ts";
 import { renderArchiveHistoryHint } from "./history-archive.ts";
 import type { RankedHistory } from "./history-ranker.ts";
+import { type ContextModelRoles, renderModelRoles } from "./model-roles.ts";
 import {
 	beginNoteWrite,
 	notesAreFresh,
 	renderNotesThreadHint,
 } from "./note-store.ts";
+import { isNoteWrite } from "./query-input.ts";
 import { contextUsage } from "./usage.ts";
 import { WindowState } from "./window-state.ts";
 
@@ -37,7 +39,7 @@ function checkpointGuidance(
 				? "Request a new context window only when the host reports eligible history."
 				: "Before requesting a new context window, save current state and wait for the write to succeed.";
 	return [
-		"Notes are recovery state, not a diary. Write checkpoints and reports to relative paths in your own notes. Delegates do likewise and return their note paths. Keep one concise, authoritative note per task or topic at a stable path. Task checkpoints cover request, constraints, decisions, status, next steps and history IDs. Use write_file to replace stale state and mark completion. Link to existing notes instead of copying or summarising their contents. Recording isn't permission to implement.",
+		"Notes are recovery state, not a diary. Write checkpoints and reports to relative paths in your own notes. Delegates do likewise and return their note paths. Keep one concise, authoritative note per task or topic at a stable path. Task checkpoints cover request, constraints, decisions, status, next steps and history IDs. Use write to replace stale state and mark completion. Link to existing notes instead of copying or summarising their contents. Recording isn't permission to implement.",
 		`Batch saves at meaningful milestones, not every reply or intermediate step. ${rollover} For handoffs, save current state and wait for success; include the checkpoint path. After rollover, read the checkpoint, then only needed links. Don't reread notes still in context unless they may have changed. Use history for missing details. If no checkpoint is available, use history to recover missing context.`,
 		"Previous skill reads don't carry into this window. Read the skills needed for the current task.",
 	].join("\n\n");
@@ -57,6 +59,7 @@ export function createContextPolicy(options: {
 	models: Models;
 	taskBoundaryReminderTokens: number;
 	newContextRequests: "off" | "pi-limits" | "unrestricted";
+	modelRoles?: ContextModelRoles | undefined;
 	archiveHistory?: boolean;
 	rankedHistory?: RankedHistory | undefined;
 	host: () => { harness: Harness; storage: Storage };
@@ -72,6 +75,13 @@ export function createContextPolicy(options: {
 	// Render only committed state. Initialization belongs to hooks and admission.
 	const sections = [
 		section("context", () => checkpointGuidance(options.newContextRequests)),
+		...(options.newContextRequests === "off" || !options.modelRoles
+			? []
+			: [
+					section("context-roles", (input, context) =>
+						renderModelRoles(options.modelRoles, input.conversationId, context),
+					),
+				]),
 		section("context-state", async (input, context) => {
 			const [state, hints] = await Promise.all([
 				input.read.snapshot(WindowState, input.conversationId, context),
@@ -218,8 +228,7 @@ export function createContextPolicy(options: {
 				if (
 					call.name === "notes" &&
 					result.isError &&
-					(call.arguments["action"] === "write_file" ||
-						call.arguments["action"] === "append_to_file")
+					isNoteWrite(call.arguments)
 				)
 					await (await conversation(api.conversationId, context)).commit(
 						(tx) => beginNoteWrite(tx, api.conversationId, api.taskId),

@@ -16,14 +16,7 @@ import {
 	readToolContract,
 } from "../../execution/src/tool-contract.ts";
 import { toolValue } from "../../execution/src/tool-value.ts";
-import { canExecuteNotebookControlInsideExec } from "../../notebook/src/control-contract.ts";
 import { TsNotebookClient } from "./client.ts";
-import {
-	isEmptyNotebookRequest,
-	NOTEBOOK_DESCRIPTION,
-	NOTEBOOK_HELP,
-	parseNotebookRequest,
-} from "./notebook-control.ts";
 import type {
 	NativeToolDefinition,
 	NotebookControlRequest,
@@ -178,31 +171,6 @@ export function createTsNotebookEngine(
 					};
 				},
 			);
-			// Notebook's native lifecycle uses its direct action contract inside the kernel.
-			tools.push({
-				kind: "function",
-				inputSchema: { type: "object" },
-				inputOptional: true,
-				name: "notebook",
-				description: NOTEBOOK_DESCRIPTION,
-				usage: "await tools.notebook()",
-				async invoke(input, _context, signal) {
-					signal.throwIfAborted();
-					if (isEmptyNotebookRequest(input))
-						return { message: NOTEBOOK_HELP, details: { action: "help" } };
-					const request = parseNotebookRequest(input);
-					if (!canExecuteNotebookControlInsideExec(request))
-						return {
-							message: `Notebook ${request.action} was not run because it needs the active exec cell to finish. After exec returns, call notebook with ${JSON.stringify({ input: JSON.stringify(request) })}.`,
-							details: { notRun: true, action: request.action, retry: request },
-						};
-					return current.client.controlNotebook(
-						request,
-						current.context,
-						signal,
-					);
-				},
-			});
 			const items: RuntimeContentItem[] = [];
 			const budget =
 				typeof input["max_output_tokens"] === "number"

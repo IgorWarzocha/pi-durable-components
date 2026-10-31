@@ -1,4 +1,4 @@
-// Adapted from howaboua-pi-stuff at 84bd5bce, MIT. See ../NOTICE.
+// Adapted from howaboua-pi-stuff through e4aa5bb43c560b722829a5123b3f2e05d3d9a19d, MIT. See ../NOTICE.
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Node } from "tsrs/ast";
@@ -473,8 +473,9 @@ export class TsCompiler {
 								symbol
 									? await checker.getTypeOfSymbol(symbol)
 									: await checker.getTypeAtLocation(binding.node),
-								undefined,
-								this.runtime.api.TypeFormatFlags.NoTruncation,
+								binding.node,
+								this.runtime.api.TypeFormatFlags.NoTruncation |
+									this.runtime.api.TypeFormatFlags.UseFullyQualifiedType,
 							);
 				let declaration = await this.bindingDeclaration(
 					binding.name,
@@ -552,6 +553,11 @@ export class TsCompiler {
 				.inventory(lease.sourceFile)
 				.filter((binding) => binding.name === name)
 				.map((binding) => {
+					if (
+						this.runtime.ast.isVariableDeclaration(binding.node) &&
+						!this.runtime.ast.isIdentifier(binding.node.name)
+					)
+						return `declare ${binding.kind} ${name}: ${type};`;
 					const text = binding.node
 						.getText(lease.sourceFile)
 						.replace(/^export\s+(?:default\s+)?/, "");

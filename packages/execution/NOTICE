@@ -1,5 +1,7 @@
 Generic truncation recovery guidance follows Pi Stuff merged PR #552
 revision 84bd5bce60a77c4298484d4b7c810d4fe5220a1b, retaining the MIT notices below.
+Nested argument normalisation follows Pi Stuff revision
+e4aa5bb43c560b722829a5123b3f2e05d3d9a19d, tools/code-mode/tool-input.ts.
 
 Bounded output buffer refreshed from @earendil-works/pi-durable 1.0.4's
 published dist/harness/output.js.map source (src/harness/output.ts), building

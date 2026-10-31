@@ -1,3 +1,7 @@
+Voice start, voice-only registration and object-input validation adapt Pi Stuff
+revision e4aa5bb43c560b722829a5123b3f2e05d3d9a19d.
+Voice automation requires explicit native BrowserRuntimeConfig here.
+
 Applicable PR #552 changes adapted from howaboua-pi-stuff revision
 1338b66a1067c254fec46746ef96b6bd9456148b. TypeScript execution mode
 and QuickJS Notebook are excluded. See docs/parity for native adaptations.

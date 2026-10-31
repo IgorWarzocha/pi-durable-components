@@ -40,6 +40,7 @@ import { startLan as openLan } from "./lan/server.ts";
 import { DEFAULT_THEME } from "./lan/theme.ts";
 import { grokSettingsDefinition } from "./preferences.ts";
 import { appendVoiceInstructions } from "./prompt.ts";
+import { RetainedVoiceCall } from "./retained-call.ts";
 import { SwitchableAudio } from "./switchable-audio.ts";
 
 export type { DictationReadiness } from "../../../internal/buffered-dictation.ts";
@@ -84,7 +85,7 @@ type Request = {
 	ready: Deferred<void>;
 	closed: Deferred<void>;
 	ended: Deferred<void>;
-	call?: VoiceCall;
+	binding?: RetainedVoiceCall;
 	cleanup?: () => Promise<void>;
 	ownedAudio?: SwitchableAudio;
 	transferred?: TransferredVoiceControls;
@@ -94,6 +95,10 @@ type Request = {
 	departure?: { close(): void };
 	created: Deferred<TaskId<Result>>;
 	started?: boolean;
+	/** A return arrival reuses this service's still-owned physical audio. */
+	sourceOwner?: Request;
+	stopCall?: () => Promise<void>;
+	startCall?: () => Promise<void>;
 	draft?: Promise<void>;
 };
 
@@ -304,6 +309,24 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 							request.arrival.channel,
 							{
 								async request(method, value) {
+									if (method === "session.stop") {
+										if (request.transferred)
+											return request.transferred.stopCall();
+										if (!request.stopCall)
+											throw new Error(
+												"Selected-session voice is still connecting",
+											);
+										return request.stopCall();
+									}
+									if (method === "session.start") {
+										if (request.transferred)
+											return request.transferred.startCall();
+										if (!request.startCall)
+											throw new Error(
+												"Selected-session voice is still connecting",
+											);
+										return request.startCall();
+									}
 									if (
 										method === "session.send" &&
 										typeof value === "string" &&
@@ -312,14 +335,14 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 										if (request.transferred)
 											return request.transferred.sendText(value);
 										if (
-											!request.call ||
+											!request.binding?.call ||
 											view.status === "summarizing" ||
 											view.status === "connecting"
 										)
 											throw new Error(
 												"Selected conversation voice is still connecting",
 											);
-										return request.call.send(
+										return request.binding?.call.send(
 											value,
 											`grok:handoff:${crypto.randomUUID()}`,
 										);
@@ -341,7 +364,8 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 										view.muted = message.muted;
 										if (request.transferred)
 											request.transferred.setInputMuted(message.muted);
-										else if (request.started) request.call?.mute(message.muted);
+										else if (request.started)
+											request.binding?.call?.mute(message.muted);
 										publish();
 									} else
 										throw new Error("Invalid destination voice notification");
@@ -367,14 +391,17 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 					audio = new SwitchableAudio(request.audio ?? grant.audio(config));
 					request.ownedAudio = audio as SwitchableAudio;
 					request.cleanup = async () => {
+						audio?.disconnect?.();
 						request.departure?.close();
 						if (request.transferred) await request.transferred.stop();
-						else if (request.call) await request.call.close();
+						else if (request.binding) await request.binding.shutdown();
 						else if (task.input.mode === "dictation") {
 							if (dictation.state().status === "done")
 								await dictation.shutdown();
 							else await dictation.cancel();
 						} else await audio?.close();
+						if (request.started && request.sourceOwner)
+							await abortRequest(request.sourceOwner);
 					};
 					if (task.input.mode === "dictation") {
 						setStatus("dictating");
@@ -398,59 +425,97 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 							userInstructions,
 							projectInstructions,
 						);
-						const callConfig = { ...config };
-						request.call = new VoiceCall({
-							runtime,
-							context,
-							harness: request.harness,
-							audio,
-							config: callConfig,
-							instructions,
-							toolTask,
-							prepareContext: async () => {
-								const summary = await prepareContext(
-									runtime,
-									callConfig,
+						const createCall = (callSignal: AbortSignal) => {
+							const callContext = withAbortSignal(callSignal, context);
+							const callConfig = { ...config };
+							return new VoiceCall({
+								runtime,
+								signal: callSignal,
+								context: callContext,
+								harness: request.harness,
+								audio: audio!,
+								config: callConfig,
+								instructions,
+								toolTask,
+								prepareContext: async () => {
+									const summary = await prepareContext(
+										runtime,
+										callConfig,
+										callContext,
+										callSignal,
+									);
+									return request.arrival
+										? `${summary}\nThe caller is joining this conversation by voice. Arrival context only, not an agent task:\n${request.arrival.continuity}`
+										: summary;
+								},
+								append: write.append,
+								status: setStatus,
+								activity,
+								...(options.socket ? { socket: options.socket } : {}),
+								failed: (error) => {
+									if (!request.arrivalLink) request.ended.reject(error);
+									else {
+										present("error", { message: error.message });
+										void request
+											.stopCall?.()
+											.catch((failure) => runtime.report(failure));
+									}
+								},
+								ended: () => {
+									void (
+										request.arrivalLink
+											? request.stopCall!()
+											: abortRequest(request)
+									).catch((error) => request.ended.reject(error));
+								},
+							});
+						};
+						const binding = new RetainedVoiceCall({
+							signal: runtime.signal,
+							create: createCall,
+							reload: refreshSettings,
+							activate: async (call) => {
+								const prepared = await call.prepare();
+								await call.activate(prepared, {
+									inputMuted: view.muted,
+									alternateVoice: request.alternateVoice ?? false,
+								});
+								request.audio?.resumeCall?.();
+							},
+							beforeStop: () => request.audio?.stopCall?.(),
+							onStopped: () => setStatus("idle"),
+						});
+						request.binding = binding;
+						request.stopCall = () => binding.stop();
+						request.startCall = () => binding.start();
+						await binding.initial(async (call) => {
+							if (request.arrivalLink) {
+								const prepared = await call.prepare();
+								request.arrivalLink.stage("prepared");
+								const activation = await awaitWithContext(
+									request.arrivalLink.waitFor("activate"),
 									context,
 								);
-								return request.arrival
-									? `${summary}\nThe caller is joining this conversation by voice. Arrival context only, not an agent task:\n${request.arrival.continuity}`
-									: summary;
-							},
-							append: write.append,
-							status: setStatus,
-							activity,
-							...(options.socket ? { socket: options.socket } : {}),
-							failed: (error) => request.ended.reject(error),
-							ended: () => {
-								void abortRequest(request).catch((error) =>
-									request.ended.reject(error),
-								);
-							},
+								if (
+									!isRecord(activation) ||
+									typeof activation["inputMuted"] !== "boolean" ||
+									typeof activation["alternateVoice"] !== "boolean"
+								)
+									throw new Error(
+										"Voice transfer did not provide microphone and voice phase",
+									);
+								request.alternateVoice = activation["alternateVoice"];
+								view.muted = activation["inputMuted"];
+								if (!binding.stopped)
+									await call.activate(prepared, {
+										inputMuted: view.muted,
+										alternateVoice: request.alternateVoice,
+									});
+								request.arrivalLink.stage("active");
+							} else await call.start();
 						});
-						if (request.arrivalLink) {
-							const prepared = await request.call.prepare();
-							request.arrivalLink.stage("prepared");
-							const activation = await awaitWithContext(
-								request.arrivalLink.waitFor("activate"),
-								context,
-							);
-							if (
-								!isRecord(activation) ||
-								typeof activation["inputMuted"] !== "boolean" ||
-								typeof activation["alternateVoice"] !== "boolean"
-							)
-								throw new Error(
-									"Voice transfer did not provide microphone and voice phase",
-								);
-							request.alternateVoice = activation["alternateVoice"];
-							view.muted = activation["inputMuted"];
-							await request.call.activate(prepared, {
-								inputMuted: view.muted,
-								alternateVoice: request.alternateVoice,
-							});
+						if (request.arrivalLink && binding.stopped)
 							request.arrivalLink.stage("active");
-						} else await request.call.start();
 					}
 					request.started = true;
 					request.ready.resolve();
@@ -633,14 +698,19 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 			await dictation.cancel();
 		});
 	}
+	async function stopCall(): Promise<void> {
+		if (active?.transferred) return active.transferred.stopCall();
+		if (active?.arrivalLink && active.stopCall) return active.stopCall();
+		return stop();
+	}
 	async function send(
 		text: string,
 		requestId = crypto.randomUUID(),
 	): Promise<void> {
 		if (!text.trim()) throw new Error("Message must be nonempty");
 		if (active?.transferred) return active.transferred.sendText(text.trim());
-		if (active?.call)
-			return active.call.send(text.trim(), `grok:typed:${requestId}`);
+		if (active?.binding?.call)
+			return active.binding?.call.send(text.trim(), `grok:typed:${requestId}`);
 		const target = listener ?? active;
 		if (!target) throw new Error("No Grok conversation is selected");
 		const conversation = await target.harness.conversation(
@@ -761,13 +831,19 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 						port: config.port,
 						callbacks: {
 							start: (audio) =>
-								begin(
-									request.harness,
-									runtime.conversationId,
-									BACKGROUND_CONTEXT,
-									"voice",
-									audio,
-								),
+								active?.transferred
+									? active.transferred.startCall()
+									: active?.arrivalLink &&
+											active.binding?.stopped &&
+											active.startCall
+										? active.startCall()
+										: begin(
+												request.harness,
+												runtime.conversationId,
+												BACKGROUND_CONTEXT,
+												"voice",
+												audio,
+											),
 							startDictation: (audio) =>
 								begin(
 									request.harness,
@@ -783,18 +859,21 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 									active &&
 									(!active.started || view.status === "reconnecting")
 								)
-									void abortRequest(active).catch((error) =>
-										runtime.report(error),
-									);
+									void (
+										active.arrivalLink && active.stopCall
+											? active.stopCall()
+											: abortRequest(active)
+									).catch((error) => runtime.report(error));
 							},
 							stop,
+							stopCall,
 							send,
 							state,
 							theme: () => grant.theme?.() ?? DEFAULT_THEME,
 							mute: (muted) => {
 								if (active?.transferred)
 									active.transferred.setInputMuted(muted);
-								else active?.call?.mute(muted);
+								else active?.binding?.call?.mute(muted);
 								view.muted = muted;
 								publish();
 							},
@@ -895,7 +974,7 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 			);
 		},
 	});
-	return {
+	const component = {
 		extension: defineExtension({
 			name,
 			tasks: [service, lanService, toolTask],
@@ -913,7 +992,15 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 			harness: Harness,
 			conversationId: ConversationId,
 			context: Context,
-		) => begin(harness, conversationId, context, "voice"),
+		) =>
+			active?.conversationId === conversationId && active.transferred
+				? active.transferred.startCall()
+				: active?.conversationId === conversationId &&
+						active.arrivalLink &&
+						active.binding?.stopped &&
+						active.startCall
+					? active.startCall()
+					: begin(harness, conversationId, context, "voice"),
 		startDictation: (
 			harness: Harness,
 			conversationId: ConversationId,
@@ -921,11 +1008,11 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 		) => begin(harness, conversationId, context, "dictation"),
 		finishDictation,
 		cancelDictation: stop,
-		stop,
+		stop: stopCall,
 		send,
 		mute(muted: boolean) {
 			if (active?.transferred) active.transferred.setInputMuted(muted);
-			else active?.call?.mute(muted);
+			else active?.binding?.call?.mute(muted);
 			view.muted = muted;
 			publish();
 		},
@@ -940,7 +1027,7 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 						"Voice destination is not compatible with Grok pcm24",
 					);
 				const request = active;
-				const call = request?.call;
+				const call = request?.binding?.call;
 				const audio = request?.ownedAudio;
 				if (
 					!request ||
@@ -958,10 +1045,13 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 					inputMuted: view.muted,
 					alternateVoice: request.alternateVoice ?? false,
 					sourceActive: () =>
-						active === request && request.call === call && call.active,
-					closed: () => request.ended.resolve(),
+						active === request && request.binding?.call === call && call.active,
+					closed: () => {
+						// Retain selection after disconnection. Start must not silently call this audio host.
+						setStatus("idle");
+					},
 					async release(callbacks, controls) {
-						if (active !== request || request.call !== call)
+						if (active !== request || request.binding?.call !== call)
 							throw new Error("Source voice changed during transfer");
 						const snapshot = await watchEvents(
 							request.harness,
@@ -983,11 +1073,12 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 							if (!call.active) request.ended.reject(error);
 							throw error;
 						}
-						delete request.call;
+						request.binding?.detach();
 						request.transferred = controls;
 						released = true;
 						setStatus("transferred");
 						controls.onSessionEvent((event, data) => {
+							if (active !== request) return;
 							if (event === "state" && isRecord(data)) {
 								if (typeof data["piBusy"] === "boolean")
 									activity(data["piBusy"]);
@@ -1050,13 +1141,18 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 			): Promise<void> {
 				if (Buffer.byteLength(continuity) > 64 * 1024)
 					throw new Error("Voice arrival context is too large");
-				if (active || pendingStarts || departing)
+				const previous = active;
+				const returning = Boolean(
+					previous?.transferred && !previous.binding?.call,
+				);
+				if ((active && !returning) || pendingStarts || departing)
 					throw new Error(
 						"Grok voice or dictation is already active or preparing",
 					);
 				const requestId = crypto.randomUUID();
 				const request = makeRequest(harness, conversationId);
 				request.arrival = { channel, continuity };
+				if (returning && previous) request.sourceOwner = previous;
 				active = request;
 				requests.set(requestId, request);
 				try {
@@ -1088,6 +1184,10 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 						request.closed.resolve();
 						requests.delete(requestId);
 						if (active === request) active = undefined;
+					}
+					if (previous && [...requests.values()].includes(previous)) {
+						active = previous;
+						setStatus("transferred");
 					}
 					throw error;
 				}
@@ -1135,10 +1235,53 @@ export function createGrokVoice(options: GrokVoiceOptions) {
 		async stopLan() {
 			if (listener) await abortRequest(listener);
 		},
+		lanStatus() {
+			return {
+				running: Boolean(lan),
+				urls: lan?.urls ?? [],
+				browserAttached: lan?.browserAttached() ?? false,
+			};
+		},
+		async connectLan(
+			request: { url: string; host?: string; signal?: AbortSignal },
+			harness: Harness,
+			conversationId: ConversationId,
+			context: Context,
+		) {
+			request.signal?.throwIfAborted();
+			const urls =
+				lan?.urls ??
+				(await component.startLan(harness, conversationId, context));
+			if (!urls.includes(request.url))
+				throw new Error(
+					"Choose an explicit URL from the running server's URLs",
+				);
+			if (
+				request.host &&
+				request.host !== "local" &&
+				["localhost", "127.0.0.1", "[::1]"].includes(
+					new URL(request.url).hostname,
+				)
+			)
+				throw new Error("A remote browser needs a non-loopback server URL");
+			if (!options.startBrowserVoice)
+				throw new Error("Browser voice startup capability was not supplied");
+			request.signal?.throwIfAborted();
+			const { host, ...browser } = request;
+			const result = await options.startBrowserVoice({
+				...browser,
+				provider: "grok",
+				...(host && host !== "local" ? { host } : {}),
+			});
+			request.signal?.throwIfAborted();
+			return result;
+		},
 		/** Call before switching conversations; Harness.close also cancels both owned services. */
 		async close() {
 			if (listener) await abortRequest(listener);
 			await stop();
+			await Promise.all([...requests.values()].map(abortRequest));
 		},
 	};
+	return component;
 }

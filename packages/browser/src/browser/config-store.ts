@@ -74,9 +74,10 @@ export async function writeBrowserRouteConfig(
 	config: unknown,
 ): Promise<BrowserRouteConfig> {
 	const normalized = normalizeBrowserRouteConfig(config);
-	const text = normalized.hosts.length
-		? `${JSON.stringify(normalized, null, 2)}\n`
-		: undefined;
+	const text =
+		normalized.hosts.length || normalized.voiceOnly
+			? `${JSON.stringify(normalized, null, 2)}\n`
+			: undefined;
 	await store.write(text);
 	return normalized;
 }

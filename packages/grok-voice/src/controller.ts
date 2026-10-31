@@ -1,4 +1,5 @@
 import type { Context, JsonValue } from "@earendil-works/chord";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import {
 	type AgentEvent,
@@ -26,6 +27,7 @@ export interface PreparedVoice {
 }
 
 export interface VoiceCallOptions {
+	signal?: AbortSignal;
 	runtime: VoiceRuntime;
 	context: Context;
 	harness: Harness;
@@ -45,6 +47,7 @@ export interface VoiceCallOptions {
 /** Live state belongs to one Durable service invocation; never reconstructed after restart. */
 export class VoiceCall {
 	private readonly options: VoiceCallOptions;
+	private readonly signal: AbortSignal;
 	private session: GrokSession;
 	private tools: GrokToolWireDefinition[] = [];
 	private watch: AgentEventStream | undefined;
@@ -54,14 +57,17 @@ export class VoiceCall {
 	private playback = 0;
 	private reconnecting = false;
 	private closed = false;
+	private closing: Promise<void> | undefined;
 	private forwarded = 0;
 	private partial: AssistantMessage | undefined;
 	private readonly abortAudio: () => void;
 	private pendingTools = 0;
+	private readonly toolTasks = new Set<TaskId<ToolExecutionResult>>();
 	private readonly toolWaiters = new Set<() => void>();
 
 	constructor(options: VoiceCallOptions) {
 		this.options = options;
+		this.signal = options.signal ?? options.runtime.signal;
 		this.session = this.createSession();
 		this.abortAudio = () => {
 			this.session.close();
@@ -69,7 +75,7 @@ export class VoiceCall {
 				.close()
 				.catch((error) => options.runtime.report(error));
 		};
-		options.runtime.signal.addEventListener("abort", this.abortAudio, {
+		this.signal.addEventListener("abort", this.abortAudio, {
 			once: true,
 		});
 	}
@@ -111,9 +117,9 @@ export class VoiceCall {
 		const connection = await resolveConnection(
 			runtime.models,
 			config,
-			runtime.signal,
+			this.signal,
 		);
-		runtime.signal.throwIfAborted();
+		this.signal.throwIfAborted();
 		return { connection, summary };
 	}
 	async activate(
@@ -152,12 +158,12 @@ export class VoiceCall {
 			},
 			onError: (error) => this.options.failed(error),
 		});
-		runtime.signal.throwIfAborted();
+		this.signal.throwIfAborted();
 		await this.session.start(
 			prepared.connection,
 			this.options.config,
 			prepared.summary,
-			runtime.signal,
+			this.signal,
 			this.tools,
 			this.options.instructions,
 			Boolean(arrival),
@@ -211,8 +217,14 @@ export class VoiceCall {
 				},
 				executeTool: async (name, args) => {
 					this.pendingTools++;
+					let id: TaskId<ToolExecutionResult> | undefined;
+					const abort = () => {
+						if (id)
+							void this.options.harness
+								.abortTask(id, BACKGROUND_CONTEXT)
+								.catch((error) => runtime.report(error));
+					};
 					try {
-						let id!: TaskId<ToolExecutionResult>;
 						await runtime.commit(async (tx) => {
 							id = await tx.createTask(
 								this.options.toolTask,
@@ -220,11 +232,21 @@ export class VoiceCall {
 								{ ownership: { kind: "task", taskId: runtime.taskId } },
 							);
 						}, context);
+						if (!id) throw new Error("Voice tool task was not created");
+						this.toolTasks.add(id);
+						this.signal.addEventListener("abort", abort, { once: true });
+						this.signal.throwIfAborted();
 						const receipt = await runtime.waitForTask(id, context);
 						if (receipt.state.outcome.status !== "completed")
 							throw new Error(`Tool ${name}: ${receipt.state.outcome.status}`);
 						return receipt.state.outcome.result;
 					} finally {
+						this.signal.removeEventListener("abort", abort);
+						if (id && this.signal.aborted) {
+							await this.options.harness.abortTask(id, BACKGROUND_CONTEXT);
+							await this.options.harness.waitForTask(id, BACKGROUND_CONTEXT);
+						}
+						if (id) this.toolTasks.delete(id);
 						this.pendingTools--;
 						if (!this.pendingTools) {
 							for (const done of this.toolWaiters) done();
@@ -403,8 +425,7 @@ export class VoiceCall {
 		this.options.activity(this.busy, text);
 	}
 	private async resume(error: Error): Promise<void> {
-		if (this.closed || this.options.runtime.signal.aborted || this.reconnecting)
-			return;
+		if (this.closed || this.signal.aborted || this.reconnecting) return;
 		if (!this.options.config.autoResume) {
 			this.options.failed(error);
 			return;
@@ -423,20 +444,20 @@ export class VoiceCall {
 			const connection = await resolveConnection(
 				this.options.runtime.models,
 				this.options.config,
-				this.options.runtime.signal,
+				this.signal,
 			);
 			if (this.closed) return;
 			await this.session.start(
 				connection,
 				this.options.config,
 				summary,
-				this.options.runtime.signal,
+				this.signal,
 				this.tools,
 				this.options.instructions,
 				true,
 			);
 		} catch (failure) {
-			if (!this.closed && !this.options.runtime.signal.aborted)
+			if (!this.closed && !this.signal.aborted)
 				this.options.failed(
 					new Error(`Grok voice could not resume: ${asError(failure).message}`),
 				);
@@ -454,12 +475,21 @@ export class VoiceCall {
 		}
 		if (!this.closed && generation === this.ending) this.options.ended();
 	}
-	async close(): Promise<void> {
+	close(): Promise<void> {
+		return (this.closing ??= this.closeCurrent());
+	}
+	private async closeCurrent(): Promise<void> {
 		this.closed = true;
-		this.options.runtime.signal.removeEventListener("abort", this.abortAudio);
+		this.signal.removeEventListener("abort", this.abortAudio);
 		this.ending++;
 		this.playback++;
 		this.session.close();
+		await Promise.all(
+			[...this.toolTasks].map(async (id) => {
+				await this.options.harness.abortTask(id, BACKGROUND_CONTEXT);
+				await this.options.harness.waitForTask(id, BACKGROUND_CONTEXT);
+			}),
+		);
 		let watchError: unknown;
 		try {
 			await this.watch?.stop();
@@ -489,7 +519,7 @@ export class VoiceCall {
 		if (this.closed || this.reconnecting || this.pendingTools)
 			throw new Error("Voice is not ready to transfer");
 		this.closed = true;
-		this.options.runtime.signal.removeEventListener("abort", this.abortAudio);
+		this.signal.removeEventListener("abort", this.abortAudio);
 		this.ending++;
 		this.playback++;
 		this.session.close();

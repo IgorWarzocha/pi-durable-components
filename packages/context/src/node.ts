@@ -156,7 +156,7 @@ export function createNodeHistoryRanker(options: {
 				else
 					finish(
 						new Error(
-							"Ranked history search is unavailable; list_items and read_item remain available. Check the native index capability or disable ranked history.",
+							"Ranked history search is unavailable; list and read remain available. Check the native index capability or disable ranked history.",
 							{
 								cause:
 									value && typeof value === "object" && "error" in value

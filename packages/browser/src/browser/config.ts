@@ -4,12 +4,14 @@ export interface BrowserRouteConfig {
 	aliases: Record<string, string>;
 	hosts: string[];
 	remoteNodePath: string;
+	voiceOnly?: boolean;
 }
 
 interface BrowserRouteConfigInput {
 	aliases?: Record<string, string>;
 	hosts?: string[];
 	remoteNodePath?: string;
+	voiceOnly?: unknown;
 }
 
 const ROUTE_NAME = /^[A-Za-z0-9_.-]+$/;
@@ -41,6 +43,8 @@ export function normalizeBrowserRouteConfig(
 		throw new Error("pi-browser config must be an object");
 	}
 	const input = value as BrowserRouteConfigInput;
+	if (input.voiceOnly !== undefined && typeof input.voiceOnly !== "boolean")
+		throw new Error("pi-browser voiceOnly must be a boolean");
 	const rawHosts = input.hosts ?? [];
 	if (!Array.isArray(rawHosts)) {
 		throw new Error("pi-browser config hosts must be an array");
@@ -72,6 +76,7 @@ export function normalizeBrowserRouteConfig(
 	return {
 		aliases,
 		hosts,
+		...(input.voiceOnly === true ? { voiceOnly: true } : {}),
 		remoteNodePath: remoteWord(
 			input.remoteNodePath ?? DEFAULT_REMOTE_NODE_PATH,
 			"pi-browser remoteNodePath",

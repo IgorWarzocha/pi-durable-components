@@ -1,6 +1,7 @@
 import type { Context } from "@earendil-works/chord";
 import {
 	type ConversationId,
+	configure,
 	defineDoc,
 	defineTool,
 	GenerationTask,
@@ -10,14 +11,23 @@ import {
 	type TaskId,
 	type Tx,
 } from "@earendil-works/pi-durable";
-import { Type } from "typebox";
 import { type ContextHost, conversation, foreignTasks } from "./lifecycle.ts";
+import {
+	type ContextModelRoles,
+	type PreparedRole,
+	prepareRole,
+	roleSourceMatches,
+} from "./model-roles.ts";
 import { notesAreFresh } from "./note-store.ts";
 import {
 	type BeforeRollover,
 	latestContextEntry,
 	prepareRollover,
 } from "./rollover-preparation.ts";
+import {
+	newContextParameters,
+	prepareNewContextArguments,
+} from "./tool-contract.ts";
 import {
 	WindowEntry,
 	type WindowIdentity,
@@ -26,7 +36,7 @@ import {
 
 // The generation owns this receipt: tool documents retire before afterTools runs.
 const ToolWindow = defineDoc<{
-	request?: { tool: TaskId; window: WindowIdentity };
+	request?: { tool: TaskId; window: WindowIdentity; role?: PreparedRole };
 	finished?: boolean;
 }>({
 	kind: "howaboua.context.tool-window",
@@ -42,6 +52,7 @@ export function createToolRollover(
 	now: () => number,
 	policy: {
 		newContextRequests: "off" | "pi-limits" | "unrestricted";
+		modelRoles?: ContextModelRoles | undefined;
 		beforeRollover?: BeforeRollover | undefined;
 		hasEligibleContextHistory?: (
 			conversationId: ConversationId,
@@ -53,11 +64,12 @@ export function createToolRollover(
 		name: "new_context",
 		description:
 			"Start fresh from saved notes; recover earlier conversation through history. Save notes first and call alone",
-		parameters: Type.Object({}, { additionalProperties: false }),
+		parameters: newContextParameters,
+		prepareArguments: prepareNewContextArguments,
 		replay: "safe",
 		callers: ["model"],
 		executionMode: "sequential",
-		async execute(_args, api, context) {
+		async execute(args, api, context) {
 			if (policy.newContextRequests === "pi-limits") {
 				// An admitted request must rejoin before consulting mutable host policy.
 				const live = await api.snapshot(LiveDoc, api.conversationId, context);
@@ -92,6 +104,22 @@ export function createToolRollover(
 						],
 					};
 			}
+			const live = await api.snapshot(LiveDoc, api.conversationId, context);
+			const prior = live?.run
+				? await api.snapshot(ToolWindow, live.run.taskId, context)
+				: undefined;
+			const role = prior?.request
+				? prior.request.role
+				: args.role === undefined
+					? undefined
+					: await prepareRole(
+							policy.modelRoles,
+							args.role,
+							api.conversationId,
+							await api.agent(context),
+							api.models,
+							context,
+						);
 			const result = await api.commit(async (tx) => {
 				const live = await tx.doc(LiveDoc, api.conversationId);
 				if (
@@ -105,6 +133,10 @@ export function createToolRollover(
 					throw new Error(
 						"Context window is missing or a checkpoint is already in progress",
 					);
+				if (role && !(await roleSourceMatches(tx, api.conversationId, role)))
+					throw new Error(
+						"The model settings changed. Continue here and request a new role handoff if still needed.",
+					);
 				if (!(await notesAreFresh(tx, api.conversationId)))
 					return {
 						status: "checkpoint_required",
@@ -114,6 +146,7 @@ export function createToolRollover(
 				const receipt = await tx.doc(ToolWindow, live.run.taskId);
 				receipt.request ??= {
 					tool: api.taskId,
+					...(role ? { role } : {}),
 					window: {
 						id: crypto.randomUUID(),
 						number: state.window.number + 1,
@@ -152,6 +185,12 @@ export function createToolRollover(
 						!state.transition &&
 						state.window?.id === receipt.request.window.previous &&
 						(await notesAreFresh(tx, api.conversationId)) &&
+						(!receipt.request.role ||
+							(await roleSourceMatches(
+								tx,
+								api.conversationId,
+								receipt.request.role,
+							))) &&
 						(await foreignTasks(tx, api.conversationId)).every(
 							(id) => id === api.taskId,
 						)
@@ -182,6 +221,11 @@ export function createToolRollover(
 								(await latestContextEntry(tx, api.conversationId)));
 					receipt.finished = true;
 					if (safe) {
+						if (receipt.request.role)
+							await configure(tx, api.conversationId, {
+								model: receipt.request.role.model,
+								thinkingLevel: receipt.request.role.thinkingLevel,
+							});
 						const window = { ...receipt.request.window, startedAt: now() };
 						const entry = await tx.appendEntry(
 							WindowEntry,
@@ -202,7 +246,7 @@ export function createToolRollover(
 							{
 								role: "system",
 								content: safe
-									? "Read your saved notes with the notes tool and resume the task."
+									? `Read your saved notes with the notes tool and resume the task.${receipt.request.role ? `\n\nRole: ${receipt.request.role.id}` : ""}`
 									: (preparation.error ??
 										"Context rollover was skipped because the conversation changed or foreground work is still running. The window is unchanged. Save fresh notes and retry new_context after that work settles."),
 								timestamp: now(),

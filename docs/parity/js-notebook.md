@@ -1,5 +1,9 @@
 # JS Notebook parity
 
+## PR #561 alignment
+
+The read-only comparison `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` carries PR #561 input normalisation through the shared ordinary nested-registration path. The source's injected validator avoids Pi loader aliases, which are absent here. No JS-specific bridge is needed. A disposable actual Durable and native JS VM probe accepted JSON object strings, help, literal strings and configured command objects and arrays. Notebook help, status, list and diagnostics remained callable through ordinary registrations. Blocked restart preserved the live value. VM persistence and project-sharing contracts are unchanged.
+
 ## Source and native boundary
 
 The standalone `@howaboua/pi-durable-js-notebook` package adapts `packages/pi-codex-conversion/src/tools/js-mode` at merged PR #552 revision `84bd5bce60a77c4298484d4b7c810d4fe5220a1b`. The source was inspected read-only with `git show`. `NOTICE` preserves its MIT notice. Selected-data graph types, remapping, validation and compaction come from the same revision's TS mode. Unused TS graph capture, replay recipes and merge machinery are not carried.

@@ -2,6 +2,8 @@ TypeScript Notebook carries algorithms and execution sources from
 IgorWarzocha/howaboua-pi-stuff, PR #552 head 84bd5bce60a77c4298484d4b7c810d4fe5220a1b,
 packages/pi-codex-conversion/src/tools/ts-mode and code-mode/npm-cache.ts.
 Adapted to public Pi Durable APIs and ordinary tool registrations.
+Retained destructuring, inferred type qualification and tool input declarations
+refreshed through e4aa5bb43c560b722829a5123b3f2e05d3d9a19d.
 
 MIT License
 

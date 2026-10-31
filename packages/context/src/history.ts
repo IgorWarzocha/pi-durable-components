@@ -204,9 +204,9 @@ async function readHistory(
 			truncated: windows.length > limit,
 		};
 	}
-	if (args.action === "read_item") return readItem(entries, args);
+	if (args.action === "read") return readItem(entries, args);
 	if (
-		args.action === "search_contents" &&
+		args.action === "search" &&
 		ranked &&
 		(!args.role || args.role === "user" || args.role === "assistant") &&
 		!args.tool_name &&
@@ -228,9 +228,7 @@ async function readHistory(
 		if (!item || !matchesHistoryItem(item, args)) continue;
 		matched++;
 		const selected =
-			archive && args.action === "search_contents" && summary
-				? summaries
-				: items;
+			archive && args.action === "search" && summary ? summaries : items;
 		selected.push({
 			id: entry.id,
 			preview: previewHistoryItem(item, maxChars),
@@ -247,7 +245,7 @@ async function readHistory(
 	);
 	return {
 		truncated: matched > previews.length,
-		...(args.action === "search_contents" ? { search_mode: "literal" } : {}),
+		...(args.action === "search" ? { search_mode: "literal" } : {}),
 		items: previews,
 	};
 }
@@ -302,7 +300,7 @@ async function readRankedHistory(
 	if (previousFailure) {
 		refreshFailures.get(ranked.ranker)?.delete(scope);
 		throw new Error(
-			"Earlier history indexing failed. Retry this search or disable ranked history; list_items and read_item remain available.",
+			"Earlier history indexing failed. Retry this search or disable ranked history; list and read remain available.",
 			{ cause: previousFailure },
 		);
 	}

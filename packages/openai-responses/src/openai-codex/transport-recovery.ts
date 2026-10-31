@@ -615,7 +615,7 @@ export function createCodexTransportStream<TApi extends Api>(
 								immediateFallback ||
 								websocketRecoveryExhausted)
 						) {
-							if (allowFallback)
+							if (allowFallback && (upgradeRequired || messageTooBig))
 								recordWebSocketSseFallback(
 									deps.transportState,
 									effectiveOptions.sessionId,
@@ -687,9 +687,8 @@ export function createCodexTransportStream<TApi extends Api>(
 							(retryPlan.serverDirected || retryPlan.overload)
 						)
 							await recovery.waitBeforeRetry(error, attempt + 1, retryPlan);
-						// Pi supplies resolved request auth, not a force-refresh handle. Keep 401
-						// fallback turn-local so refreshed auth can use WebSockets on the next turn.
-						if (!unauthorized)
+						// Transient failure says nothing about the next request's connectivity.
+						if (upgradeRequired || messageTooBig)
 							recordWebSocketSseFallback(
 								deps.transportState,
 								effectiveOptions?.sessionId,

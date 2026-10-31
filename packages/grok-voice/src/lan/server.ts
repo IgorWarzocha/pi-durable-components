@@ -29,6 +29,7 @@ export interface LanOptions {
 		theme(): LanVoiceWebTheme;
 		cancelStartup(): void;
 		stop(): Promise<void>;
+		stopCall(): Promise<void>;
 		send(text: string): Promise<void>;
 		state(): {
 			status: string;
@@ -53,9 +54,12 @@ export interface LanOptions {
 	};
 }
 
-export async function startLan(
-	options: LanOptions,
-): Promise<{ urls: string[]; publish(): void; close(): Promise<void> }> {
+export async function startLan(options: LanOptions): Promise<{
+	urls: string[];
+	browserAttached(): boolean;
+	publish(): void;
+	close(): Promise<void>;
+}> {
 	if (
 		!Number.isInteger(options.port) ||
 		options.port < 1 ||
@@ -200,10 +204,13 @@ export async function startLan(
 			)
 		)
 			options.callbacks.cancelStartup();
+		const stopping =
+			command["action"] === "stop" ? options.callbacks.stopCall() : undefined;
+		void stopping?.catch(() => {});
 		await serialize(async () => {
 			if (closing) throw new Error("LAN control is closing");
 			if (command["action"] === "stop") {
-				await options.callbacks.stop();
+				await stopping;
 				await audio.close();
 				mode = undefined;
 			} else if (command["action"] === "finishDictation") {
@@ -303,15 +310,19 @@ export async function startLan(
 		urls: [...certificate.ipAddresses, ...certificate.hostnames].map(
 			(host) => `https://${host}:${options.port}`,
 		),
+		browserAttached: () =>
+			[...sockets.clients].some((peer) => peer.readyState === WebSocket.OPEN),
 		publish,
 		close() {
 			shutdown ??= (async () => {
 				closing = true;
 				options.callbacks.cancelStartup();
+				const stopping = options.callbacks.stop();
+				void stopping.catch(() => {});
 				for (const peer of sockets.clients) peer.terminate();
 				await queue;
 				try {
-					if (audio.isStarted()) await options.callbacks.stop();
+					await stopping;
 				} finally {
 					await audio.close();
 					sockets.close();

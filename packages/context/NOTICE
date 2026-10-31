@@ -1,3 +1,8 @@
+Notes and History input contracts and configured role handoffs adapted from
+howaboua-pi-stuff revision e4aa5bb43c560b722829a5123b3f2e05d3d9a19d,
+including merged PRs #561 and #567. Native configuration, model selection and
+chronological guidance use public Durable APIs. No Pi paths or TUI are carried.
+
 Applicable PR #552 changes adapted from howaboua-pi-stuff revision
 1338b66a1067c254fec46746ef96b6bd9456148b. TypeScript execution mode
 and QuickJS Notebook are excluded. See docs/parity for native adaptations.

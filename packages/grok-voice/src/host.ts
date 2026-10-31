@@ -39,6 +39,19 @@ export interface GrokHostCapabilities {
 	): Promise<{ release(): Promise<void> }>;
 }
 interface GrokVoiceBaseOptions {
+	/** Host-owned browser automation, e.g. Browser's public startBrowserVoice API. */
+	startBrowserVoice?(request: {
+		url: string;
+		provider: "grok";
+		host?: string;
+		signal?: AbortSignal;
+	}): Promise<{
+		state: "listening" | "error" | "timeout";
+		url: string;
+		refId?: string;
+		detail?: string;
+		status?: string;
+	}>;
 	/** Stable suffix when composing several instances in one registry. Persist this across restart. */
 	instanceName?: string;
 	/** Supply the SAME atomic, rejecting lease to both voice components. */

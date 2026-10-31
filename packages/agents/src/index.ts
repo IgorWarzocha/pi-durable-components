@@ -1,7 +1,7 @@
 import type { Harness, Storage } from "@earendil-works/pi-durable";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import type { AgentsOptions } from "./contract.ts";
-import { AgentsParameters, help } from "./contract.ts";
+import { AgentsParameters, help, parseAgentsRequest } from "./contract.ts";
 import { delegate, send } from "./delegation.ts";
 import { createHostAccess } from "./host.ts";
 import { discoverAgents } from "./queries.ts";
@@ -27,7 +27,8 @@ export function createAgents(options: AgentsOptions) {
 	const Watch = createWatch(binding);
 	const registration = defineTool({
 		name: "agents",
-		description: "Delegate to persistent agents",
+		description:
+			"Delegate to persistent agents; first read {} alone for action fields",
 		parameters: AgentsParameters,
 		replay: "safe",
 		executionMode: "parallel",
@@ -36,7 +37,8 @@ export function createAgents(options: AgentsOptions) {
 			maxBytes: Number.MAX_SAFE_INTEGER,
 			maxLines: Number.MAX_SAFE_INTEGER,
 		},
-		execute: async (args, api, context) => {
+		execute: async (input, api, context) => {
+			const args = parseAgentsRequest(input);
 			switch (args.action) {
 				case undefined:
 				case "help":

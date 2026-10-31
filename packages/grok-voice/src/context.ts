@@ -21,9 +21,10 @@ export function createContextPreparer(
 		runtime: VoiceRuntime,
 		config: GrokRealtimeConfig,
 		context: Context,
+		signal = runtime.signal,
 	): Promise<string> => {
 		if (!allowContext || config.contextModel === "off") return "";
-		runtime.signal.throwIfAborted();
+		signal.throwIfAborted();
 		const nativeView = await runtime.context(runtime.conversationId, context);
 		const view = projectContext
 			? await projectContext(
@@ -106,7 +107,7 @@ export function createContextPreparer(
 				],
 			}),
 			{
-				signal: runtime.signal,
+				signal,
 				cacheRetention: "none",
 				maxTokens: model.maxTokens,
 				...(model.reasoning && config.contextReasoning !== "off"
@@ -124,7 +125,7 @@ export function createContextPreparer(
 					.join("\n")
 					.trim();
 		}
-		runtime.signal.throwIfAborted();
+		signal.throwIfAborted();
 		if (!summary)
 			throw new Error("Voice context model returned an empty summary");
 		cached = { key, summary };

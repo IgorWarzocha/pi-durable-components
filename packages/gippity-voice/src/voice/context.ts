@@ -143,3 +143,43 @@ export function initialVoiceItems(
 			]
 		: undefined;
 }
+
+/** Voice audit entries may arrive during summary preparation without changing agent work. */
+export function voiceContextBoundary(view: ContextView): string {
+	return JSON.stringify([
+		view.head?.id,
+		view.entries.findLast(
+			(entry) =>
+				entry.model?.length && entry.kind !== "gippity.voice.lifecycle",
+		)?.id,
+	]);
+}
+
+export function voiceTranscriptSince(
+	view: ContextView,
+	before: ContextView,
+): string {
+	const last = before.entries.at(-1)?.id;
+	const index =
+		last === undefined
+			? -1
+			: view.entries.findIndex((entry) => entry.id === last);
+	return view.entries
+		.slice(index + 1)
+		.flatMap((entry) => {
+			const data = entry.data;
+			if (!data || typeof data !== "object" || Array.isArray(data)) return [];
+			if (
+				entry.kind === "gippity.voice.user-transcript" &&
+				typeof data["text"] === "string"
+			)
+				return [`user: ${data["text"]}`];
+			if (
+				entry.kind === "gippity.voice.turn" &&
+				typeof data["input"] === "string"
+			)
+				return [`assistant: ${data["input"]}`];
+			return [];
+		})
+		.join("\n");
+}

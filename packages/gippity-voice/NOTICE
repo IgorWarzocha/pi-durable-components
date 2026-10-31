@@ -1,6 +1,7 @@
-Applicable PR #552 changes adapted from howaboua-pi-stuff revision
-1338b66a1067c254fec46746ef96b6bd9456148b. TypeScript execution mode
-and QuickJS Notebook are excluded. See docs/parity for native adaptations.
+Applicable voice changes through howaboua-pi-stuff revision
+e4aa5bb43c560b722829a5123b3f2e05d3d9a19d are adapted from
+pi-gippity-control and pi-codex-conversion. See docs/parity/voice.md
+for native boundaries and validation.
 
 GipPity voice is derived from packages/pi-gippity-control in
 https://github.com/IgorWarzocha/howaboua-pi-stuff
@@ -9,7 +10,7 @@ Alternating handoff voices and arrival greeting adopt the source delta through
 c7ba4f1398c66d3c10c88c9326c7bddecf0202e1 (PR 490).
 
 Native Rust source, Cargo.lock, six platform helpers, vendor notices and licenses
-are carried from 69f50cf without modification. Vendored OpenAI Codex audio DSP
+are carried from e4aa5bb43c560b722829a5123b3f2e05d3d9a19d. Vendored OpenAI Codex audio DSP
 is Apache-2.0; see src/voice/rust/VENDORED.md and
 src/voice/rust/vendor/openai-codex/{LICENSE,NOTICE}.
 Provider wire, PCM, interruption epochs, transcript/delegation tracking,

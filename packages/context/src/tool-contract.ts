@@ -3,21 +3,22 @@
 import type { ConversationId, JsonObject } from "@earendil-works/pi-durable";
 import { type Static, Type } from "typebox";
 import { Check } from "typebox/value";
+import { normalizeQueryInput } from "./query-input.ts";
 
 const HISTORY_ACTIONS = [
 	"help",
 	"list_windows",
-	"list_items",
-	"read_item",
-	"search_contents",
+	"list",
+	"read",
+	"search",
 ] as const;
 const NOTES_ACTIONS = [
 	"help",
-	"list_files_by_prefix",
-	"read_file",
-	"search_contents",
-	"append_to_file",
-	"write_file",
+	"list",
+	"read",
+	"search",
+	"append",
+	"write",
 ] as const;
 
 /** Source results are complete. Override Durable's configurable truncation defaults. */
@@ -88,7 +89,7 @@ export const historyParameters = Type.Object(
 		tool_namespace: Type.Optional(nullableString),
 		window_id: Type.Optional(
 			Type.Union([Type.String(), Type.Null()], {
-				description: "Required with item_id for read_item",
+				description: "Required with item_id for read",
 			}),
 		),
 	},
@@ -112,12 +113,13 @@ export const notesParameters = Type.Object(
 				Type.Literal("updated_at"),
 			]),
 		),
-		max_files: Type.Optional(positiveInteger),
+		limit: Type.Optional(positiveInteger),
 		max_matches_per_file: Type.Optional(positiveInteger),
-		max_results: Type.Optional(positiveInteger),
-		path: Type.Optional(Type.String()),
-		path_prefix: Type.Optional(nullableString),
-		prefix: Type.Optional(nullableString),
+		path: Type.Optional(
+			Type.Union([Type.String(), Type.Null()], {
+				description: "File for read/write/append; prefix for list/search",
+			}),
+		),
 		query: Type.Optional(Type.String()),
 		recent_file_first: Type.Optional(Type.Boolean()),
 		start_line: Type.Optional(Type.Union([Type.Integer(), Type.Null()])),
@@ -132,34 +134,29 @@ export const notesParameters = Type.Object(
 export type NotesArguments = Static<typeof notesParameters>;
 export type HistoryArguments = Static<typeof historyParameters>;
 
+export const newContextParameters = Type.Object(
+	{ role: Type.Optional(Type.String({ minLength: 1 })) },
+	{ additionalProperties: false },
+);
+
+export function prepareNewContextArguments(input: unknown) {
+	const args = input ?? {};
+	if (!Check(newContextParameters, args))
+		throw new Error(
+			'Use {} to keep the current model, or {role: "name"} for a configured role.',
+		);
+	return args;
+}
+
 export function prepareNotesArguments(input: unknown): NotesArguments {
-	let args = input === undefined ? {} : input;
-	if (
-		args !== null &&
-		typeof args === "object" &&
-		!Array.isArray(args) &&
-		"action" in args &&
-		args.action === "read"
-	)
-		args = { ...args, action: "read_file" };
-	if (
-		args !== null &&
-		typeof args === "object" &&
-		!Array.isArray(args) &&
-		"action" in args &&
-		(args.action === "write_file" || args.action === "append_to_file") &&
-		"content" in args
-	) {
-		const { content, ...rest } = args;
-		args = { ...rest, text: "text" in rest ? rest.text : content };
-	}
+	const args = normalizeQueryInput("notes", input);
 	if (!Check(notesParameters, args))
 		throw new Error("Supply valid notes arguments; omit arguments for help");
 	return args;
 }
 
 export function prepareHistoryArguments(input: unknown): HistoryArguments {
-	const args = input === undefined ? {} : input;
+	const args = normalizeQueryInput("history", input);
 	if (!Check(historyParameters, args))
 		throw new Error("Supply valid history arguments; omit arguments for help");
 	return args;
@@ -167,27 +164,22 @@ export function prepareHistoryArguments(input: unknown): HistoryArguments {
 
 const notesFields = {
 	help: [],
-	list_files_by_prefix: [
-		"file_order",
-		"file_order_by",
-		"max_results",
-		"prefix",
-	],
-	read_file: ["path", "start_line", "stop_line", "limit_chars", "offset_chars"],
-	search_contents: [
-		"max_files",
+	list: ["file_order", "file_order_by", "limit", "path"],
+	read: ["path", "start_line", "stop_line", "limit_chars", "offset_chars"],
+	search: [
+		"limit",
 		"max_matches_per_file",
-		"path_prefix",
+		"path",
 		"query",
 		"recent_file_first",
 	],
-	append_to_file: ["path", "text"],
-	write_file: ["path", "text"],
+	append: ["path", "text"],
+	write: ["path", "text"],
 } satisfies Record<NonNullable<NotesArguments["action"]>, readonly string[]>;
 const historyFields = {
 	help: [],
 	list_windows: ["limit", "recent_first"],
-	list_items: [
+	list: [
 		"limit",
 		"max_chars_per_item",
 		"recent_first",
@@ -196,8 +188,8 @@ const historyFields = {
 		"tool_namespace",
 		"window_id",
 	],
-	read_item: ["item_id", "limit_chars", "offset_chars", "window_id"],
-	search_contents: [
+	read: ["item_id", "limit_chars", "offset_chars", "window_id"],
+	search: [
 		"limit",
 		"query",
 		"recent_first",
@@ -207,19 +199,6 @@ const historyFields = {
 		"window_id",
 	],
 } satisfies Record<NonNullable<HistoryArguments["action"]>, readonly string[]>;
-
-export function normalizeNotesArguments(args: NotesArguments): NotesArguments {
-	const normalized = { ...args };
-	if (args.action === "list_files_by_prefix") {
-		if (
-			normalized.max_results === undefined &&
-			normalized.max_files !== undefined
-		)
-			normalized.max_results = normalized.max_files;
-		delete normalized.max_files;
-	}
-	return normalized;
-}
 
 export function contextToolHelp(
 	namespace: "notes" | "history",
@@ -236,8 +215,10 @@ export function contextToolHelp(
 				action,
 				names
 					.map((name) =>
-						["path", "text", "query", "item_id"].includes(name) ||
-						(action === "read_item" && name === "window_id")
+						(name === "path"
+							? ["read", "write", "append"].includes(action)
+							: ["text", "query", "item_id"].includes(name)) ||
+						(action === "read" && name === "window_id")
 							? name
 							: `${name}?`,
 					)
@@ -248,16 +229,16 @@ export function contextToolHelp(
 			"Durable conversation ID; defaults to caller; reads require the same Context visibility group; write own",
 		...(namespace === "notes"
 			? {
-					writes: "write_file replaces; append_to_file adds",
+					writes: "write replaces; append adds",
 					paths:
 						"Paths are relative to /notes; target selects a conversation, read-only unless your own",
-					usage: '{ "action": "read_file", "path": "checkpoint" }',
+					usage: '{ "action": "read", "path": "checkpoint" }',
 					ranges:
 						"start_line/stop_line inclusive, 1-based; negative counts from end; 0/null/omitted uses first/last line; out-of-range clamps; reversed range returns empty content",
 					paging:
-						"read_file returns the full selected lines by default. Optional limit_chars and offset_chars select a page; continue with next_offset_chars and the same line range",
+						"read returns the full selected lines by default. Optional limit_chars and offset_chars select a page; continue with next_offset_chars and the same line range",
 					defaults:
-						"list max_results 20; search max_files/max_matches_per_file 20; positive limits capped at 100; list name ascending; search name ascending, recent_file_first sorts created_at descending",
+						"list limit 20; search limit/max_matches_per_file 20; positive limits capped at 100; list name ascending; search name ascending, recent_file_first sorts created_at descending",
 				}
 			: {
 					usage:
@@ -276,14 +257,14 @@ export function validateNotesArguments(args: NotesArguments): void {
 		args.action === undefined ? [] : notesFields[args.action],
 	);
 	if (
-		args.action === "read_file" ||
-		args.action === "append_to_file" ||
-		args.action === "write_file"
+		args.action === "read" ||
+		args.action === "append" ||
+		args.action === "write"
 	)
 		requiredString(args.path, `notes ${args.action} requires path`);
-	if (args.action === "search_contents")
-		requiredString(args.query, "notes search_contents requires query");
-	if (args.action === "append_to_file" || args.action === "write_file")
+	if (args.action === "search")
+		requiredString(args.query, "notes search requires query");
+	if (args.action === "append" || args.action === "write")
 		requiredString(args.text, `notes ${args.action} requires text`, true);
 }
 
@@ -293,17 +274,14 @@ export function validateHistoryArguments(args: HistoryArguments): void {
 		args,
 		args.action === undefined ? [] : historyFields[args.action],
 	);
-	if (args.action === "read_item") {
+	if (args.action === "read") {
 		const hint =
-			" as a string. Copy window_id and item_id from the same search_contents or list_items result";
-		requiredString(
-			args.window_id,
-			`history read_item requires window_id${hint}`,
-		);
-		requiredString(args.item_id, `history read_item requires item_id${hint}`);
+			" as a string. Copy window_id and item_id from the same search or list result";
+		requiredString(args.window_id, `history read requires window_id${hint}`);
+		requiredString(args.item_id, `history read requires item_id${hint}`);
 	}
-	if (args.action === "search_contents")
-		requiredString(args.query, "history search_contents requires query");
+	if (args.action === "search")
+		requiredString(args.query, "history search requires query");
 }
 
 function validateFields(

@@ -1,5 +1,5 @@
 import type { JsonValue } from "@earendil-works/chord";
-import type { ToolCall } from "@earendil-works/pi-ai";
+import type { ToolCall, TSchema } from "@earendil-works/pi-ai";
 import { validateToolArguments } from "@earendil-works/pi-ai/utils/validation";
 import {
 	type Agent,
@@ -13,6 +13,8 @@ import {
 	type ToolRegistration,
 	ToolTask,
 } from "@earendil-works/pi-durable";
+import { Compile } from "typebox/compile";
+import { readToolContract } from "./tool-contract.ts";
 export type NestedInput = {
 	name: string;
 	arguments: JsonValue;
@@ -52,6 +54,38 @@ export function checked(
 		...call,
 		arguments: args as JsonObject,
 	}) as JsonObject;
+}
+
+/** Decode equivalent structured requests before registration preparation and hooks. */
+export function prepareNestedInput(
+	tool: ToolRegistration,
+	input: unknown,
+): unknown {
+	if (typeof input !== "string") return input;
+	const contract = readToolContract(tool);
+	if (
+		Boolean(Compile(tool.parameters).Check(input)) ||
+		Boolean(Compile(contract.inputSchema as TSchema).Check(input))
+	)
+		return input;
+	const text = input.trim();
+	if (contract.discovery === "help" && text === "help") return {};
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(text);
+	} catch {
+		if (tool.prepareArguments !== undefined) return input;
+		throw new Error(
+			`Invalid ${tool.name} arguments; use a structured request or valid JSON`,
+		);
+	}
+	if (parsed === null || typeof parsed !== "object") {
+		if (tool.prepareArguments !== undefined) return input;
+		throw new Error(
+			`Invalid ${tool.name} arguments; use a structured request or JSON object or array`,
+		);
+	}
+	return parsed;
 }
 
 /** Public hook registrations erase their handler type. Select by the built-in task name before restoring it. */

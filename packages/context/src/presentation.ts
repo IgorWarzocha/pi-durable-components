@@ -1,4 +1,4 @@
-/** Inventory and an optional bounded read_file result, not management's persisted state. */
+/** Inventory and an optional bounded read result, not management's persisted state. */
 export interface ContextNoteItem {
 	path: string;
 	bytes: number;

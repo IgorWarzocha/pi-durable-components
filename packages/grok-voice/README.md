@@ -40,7 +40,7 @@ For shared settings, pass `preferences: { storage, writeScope: "project" }` inst
 
 With preferences enabled, `settingsContribution` exposes `howaboua.grok-voice` for the host's settings service. Grok validates partial settings strictly and merges its defaults, global overrides and project overrides in that order. Service patches, `configure` and browser saves use the same store. A patch preserves omitted overrides and inherited values. Saves take effect only after persistence succeeds and apply on next use, leaving active calls unchanged. Without preferences, the existing configuration and settings callbacks behave as before.
 
-Dictation returns its finalized transcript once and optionally sends it to the host's editable draft. It never submits a generation automatically. Typed requests and `send_task` use ordinary conversation admission with explicit steering and request IDs. Other provider function calls become owned Durable child tasks invoking the conversation's selected ordinary registrations, including argument validation, hooks, cancellation and replay policy. There is no Code/Notebook bridge or voice-only tool registry. `send_task`, `end_the_call` and `work_landed` are reserved names; native xAI search also conflicts with a local `web_search` when enabled.
+Dictation returns its finalized transcript once and optionally sends it to the host's editable draft. It never submits a generation automatically. Typed requests and `send_task` use ordinary conversation admission with explicit steering and request IDs. Other provider function calls become owned Durable child tasks invoking the conversation's selected ordinary registrations, including argument validation, hooks, cancellation and replay policy. There is no Code/Notebook bridge or voice-only tool registry. `send_task`, `end_the_call`, `stay_quiet` and `work_landed` are reserved names; native xAI search also conflicts with a local `web_search` when enabled.
 
 Conversation summaries require `allowContext: true`. `contextModel: "off"` disables them. The selected Models chat model performs summarization separately from realtime voice; opaque native compaction checkpoints are rejected rather than silently omitted. Transcript and diagnostic entries are display-only. Live assistant/activity observation uses Durable's public, experimental `watchEvents` stream.
 
@@ -48,11 +48,15 @@ Conversation summaries require `allowContext: true`. `contextModel: "off"` disab
 
 LAN hosting requires explicit TLS certificate and listening grants. The certificate grant names the allowed hostnames/IP addresses; the listener grant owns interface exposure and cancellation. Browser controls retain settings, voice, dictation, mute, typed input, activity, PCM playback/drain and peer takeover. Losing a browser connection does not end the host-owned provider session.
 
+`lanStatus()` reports listener state, advertised URLs and browser attachment. Supply the optional host-owned `startBrowserVoice` callback to use `connectLan({ url, host?, signal? }, harness, conversationId, context)`. The URL must belong to the running listener. Browser's public startup API can supply this callback without a package dependency.
+
 This is trusted-network control, **not an internet-safe authenticated service**. Same-origin and Host checks are retained; they are not user authentication. Keep exposure private and close the component before switching conversations.
 
 `handoff.transport` is `pcm24`. An authenticated, ordered and bounded host channel connects `handoff.depart(channel, target)` to `handoff.arrive(harness, conversationId, channel, continuity, context)`. Check the target transport before departure; WebRTC transfers are not interchangeable with PCM. The destination requires a `capabilities.handoff` grant scoped to its channel, conversation and transport. That grant does not authorize native microphone access.
 
 The destination prepares before the source leaves. Departure waits for real agent/tool settlement, retains capture/playout and its physical microphone lease, then replaces the provider binding. Transfers alternate primary/alternate voices and preserve mute, typed work and activity routing. Failure before release keeps the original call; failure afterwards is reported, not disguised as a rollback. The host must not release/reacquire physical microphone ownership between bindings.
+
+After transfer, Stop closes the selected call but retains its authenticated session binding. Start snapshots fresh destination settings and context through that binding. Stop also cancels a pending restart before joining its operation queue. Returning to the original conversation reuses the existing audio owner. A disconnected selection reports an error rather than silently starting a call on the originating conversation. `close()` still tears down the complete binding chain.
 
 ## Persistence and native builds
 

@@ -32,6 +32,11 @@ export {
 	BrowserRuntime,
 	type BrowserRuntimeConfig,
 } from "./browser/runtime.ts";
+export {
+	type BrowserVoiceStartOptions,
+	type BrowserVoiceStartResult,
+	startBrowserVoice,
+} from "./browser/voice-start.ts";
 
 export function prepareBrowserInput(input: unknown): { command: string } {
 	if (input === undefined) return { command: "help" };
@@ -45,6 +50,7 @@ export function prepareBrowserInput(input: unknown): { command: string } {
 			);
 		return { ...input, command: input["command"] };
 	}
+	parseBrowserRequest(input);
 	return { command: JSON.stringify(input) };
 }
 
@@ -60,6 +66,8 @@ function isJson(value: unknown): value is JsonValue {
 }
 
 export interface BrowserToolOptions {
+	/** Keep native voice automation available without exposing the agent tool. */
+	voiceOnly?: boolean;
 	/** Artifact directory inside api.env, relative to that environment's cwd. */
 	environmentArtifactDirectory?: string;
 }
@@ -133,7 +141,14 @@ export function createBrowserTool(
 			};
 		},
 	});
-	return { ...tool, executionHints: { discovery: "help" as const } };
+	return {
+		...tool,
+		executionHints: {
+			discovery: "help" as const,
+			// Nested callers may use raw request objects; prepareArguments validates them.
+			inputSchema: { type: "object", additionalProperties: true },
+		},
+	};
 }
 
 /** The host explicitly authorizes native CDP, launch, SSH and private state IO.
@@ -146,7 +161,10 @@ export function createBrowserExtension(
 	return {
 		runtime,
 		tool,
-		extension: defineExtension({ name: "browser", tools: [tool] }),
+		extension: defineExtension({
+			name: "browser",
+			tools: config.voiceOnly ? [] : [tool],
+		}),
 		close: () => runtime.close(),
 	};
 }

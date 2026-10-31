@@ -29,7 +29,6 @@ import {
 	contextToolHelp,
 	contextToolResult,
 	type NotesArguments,
-	normalizeNotesArguments,
 	notesParameters,
 	prepareNotesArguments,
 	requiredString,
@@ -51,8 +50,7 @@ export function createNotesTool(options: {
 		replay: "safe",
 		outputLimits: contextOutputLimits,
 		async execute(args = {}, api, context) {
-			const writing =
-				args.action === "append_to_file" || args.action === "write_file";
+			const writing = args.action === "append" || args.action === "write";
 			if (writing)
 				await api.commit(
 					(tx) => beginNoteWrite(tx, api.conversationId, api.taskId),
@@ -72,7 +70,6 @@ export function createNotesTool(options: {
 			if (help) {
 				return contextToolResult(help);
 			}
-			args = normalizeNotesArguments(args);
 			validateNotesArguments(args);
 			context.abortSignal?.throwIfAborted();
 			const { target } = await resolveContextTarget(
@@ -113,7 +110,7 @@ export function createNotesTool(options: {
 								`notes ${args.action} requires text`,
 								true,
 							),
-							append: args.action === "append_to_file",
+							append: args.action === "append",
 							now: options.now,
 						});
 						// A saved note must have a deliverable acknowledgement in the same commit.
@@ -142,7 +139,7 @@ async function readNotes(
 	hasCatalog: boolean,
 ): Promise<ReturnType<typeof contextToolResult>> {
 	const state = hasCatalog ? await tx.doc(NotesState, id) : { files: [] };
-	if (args.action === "read_file") {
+	if (args.action === "read") {
 		const path = normalizeFilePath(args.path);
 		const file = state.files.find((file) => file.path === path);
 		if (!file) return contextToolResult({ file: null });
@@ -176,8 +173,8 @@ async function readNotes(
 			{ file: { ...noteMetadata(file), ...detail } },
 		);
 	}
-	if (args.action === "list_files_by_prefix") {
-		const prefix = normalizePrefix(args.prefix);
+	if (args.action === "list") {
+		const prefix = normalizePrefix(args.path);
 		const direction = args.file_order === "descending" ? -1 : 1;
 		const files = state.files
 			.filter((file) => file.path.startsWith(prefix))
@@ -190,7 +187,7 @@ async function readNotes(
 							: left.path.localeCompare(right.path);
 				return compared * direction;
 			});
-		const limit = boundedInteger(args.max_results, 20, 100);
+		const limit = boundedInteger(args.limit, 20, 100);
 		const selected = files.slice(0, limit);
 		const truncated = files.length > limit ? { truncated: true } : {};
 		return contextToolResult(
@@ -207,12 +204,9 @@ async function readNotes(
 			{ files: selected.map(noteMetadata), ...truncated },
 		);
 	}
-	const query = requiredString(
-		args.query,
-		"notes search_contents requires query",
-	);
-	const prefix = normalizePrefix(args.path_prefix);
-	const fileLimit = boundedInteger(args.max_files, 20, 100);
+	const query = requiredString(args.query, "notes search requires query");
+	const prefix = normalizePrefix(args.path);
+	const fileLimit = boundedInteger(args.limit, 20, 100);
 	const matchLimit = boundedInteger(args.max_matches_per_file, 20, 100);
 	const candidates = state.files
 		.filter((file) => file.path.startsWith(prefix))

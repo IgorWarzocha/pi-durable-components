@@ -1,5 +1,9 @@
 # Pulses parity
 
+## PR #558 to #570 reconciliation
+
+Read-only comparison of Pi Stuff `84bd5bce..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` found only Pulses package metadata changes. Shepherdr's new process-worker ownership checks validate pane, terminal and saved-session identity. Native Pulses already owns exact Durable task and conversation IDs with admission receipts and task-scoped cancellation. No terminal worker service or host transport is imported, and the native scheduler remains unchanged.
+
 The parser and schedule algorithms retain Clawa revision `07fbb0ad71a08a864b285b01d512c2052861b91d`. The 2026-10-19 alignment inspects `packages/pi-pulses` at Pi Stuff revision `7f3295e67a8e6146b2a6922b56a06fa4db5c3a32`. Both references are read-only; `packages/pulses/NOTICE` records attribution.
 
 Semantic schedule changes now reset eligibility time and seed the current slot instead of running against stale recurrence state. Cosmetic schedule spellings and body edits preserve the checkpoint. Legacy checkpoints without a parsed schedule identity seed safely on discovery. Reconciliation preserves admitted tasks, current conversations and historical associations.

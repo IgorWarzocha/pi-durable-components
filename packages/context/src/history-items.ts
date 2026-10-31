@@ -105,8 +105,7 @@ export function matchesHistoryItem(
 		(!args.role || item.role === args.role) &&
 		(!args.tool_name || item.tool_name === args.tool_name) &&
 		(!args.tool_namespace || item.tool_namespace === args.tool_namespace) &&
-		(args.action !== "search_contents" ||
-			item.content.includes(args.query ?? ""))
+		(args.action !== "search" || item.content.includes(args.query ?? ""))
 	);
 }
 

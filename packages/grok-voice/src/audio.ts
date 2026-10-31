@@ -10,4 +10,8 @@ export interface RealtimeAudio {
 	drain(): Promise<void>;
 	setMuted(muted: boolean): void;
 	close(): Promise<void>;
+	/** Optional retained handoff-binding lifecycle. Native audio needs no implementation. */
+	stopCall?(): void;
+	resumeCall?(): void;
+	disconnect?(): void;
 }

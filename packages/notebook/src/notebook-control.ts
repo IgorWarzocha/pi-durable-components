@@ -3,7 +3,7 @@ import { Type } from "typebox";
 import { Check } from "typebox/value";
 import type { NotebookControlRequest } from "./runtime-contract.ts";
 
-const NOTEBOOK_ACTION_PARAMETERS = Type.Union([
+export const NOTEBOOK_ACTION_PARAMETERS = Type.Union([
 	Type.Object(
 		{
 			action: Type.Union([Type.Literal("status"), Type.Literal("list")]),
@@ -76,9 +76,6 @@ export const NOTEBOOK_PARAMETERS = Type.Object(
 	{ additionalProperties: false },
 );
 
-export const NOTEBOOK_DESCRIPTION =
-	"Control persistent notebook state; status queries memory/bindings by glob; prune removes unpinned matches; list/save/load manage profiles";
-
 export const NOTEBOOK_HELP = `Call notebook with {} or {"input":"help"} for help, or {"input":"<JSON action object>"}.
 Example: {"input":"{\\"action\\":\\"status\\",\\"query\\":\\"*\\"}"}
 Action objects accept only the fields shown below; ? means optional.
@@ -103,15 +100,6 @@ Hooks must be self-contained fn(event), awaited when invoked. startup gets {type
 Run management calls after exec returns. Inside exec, tools.notebook({}) returns help. tools.notebook({action,...}) supports status without query, list and diagnostics only. A blocked call returns the top-level retry. release/prune may restart the kernel for lexical bindings, clearing runtime-only handles. Normal cells allow one active execution. isolated:true runs a separate Deno kernel from committed saved state, up to four at once. Use wait to continue or terminate. Completion saves a named candidate without changing live state. list exposes candidates; load adds saved bindings by value and rejects collisions. Release or rename collisions first. Only checkpoint-supported state transfers, not arbitrary closures, types or imports. External tool and file effects remain shared. Inspect reported cleanup failures and restore notices. For failed state/helpers, diagnose, repair or prune, then verify recovery. restart restores completed state; reset discards only session state.
 
 Reusable-global examples foo/bar are installed when neither name is occupied; inspect their .description and .usage before use.`;
-
-export function isEmptyNotebookRequest(input: unknown): boolean {
-	return (
-		typeof input === "object" &&
-		input !== null &&
-		!Array.isArray(input) &&
-		Object.keys(input).length === 0
-	);
-}
 
 export function parseNotebookRequest(input: unknown): NotebookControlRequest {
 	if (!Check(NOTEBOOK_ACTION_PARAMETERS, input))

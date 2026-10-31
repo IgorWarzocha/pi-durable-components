@@ -1,5 +1,9 @@
 # Skills parity
 
+## PR #558 to #570 reconciliation
+
+Read-only comparison of Pi Stuff `84bd5bce..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d` found only Skills changelog and package metadata changes. Discovery, selector ordering, package confinement and read results have no new source implementation delta. Native behaviour remains unchanged.
+
 Source: [`pi-better-skills-tool` at `b2006db9def12c373ae48e70044d30f7d6b7e34f`](https://github.com/IgorWarzocha/howaboua-pi-stuff/tree/b2006db9def12c373ae48e70044d30f7d6b7e34f/packages/pi-better-skills-tool). The source checkout was read-only. Adapted algorithms retain the MIT notice in `packages/skills/NOTICE`.
 
 The component registers `skills` as an ordinary Durable `ToolRegistration` with `{ command?: string }` arguments and text content. Details carry exposed instruction-body evidence, described below. Empty calls and explicit help return command guidance with the catalog. Explicit list returns reference-selection guidance with the catalog. There is no Code or Notebook adapter. A Durable section supplies the source progressive-discovery guidance by default without editing other prompt sections. It remains present for selected nested-callable tools even when the model is not offered Skills directly. `guidance: false`, disabling the tool or deselecting the extension removes it. The whole-package audit at read-only Pi Stuff `12c4357b2c401fe9be8c6c82d2ae252c0f986937` corrected the previous opt-in default, which had silently omitted source guidance.

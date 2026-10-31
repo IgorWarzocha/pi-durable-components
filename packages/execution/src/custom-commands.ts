@@ -234,6 +234,8 @@ function createCustomCommandTool(
 				typeof value.input === "string"
 			)
 				return { input: value.input };
+			if (value !== null && typeof value === "object")
+				return { input: JSON.stringify(value) };
 			throw new Error(`${definition.name} expects a string input`);
 		},
 		async execute(args, api, context) {
@@ -278,7 +280,9 @@ function createCustomCommandTool(
 		executionHints: {
 			usage: definition.usage,
 			deferLoading: definition.deferLoading,
-			inputSchema: { type: "string" },
+			inputSchema: {
+				anyOf: [{ type: "string" }, { type: "object" }, { type: "array" }],
+			},
 			...(definition.output === undefined ? {} : { output: definition.output }),
 			...(definition.yieldTimeMs === undefined
 				? {}

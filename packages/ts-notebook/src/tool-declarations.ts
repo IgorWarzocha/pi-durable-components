@@ -1,4 +1,4 @@
-// Adapted from howaboua-pi-stuff at 84bd5bce, MIT. See ../NOTICE.
+// Adapted from howaboua-pi-stuff through e4aa5bb43c560b722829a5123b3f2e05d3d9a19d, MIT. See ../NOTICE.
 import type { NativeToolDefinition } from "./runtime-contract.ts";
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -246,7 +246,7 @@ export function buildTsToolDeclarations(
 		const optional = tool.discovery === "help" || tool.inputOptional === true;
 		const input = `__TsToolInput${index}`;
 		declarations.push(new SchemaTypes(tool.inputSchema, input).declaration());
-		return `readonly ${JSON.stringify(tool.name)}: (input${optional ? "?" : ""}: ${input}) => Promise<any>`;
+		return `readonly ${JSON.stringify(tool.name)}: (input${optional ? "?" : ""}: ${input} | string) => Promise<any>`;
 	});
 	return [
 		...declarations,

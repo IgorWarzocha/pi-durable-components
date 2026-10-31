@@ -78,6 +78,14 @@ The Fleet document now declares Durable 1.4's required checkpoint policy, storin
 
 A disposable actual-Harness probe admitted two blocking same-label spawns in one native tool round, held both workers concurrently and observed unique `same-label` and `same-label-2` names before either completed. Both calls settled after release. Captured worker requests preserved a multiline role, including a tab and trailing newline, after the shared project section. Strict TypeScript passed against Durable, Pi AI and Chord 1.4.0. No permanent tests or live-provider claims were added. The coordinator owns the final repository gate.
 
+## PR #558 to #570 alignment
+
+Compared read-only Pi Stuff `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d`, including #558, #561, #565, #567, #569 and #570. Agents now publishes an explicitly open discovery envelope with optional `action` and `target`. Action-specific fields remain in help and the existing strict runtime schema. Missing required arguments and unknown fields still fail before admission. The description requires reading help alone before first use. Blocking help distinguishes awaiting blocking calls from automatic background reports, and find normalises case, spaces, dashes and underscores within each field.
+
+Source settlement now waits for the final persisted assistant reply rather than trusting a process status that can arrive first. Native `Dispatch` already waits for `submission.wait()` and resolves the settled answer entry. Native watches likewise follow input settlement across generation successors. Existing cancellation, replay and watch workflows cover this stronger boundary. Context sharing remains recorded atomically before dispatch with controller default false. Source relay preparation, optional service discovery, Core terminal identity, placement, SSH and focus transport remain host-specific. No pane backend, process relay or second sharing owner is introduced.
+
+A disposable real-Harness probe captured the open provider declaration and exercised help, separator-normalised find, rejection of incomplete spawn and host-only fields, and native Web execution through an independent caller tool. The seven existing Agents and Browser lifecycle workflows passed. No permanent tests or external provider calls were added.
+
 ## Attribution
 
 Background ownership and report submission patterns adapt Durable example 23 under its MIT license. The upstream copyright and permission notice are retained in `packages/agents/src/tasks.ts` and the published `packages/agents/NOTICE`. Shepherdr's delegation contracts are used under its MIT license, copyright 2026 Igor Warzocha, matching this repository's license. The package notice records the pinned revisions and inherited copyright holders.

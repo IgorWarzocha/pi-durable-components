@@ -1,5 +1,13 @@
 # Notebook parity
 
+## PR #561 alignment
+
+Compared read-only Pi Stuff `84bd5bce60a77c4298484d4b7c810d4fe5220a1b..e4aa5bb43c560b722829a5123b3f2e05d3d9a19d`. PR #561 input normalisation reaches Deno through the shared nested-registration path. The source's cell-source, diagnostic, lifecycle and project-conflict extractions do not change their contracts.
+
+The old private lifecycle proxy is removed. Nested `notebook` calls now use the same ordinary registration, preparation, hooks, owned task and receipt path as other tools, matching the existing JS implementation. Direct action objects and native input envelopes remain accepted. Help, status without query, list and diagnostics remain available during a cell. Other valid controls return the existing not-run retry without mutating the active kernel.
+
+A disposable actual Durable and Deno probe verified structured nested arguments, configured commands, lifecycle help and all three allowed controls. A nested restart returned not-run, retained the live value and produced an ordinary forwarded notebook receipt. No permanent test was added.
+
 ## PR #552 refresh
 
 The merged-head alignment compares `1338b66a..84bd5bce` read-only. Existing Deno Notebook now accepts `isolated:true` in the leading exec pragma. Up to four independent kernels fork committed disk state alongside the single normal cell. Snapshot reads queue behind checkpoint commits without flushing or sampling a running kernel. Each fork owns temporary storage, retention and bridge lifetime. Successful completion saves an `isolated-*` profile before reporting completion. It never adopts bindings into the live kernel. `list` exposes candidates and `load` adds supported bindings by value, rejecting collisions. Cancellation, reset, restart and close stop owned forks without replaying source or rolling back external effects. The exact upstream Deno 2.9.8 asset pins replace 2.9.7.

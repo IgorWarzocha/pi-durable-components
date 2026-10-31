@@ -4,6 +4,8 @@ Source: https://github.com/IgorWarzocha/howaboua-pi-stuff
 Modifications: standalone pi-ai Provider for Durable hosts, instance-owned
 transport lifecycle, native Node transport and image preparation.
 The Pi extension, TUI and session-manager adapters are not included.
+Request-local transient WebSocket fallback follows Pi Stuff revision
+e4aa5bb43c560b722829a5123b3f2e05d3d9a19d, openai-codex/transport-recovery.ts.
 Selected protocol refreshes from snapshot 69f50cf70e8a7b05c2349be6227f521b6504f80e:
 SSE opening retry budget from 5a109ed787b2a2e947f262be21f610ed3b732c4f;
 partial_answer signatures and replay from b7d92bd90aa5fa6b25b18080a88539aab54254b5.
