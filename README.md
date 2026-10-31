@@ -14,7 +14,7 @@ For app authors building a component catalogue, the [marketplace proposal](docs/
 
 ## Install
 
-Release 0.9.1 includes all 25 components and targets Pi Durable, pi-ai and Chord 1.4.0. Most components require Node.js 22.19 or newer. Worker Code and the OpenAI Responses provider also support Cloudflare Workers with the configuration in their guides. A browser-only app needs a backend for native components.
+Release 0.9.1 publishes all 25 components individually to npm and targets Pi Durable, pi-ai and Chord 1.4.0. Most components require Node.js 22.19 or newer. Worker Code and the OpenAI Responses provider also support Cloudflare Workers with the configuration in their guides. A browser-only app needs a backend for native components.
 
 Durable 1.4 automatically migrates SQLite storage to schema version 2. Older Durable versions cannot reopen it. Upgrade the host and its components together, and plan recovery before opening an existing database. Older versions also cannot resume the new sleeping tasks in JSONL storage.
 
